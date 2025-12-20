@@ -86,16 +86,13 @@ export function UpcomingPayments() {
           <div
             key={payment.id}
             className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group cursor-pointer"
-            style={{ animationDelay: `${index * 50}ms` }}
           >
             <div className="flex items-center gap-4">
-              <div className={cn(
-                "h-2.5 w-2.5 rounded-full flex-shrink-0",
-                statusConfig[payment.status].dot
-              )}>
-                {payment.status === "overdue" && (
-                  <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75" />
-                )}
+              <div className="relative flex-shrink-0">
+                <div className={cn(
+                  "h-2.5 w-2.5 rounded-full",
+                  statusConfig[payment.status].dot
+                )} />
               </div>
               <div>
                 <p className="font-medium text-foreground text-sm flex items-center gap-2">
