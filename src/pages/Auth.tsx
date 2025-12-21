@@ -4,11 +4,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Loader2, Building2 } from 'lucide-react';
+import { Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
+import logoCA from '@/assets/logo-ca-full.png';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -27,6 +29,8 @@ const Auth = () => {
   const { user, signIn, signUp, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   
   // Login form
   const [loginEmail, setLoginEmail] = useState('');
@@ -108,63 +112,127 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background gradient */}
+      <div 
+        className="absolute inset-0 -z-10"
+        style={{
+          background: 'linear-gradient(135deg, hsl(220 20% 97%) 0%, hsl(30 30% 85%) 50%, hsl(30 40% 75%) 100%)',
+        }}
+      />
+      
+      {/* Decorative elements */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-secondary/20 to-transparent blur-3xl -z-10" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-gradient-to-tr from-primary/10 to-transparent blur-3xl -z-10" />
+
       <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary text-primary-foreground mb-4">
-            <Building2 className="h-8 w-8" />
-          </div>
-          <h1 className="text-2xl font-display font-bold text-foreground">Gestión Contable</h1>
-          <p className="text-muted-foreground mt-1">Sistema de gestión de estudio contable</p>
-        </div>
+        <Card className="border-0 shadow-2xl bg-card/95 backdrop-blur-sm">
+          <CardHeader className="text-center pb-2 pt-8">
+            {/* Logo */}
+            <div className="flex justify-center mb-4">
+              <img 
+                src={logoCA} 
+                alt="C&A Contadores" 
+                className="h-24 w-auto object-contain"
+              />
+            </div>
+            
+            <h1 className="text-2xl font-display font-bold text-foreground">Bienvenido</h1>
+            <p className="text-muted-foreground text-sm">Sistema de Gestión Contable</p>
+          </CardHeader>
 
-        <Card className="border-border/50 shadow-xl">
           <Tabs defaultValue="login" className="w-full">
-            <CardHeader className="pb-2">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
-                <TabsTrigger value="signup">Registrarse</TabsTrigger>
+            <CardContent className="pt-4 pb-6">
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/60">
+                <TabsTrigger 
+                  value="login" 
+                  className="data-[state=active]:bg-card data-[state=active]:shadow-sm"
+                >
+                  Iniciar Sesión
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="signup"
+                  className="data-[state=active]:bg-card data-[state=active]:shadow-sm"
+                >
+                  Registrarse
+                </TabsTrigger>
               </TabsList>
-            </CardHeader>
 
-            <CardContent className="pt-4">
-              <TabsContent value="login" className="mt-0">
+              <TabsContent value="login" className="mt-0 space-y-4">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
+                    <Label htmlFor="login-email" className="text-sm font-medium">
+                      Correo electrónico
+                    </Label>
                     <Input
                       id="login-email"
                       type="email"
-                      placeholder="tu@email.com"
+                      placeholder="usuario@ejemplo.com"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
-                      className="input-focus"
+                      className="h-11 border-border/60 focus:border-primary/50 focus:ring-primary/20"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password">Contraseña</Label>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      required
-                      className="input-focus"
-                    />
+                    <Label htmlFor="login-password" className="text-sm font-medium">
+                      Contraseña
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="login-password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        required
+                        className="h-11 pr-10 border-border/60 focus:border-primary/50 focus:ring-primary/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
-                  <Button type="submit" className="w-full btn-gradient" disabled={loading}>
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Iniciar Sesión
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="remember" 
+                      checked={rememberMe}
+                      onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                    />
+                    <Label 
+                      htmlFor="remember" 
+                      className="text-sm font-normal text-muted-foreground cursor-pointer"
+                    >
+                      Recordarme
+                    </Label>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-lg shadow-primary/25" 
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <LogIn className="h-4 w-4 mr-2" />
+                    )}
+                    Iniciar sesión
                   </Button>
                 </form>
               </TabsContent>
 
-              <TabsContent value="signup" className="mt-0">
+              <TabsContent value="signup" className="mt-0 space-y-4">
                 <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nombre Completo</Label>
+                    <Label htmlFor="signup-name" className="text-sm font-medium">
+                      Nombre Completo
+                    </Label>
                     <Input
                       id="signup-name"
                       type="text"
@@ -172,23 +240,27 @@ const Auth = () => {
                       value={signupFullName}
                       onChange={(e) => setSignupFullName(e.target.value)}
                       required
-                      className="input-focus"
+                      className="h-11 border-border/60 focus:border-primary/50 focus:ring-primary/20"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email" className="text-sm font-medium">
+                      Correo electrónico
+                    </Label>
                     <Input
                       id="signup-email"
                       type="email"
-                      placeholder="tu@email.com"
+                      placeholder="usuario@ejemplo.com"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       required
-                      className="input-focus"
+                      className="h-11 border-border/60 focus:border-primary/50 focus:ring-primary/20"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Contraseña</Label>
+                    <Label htmlFor="signup-password" className="text-sm font-medium">
+                      Contraseña
+                    </Label>
                     <Input
                       id="signup-password"
                       type="password"
@@ -196,11 +268,13 @@ const Auth = () => {
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
                       required
-                      className="input-focus"
+                      className="h-11 border-border/60 focus:border-primary/50 focus:ring-primary/20"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-confirm">Confirmar Contraseña</Label>
+                    <Label htmlFor="signup-confirm" className="text-sm font-medium">
+                      Confirmar Contraseña
+                    </Label>
                     <Input
                       id="signup-confirm"
                       type="password"
@@ -208,22 +282,27 @@ const Auth = () => {
                       value={signupConfirmPassword}
                       onChange={(e) => setSignupConfirmPassword(e.target.value)}
                       required
-                      className="input-focus"
+                      className="h-11 border-border/60 focus:border-primary/50 focus:ring-primary/20"
                     />
                   </div>
-                  <Button type="submit" className="w-full btn-gradient" disabled={loading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-lg shadow-primary/25" 
+                    disabled={loading}
+                  >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Crear Cuenta
                   </Button>
                 </form>
               </TabsContent>
+
+              {/* Footer */}
+              <p className="text-center text-xs text-muted-foreground mt-6 pt-4 border-t border-border/50">
+                © 2024 C&A Contadores. Todos los derechos reservados.
+              </p>
             </CardContent>
           </Tabs>
         </Card>
-
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Al registrarte, aceptas nuestros términos de servicio y política de privacidad.
-        </p>
       </div>
     </div>
   );
