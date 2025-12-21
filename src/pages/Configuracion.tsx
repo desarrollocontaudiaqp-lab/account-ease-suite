@@ -11,7 +11,7 @@ const Configuracion = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
+        <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
           Configuración
         </h1>
         <p className="text-muted-foreground mt-1">
