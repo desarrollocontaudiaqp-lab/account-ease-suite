@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface Contract {
   id: string;
@@ -95,6 +96,7 @@ const typeStyles = {
 
 const Contratos = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
 
   const filteredContracts = contracts.filter(
     (contract) =>
@@ -107,7 +109,7 @@ const Contratos = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
             Contratos
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -161,8 +163,8 @@ const Contratos = () => {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="flex gap-4">
+      {/* Search & View Toggle */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -172,87 +174,222 @@ const Contratos = () => {
             className="pl-10"
           />
         </div>
+        <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as "cards" | "table")}>
+          <ToggleGroupItem value="cards" aria-label="Vista tarjetas">
+            <LayoutGrid className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="table" aria-label="Vista tabla">
+            <List className="h-4 w-4" />
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
-      {/* Contracts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filteredContracts.map((contract) => (
-          <div
-            key={contract.id}
-            className="bg-card rounded-xl border border-border p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <FileCheck className="h-5 w-5 text-primary" />
+      {/* Cards View */}
+      {viewMode === "cards" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {filteredContracts.map((contract) => (
+            <div
+              key={contract.id}
+              className="bg-card rounded-xl border border-border p-6 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <FileCheck className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">{contract.number}</p>
+                    <p className="text-sm text-muted-foreground">{contract.client}</p>
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Ver detalle
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Cancelar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Badge variant="outline" className={typeStyles[contract.type]}>
+                  {contract.type}
+                </Badge>
+                <Badge variant="outline" className={statusStyles[contract.status]}>
+                  {contract.status}
+                </Badge>
+                {contract.pendingPayments > 0 && (
+                  <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+                    {contract.pendingPayments} pago(s) pendiente(s)
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                <div>
+                  <p className="text-muted-foreground">Asesor</p>
+                  <p className="font-medium text-foreground">{contract.advisor}</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">{contract.number}</p>
-                  <p className="text-sm text-muted-foreground">{contract.client}</p>
+                  <p className="text-muted-foreground">Cuota Mensual</p>
+                  <p className="font-medium text-foreground">
+                    S/ {contract.monthlyFee.toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Inicio</p>
+                  <p className="font-medium text-foreground">{contract.startDate}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Fin</p>
+                  <p className="font-medium text-foreground">{contract.endDate}</p>
                 </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Ver detalle
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
 
-            <div className="flex flex-wrap gap-2 mb-4">
-              <Badge variant="outline" className={typeStyles[contract.type]}>
-                {contract.type}
-              </Badge>
-              <Badge variant="outline" className={statusStyles[contract.status]}>
-                {contract.status}
-              </Badge>
-              {contract.pendingPayments > 0 && (
-                <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
-                  {contract.pendingPayments} pago(s) pendiente(s)
-                </Badge>
-              )}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-muted-foreground">Progreso</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {contract.progress}%
+                  </span>
+                </div>
+                <Progress value={contract.progress} className="h-2" />
+              </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-              <div>
-                <p className="text-muted-foreground">Asesor</p>
-                <p className="font-medium text-foreground">{contract.advisor}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Cuota Mensual</p>
-                <p className="font-medium text-foreground">
-                  S/ {contract.monthlyFee.toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Inicio</p>
-                <p className="font-medium text-foreground">{contract.startDate}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Fin</p>
-                <p className="font-medium text-foreground">{contract.endDate}</p>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm text-muted-foreground">Progreso</span>
-                <span className="text-sm font-medium text-foreground">
-                  {contract.progress}%
-                </span>
-              </div>
-              <Progress value={contract.progress} className="h-2" />
-            </div>
+      {/* Table View */}
+      {viewMode === "table" && (
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-muted/50">
+                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                    Contrato
+                  </th>
+                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                    Cliente
+                  </th>
+                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                    Tipo
+                  </th>
+                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                    Asesor
+                  </th>
+                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                    Cuota Mensual
+                  </th>
+                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                    Estado
+                  </th>
+                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                    Progreso
+                  </th>
+                  <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredContracts.map((contract) => (
+                  <tr key={contract.id} className="table-row-hover">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <FileCheck className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="font-medium text-foreground">
+                          {contract.number}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-foreground">
+                        {contract.client}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="outline" className={typeStyles[contract.type]}>
+                        {contract.type}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-muted-foreground">
+                        {contract.advisor}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-semibold text-foreground">
+                        S/ {contract.monthlyFee.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant="outline" className={statusStyles[contract.status]}>
+                          {contract.status}
+                        </Badge>
+                        {contract.pendingPayments > 0 && (
+                          <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+                            {contract.pendingPayments} pago(s)
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 min-w-[120px]">
+                        <Progress value={contract.progress} className="h-2 flex-1" />
+                        <span className="text-sm text-muted-foreground w-10 text-right">
+                          {contract.progress}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver detalle
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Cancelar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

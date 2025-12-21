@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Filter, Eye, Download, Send, MoreHorizontal, FileText, Calculator } from "lucide-react";
+import { Plus, Search, Filter, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface Proforma {
   id: string;
@@ -85,6 +86,7 @@ const typeStyles = {
 const Proformas = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("todas");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("table");
 
   const filteredProformas = proformas.filter((proforma) => {
     const matchesSearch =
@@ -102,7 +104,7 @@ const Proformas = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
             Proformas
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -169,113 +171,197 @@ const Proformas = () => {
             <Button variant="outline" size="icon">
               <Filter className="h-4 w-4" />
             </Button>
+            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as "cards" | "table")}>
+              <ToggleGroupItem value="cards" aria-label="Vista tarjetas">
+                <LayoutGrid className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="table" aria-label="Vista tabla">
+                <List className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
 
         <TabsContent value={activeTab} className="mt-6">
-          <div className="bg-card rounded-xl border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-muted/50">
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                      Proforma
-                    </th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                      Cliente
-                    </th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                      Tipo
-                    </th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                      Items
-                    </th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                      Total
-                    </th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                      Estado
-                    </th>
-                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                      Válida hasta
-                    </th>
-                    <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredProformas.map((proforma) => (
-                    <tr key={proforma.id} className="table-row-hover">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-muted">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <span className="font-medium text-foreground">
-                            {proforma.number}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-foreground">
-                          {proforma.client}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge variant="outline" className={typeStyles[proforma.type]}>
-                          {proforma.type}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {proforma.items} servicios
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="font-semibold text-foreground">
-                          S/ {proforma.total.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge variant="outline" className={statusStyles[proforma.status]}>
-                          {proforma.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {proforma.validUntil}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver detalle
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Download className="h-4 w-4 mr-2" />
-                              Descargar PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Send className="h-4 w-4 mr-2" />
-                              Enviar al cliente
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Cards View */}
+          {viewMode === "cards" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {filteredProformas.map((proforma) => (
+                <div
+                  key={proforma.id}
+                  className="bg-card rounded-xl border border-border p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-muted">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">{proforma.number}</p>
+                        <p className="text-sm text-muted-foreground">{proforma.client}</p>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver detalle
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Download className="h-4 w-4 mr-2" />
+                          Descargar PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Send className="h-4 w-4 mr-2" />
+                          Enviar al cliente
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <Badge variant="outline" className={typeStyles[proforma.type]}>
+                      {proforma.type}
+                    </Badge>
+                    <Badge variant="outline" className={statusStyles[proforma.status]}>
+                      {proforma.status}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                    <div>
+                      <p className="text-muted-foreground">Items</p>
+                      <p className="font-medium text-foreground">{proforma.items} servicios</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total</p>
+                      <p className="font-semibold text-foreground">S/ {proforma.total.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Creada</p>
+                      <p className="font-medium text-foreground">{proforma.createdAt}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Válida hasta</p>
+                      <p className="font-medium text-foreground">{proforma.validUntil}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
+
+          {/* Table View */}
+          {viewMode === "table" && (
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Proforma
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Cliente
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Tipo
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Items
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Total
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Estado
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Válida hasta
+                      </th>
+                      <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filteredProformas.map((proforma) => (
+                      <tr key={proforma.id} className="table-row-hover">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-muted">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <span className="font-medium text-foreground">
+                              {proforma.number}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-foreground">
+                            {proforma.client}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge variant="outline" className={typeStyles[proforma.type]}>
+                            {proforma.type}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-muted-foreground">
+                            {proforma.items} servicios
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="font-semibold text-foreground">
+                            S/ {proforma.total.toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge variant="outline" className={statusStyles[proforma.status]}>
+                            {proforma.status}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-muted-foreground">
+                            {proforma.validUntil}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Ver detalle
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Download className="h-4 w-4 mr-2" />
+                                Descargar PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Send className="h-4 w-4 mr-2" />
+                                Enviar al cliente
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

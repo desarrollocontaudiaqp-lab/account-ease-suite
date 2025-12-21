@@ -219,7 +219,7 @@ const Usuarios = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
             Gestión de Usuarios
           </h1>
           <p className="text-muted-foreground mt-1">
