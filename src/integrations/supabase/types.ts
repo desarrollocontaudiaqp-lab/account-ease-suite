@@ -501,8 +501,45 @@ export type Database = {
           },
         ]
       }
+      proforma_plantillas: {
+        Row: {
+          activa: boolean
+          campos: Json
+          created_at: string
+          created_by: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          tipo: Database["public"]["Enums"]["proforma_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          campos?: Json
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          tipo: Database["public"]["Enums"]["proforma_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          campos?: Json
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          tipo?: Database["public"]["Enums"]["proforma_tipo"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       proformas: {
         Row: {
+          campos_personalizados: Json | null
           cliente_id: string
           contrato_id: string | null
           created_at: string
@@ -516,10 +553,12 @@ export type Database = {
           numero: string
           status: Database["public"]["Enums"]["proforma_status"]
           subtotal: number
+          tipo: Database["public"]["Enums"]["proforma_tipo"]
           total: number
           updated_at: string
         }
         Insert: {
+          campos_personalizados?: Json | null
           cliente_id: string
           contrato_id?: string | null
           created_at?: string
@@ -533,10 +572,12 @@ export type Database = {
           numero: string
           status?: Database["public"]["Enums"]["proforma_status"]
           subtotal?: number
+          tipo?: Database["public"]["Enums"]["proforma_tipo"]
           total?: number
           updated_at?: string
         }
         Update: {
+          campos_personalizados?: Json | null
           cliente_id?: string
           contrato_id?: string | null
           created_at?: string
@@ -550,6 +591,7 @@ export type Database = {
           numero?: string
           status?: Database["public"]["Enums"]["proforma_status"]
           subtotal?: number
+          tipo?: Database["public"]["Enums"]["proforma_tipo"]
           total?: number
           updated_at?: string
         }
@@ -629,6 +671,7 @@ export type Database = {
         | "aprobada"
         | "rechazada"
         | "facturada"
+      proforma_tipo: "contabilidad" | "tramites"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -779,6 +822,7 @@ export const Constants = {
         "rechazada",
         "facturada",
       ],
+      proforma_tipo: ["contabilidad", "tramites"],
     },
   },
 } as const
