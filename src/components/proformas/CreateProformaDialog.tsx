@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -58,6 +71,48 @@ interface CreateProformaDialogProps {
   tipo: "contabilidad" | "tramites";
 }
 
+// Servicios predeterminados de Contabilidad
+const serviciosContabilidad = [
+  "Auditoría Financiera",
+  "Conciliaciones bancarias",
+  "Análisis de cuentas",
+  "Flujo de efectivo",
+  "Evaluación fiscal",
+  "Implementación de Sistemas Integrados de Gestión",
+  "Implementación de sistemas de Control Interno",
+  "Contabilidad Integral (libros electrónicos, control interno, proyección financiera, estados financieros)",
+  "Outsourcing Contable",
+  "Declaraciones mensuales PDT",
+  "Detracciones",
+  "Percepciones",
+  "Retenciones",
+  "Fraccionamientos",
+  "DJ Anual",
+];
+
+// Servicios predeterminados de Trámites
+const serviciosTramites = [
+  "Reserva de nombre",
+  "Elaboración de estatutos",
+  "Inscripción en SUNARP",
+  "Publicidad registral",
+  "Alta en SUNAT",
+  "Licencias Municipales",
+  "Registro de Marca INDECOPI",
+  "Registro RNP/OSCE",
+  "Elaboración de contratos laborales",
+  "Registro PLAME",
+  "AFP Net",
+  "Essalud",
+  "Liquidación de beneficios",
+  "Trámites SUNAFIL",
+  "Modificación de datos RUC",
+  "Comprobantes electrónicos",
+  "Libros electrónicos",
+  "Baja de comprobantes",
+  "Suspensión temporal",
+];
+
 export function CreateProformaDialog({
   open,
   onOpenChange,
@@ -75,6 +130,9 @@ export function CreateProformaDialog({
   ]);
   const [notas, setNotas] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState("");
+  const [openServicePopovers, setOpenServicePopovers] = useState<Record<number, boolean>>({});
+
+  const serviciosPredeterminados = tipo === "contabilidad" ? serviciosContabilidad : serviciosTramites;
 
   useEffect(() => {
     if (open) {
@@ -137,6 +195,11 @@ export function CreateProformaDialog({
     }
     
     setItems(newItems);
+  };
+
+  const handleSelectService = (index: number, service: string) => {
+    handleItemChange(index, "descripcion", service);
+    setOpenServicePopovers((prev) => ({ ...prev, [index]: false }));
   };
 
   const addItem = () => {
@@ -261,7 +324,7 @@ export function CreateProformaDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
             Nueva Proforma de {tipo === "contabilidad" ? "Contabilidad" : "Trámites"}
@@ -272,8 +335,8 @@ export function CreateProformaDialog({
           {/* Datos del cliente */}
           <div className="border rounded-lg p-4 space-y-4">
             <h3 className="font-semibold">Datos del Cliente</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="col-span-1 md:col-span-2">
                 <Label>Cliente</Label>
                 <Select value={selectedCliente} onValueChange={setSelectedCliente}>
                   <SelectTrigger className="mt-1">
@@ -297,7 +360,7 @@ export function CreateProformaDialog({
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Dirección</Label>
-                    <p className="font-medium">{selectedClienteData.direccion || "-"}</p>
+                    <p className="font-medium text-sm">{selectedClienteData.direccion || "-"}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Email</Label>
@@ -334,7 +397,7 @@ export function CreateProformaDialog({
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {selectedPlantilla.campos.map((campo) => (
                   <div key={campo.id}>
                     <Label>
@@ -389,25 +452,81 @@ export function CreateProformaDialog({
             </div>
 
             <div className="space-y-3">
+              <div className="hidden lg:grid lg:grid-cols-12 gap-3 text-xs font-medium text-muted-foreground px-1">
+                <div className="col-span-6">Descripción del servicio</div>
+                <div className="col-span-1 text-center">Cant.</div>
+                <div className="col-span-2 text-center">Precio</div>
+                <div className="col-span-2 text-center">Subtotal</div>
+                <div className="col-span-1"></div>
+              </div>
+
               {items.map((item, index) => (
-                <div key={index} className="flex gap-3 items-start">
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Descripción del servicio"
-                      value={item.descripcion}
-                      onChange={(e) => handleItemChange(index, "descripcion", e.target.value)}
-                    />
+                <div key={index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+                  <div className="lg:col-span-6">
+                    <Popover
+                      open={openServicePopovers[index] || false}
+                      onOpenChange={(isOpen) =>
+                        setOpenServicePopovers((prev) => ({ ...prev, [index]: isOpen }))
+                      }
+                    >
+                      <PopoverTrigger asChild>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar o escribir servicio..."
+                            value={item.descripcion}
+                            onChange={(e) => {
+                              handleItemChange(index, "descripcion", e.target.value);
+                              setOpenServicePopovers((prev) => ({ ...prev, [index]: true }));
+                            }}
+                            onFocus={() =>
+                              setOpenServicePopovers((prev) => ({ ...prev, [index]: true }))
+                            }
+                            className="pl-9"
+                          />
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent 
+                        className="p-0 w-[var(--radix-popover-trigger-width)]" 
+                        align="start"
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                      >
+                        <Command>
+                          <CommandInput placeholder="Buscar servicio..." className="h-9" />
+                          <CommandList>
+                            <CommandEmpty>No se encontraron servicios</CommandEmpty>
+                            <CommandGroup heading="Servicios sugeridos">
+                              {serviciosPredeterminados
+                                .filter((s) =>
+                                  s.toLowerCase().includes(item.descripcion.toLowerCase())
+                                )
+                                .slice(0, 10)
+                                .map((service) => (
+                                  <CommandItem
+                                    key={service}
+                                    onSelect={() => handleSelectService(index, service)}
+                                    className="cursor-pointer"
+                                  >
+                                    {service}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
-                  <div className="w-20">
+                  <div className="lg:col-span-1">
                     <Input
                       type="number"
                       placeholder="Cant."
                       value={item.cantidad}
                       onChange={(e) => handleItemChange(index, "cantidad", Number(e.target.value))}
                       min={1}
+                      className="text-center"
                     />
                   </div>
-                  <div className="w-32">
+                  <div className="lg:col-span-2">
                     <Input
                       type="number"
                       placeholder="Precio"
@@ -419,29 +538,31 @@ export function CreateProformaDialog({
                       step={0.01}
                     />
                   </div>
-                  <div className="w-32">
+                  <div className="lg:col-span-2">
                     <Input
                       value={`S/ ${item.subtotal.toFixed(2)}`}
                       readOnly
-                      className="bg-muted"
+                      className="bg-muted text-center"
                     />
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => removeItem(index)}
-                    disabled={items.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="lg:col-span-1 flex justify-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeItem(index)}
+                      disabled={items.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
 
             {/* Totales */}
             <div className="flex justify-end">
-              <div className="w-64 space-y-2 text-sm">
+              <div className="w-full max-w-xs space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal:</span>
                   <span>S/ {subtotal.toFixed(2)}</span>
@@ -459,7 +580,7 @@ export function CreateProformaDialog({
           </div>
 
           {/* Fecha y notas */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Fecha de Vencimiento</Label>
               <Input
