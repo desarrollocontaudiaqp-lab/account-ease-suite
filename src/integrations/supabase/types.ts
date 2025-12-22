@@ -543,6 +543,33 @@ export type Database = {
         }
         Relationships: []
       }
+      proforma_secuencias: {
+        Row: {
+          created_at: string
+          id: string
+          prefijo: string
+          tipo: string
+          ultimo_numero: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          prefijo: string
+          tipo: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          prefijo?: string
+          tipo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       proformas: {
         Row: {
           campos_personalizados: Json | null
@@ -644,6 +671,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_next_proforma_number: { Args: { p_tipo: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

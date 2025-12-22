@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo-ca.png";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SidebarItem {
   title: string;
@@ -55,8 +57,34 @@ const menuItems: SidebarItem[] = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, role, signOut } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Reportes"]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [profile, setProfile] = useState<{ full_name: string | null } | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (user?.id) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        setProfile(data);
+      }
+    };
+    fetchProfile();
+  }, [user?.id]);
+
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Usuario';
+  const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const roleDisplay = role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Usuario';
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
 
   const toggleExpand = (title: string) => {
     setExpandedItems((prev) =>
@@ -204,15 +232,18 @@ export function AppSidebar() {
         {/* User Profile */}
         <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-sidebar-accent/40 to-sidebar-accent/20 border border-sidebar-foreground/10">
           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-sidebar-primary to-secondary flex items-center justify-center text-sidebar-primary-foreground text-sm font-bold shadow-lg">
-            JD
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-sidebar-foreground truncate">
-              Juan Díaz
+              {displayName}
             </p>
-            <p className="text-xs text-sidebar-foreground/60">Administrador</p>
+            <p className="text-xs text-sidebar-foreground/60">{roleDisplay}</p>
           </div>
-          <button className="p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors">
+          <button 
+            onClick={handleSignOut}
+            className="p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors"
+          >
             <LogOut className="h-4 w-4 text-sidebar-foreground/60" />
           </button>
         </div>
