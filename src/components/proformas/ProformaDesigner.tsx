@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, GripVertical, Save, X } from "lucide-react";
+import { Plus, Trash2, Save, ChevronRight, FileText, Briefcase, Check, Settings2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,8 +18,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -29,6 +37,7 @@ interface Campo {
   type: "text" | "number" | "select" | "textarea" | "date";
   options?: string[];
   required: boolean;
+  category?: string;
 }
 
 interface Plantilla {
@@ -53,11 +62,94 @@ const fieldTypes = [
   { value: "date", label: "Fecha" },
 ];
 
+// Servicios predeterminados de Contabilidad
+const serviciosContabilidad = [
+  {
+    category: "Auditoría y Finanzas",
+    services: [
+      "Auditoría Financiera",
+      "Conciliaciones bancarias",
+      "Análisis de cuentas",
+      "Flujo de efectivo",
+      "Evaluación fiscal",
+    ],
+  },
+  {
+    category: "Implementación de Sistemas",
+    services: [
+      "Implementación de Sistemas Integrados de Gestión",
+      "Implementación de sistemas de Control Interno",
+    ],
+  },
+  {
+    category: "Contabilidad",
+    services: [
+      "Contabilidad Integral (libros electrónicos, control interno, proyección financiera, estados financieros)",
+      "Outsourcing Contable",
+    ],
+  },
+  {
+    category: "Asesoría Tributaria",
+    services: [
+      "Declaraciones mensuales PDT",
+      "Detracciones",
+      "Percepciones",
+      "Retenciones",
+      "Fraccionamientos",
+      "DJ Anual",
+    ],
+  },
+];
+
+// Servicios predeterminados de Trámites
+const serviciosTramites = [
+  {
+    category: "Constitución de Empresas",
+    services: [
+      "Reserva de nombre",
+      "Elaboración de estatutos",
+      "Inscripción en SUNARP",
+      "Publicidad registral",
+      "Alta en SUNAT",
+    ],
+  },
+  {
+    category: "Licencias y Registros",
+    services: [
+      "Licencias Municipales",
+      "Registro de Marca INDECOPI",
+      "Registro RNP/OSCE",
+    ],
+  },
+  {
+    category: "Laboral y Planillas",
+    services: [
+      "Elaboración de contratos laborales",
+      "Registro PLAME",
+      "AFP Net",
+      "Essalud",
+      "Liquidación de beneficios",
+      "Trámites SUNAFIL",
+    ],
+  },
+  {
+    category: "Trámites SUNAT",
+    services: [
+      "Modificación de datos RUC",
+      "Comprobantes electrónicos",
+      "Libros electrónicos",
+      "Baja de comprobantes",
+      "Suspensión temporal",
+    ],
+  },
+];
+
 export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) {
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [selectedPlantilla, setSelectedPlantilla] = useState<Plantilla | null>(null);
-  const [activeTab, setActiveTab] = useState<"contabilidad" | "tramites">("contabilidad");
+  const [activeType, setActiveType] = useState<"contabilidad" | "tramites">("contabilidad");
   const [loading, setLoading] = useState(false);
+  const [showCustomFieldForm, setShowCustomFieldForm] = useState(false);
   const [newFieldLabel, setNewFieldLabel] = useState("");
   const [newFieldType, setNewFieldType] = useState<Campo["type"]>("text");
   const [newFieldRequired, setNewFieldRequired] = useState(false);
@@ -86,8 +178,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
         campos: (Array.isArray(p.campos) ? p.campos : []) as unknown as Campo[],
       }));
       setPlantillas(parsed);
-      // Auto-select first plantilla of active tab
-      const firstOfType = parsed.find((pl) => pl.tipo === activeTab);
+      const firstOfType = parsed.find((pl) => pl.tipo === activeType);
       if (firstOfType) setSelectedPlantilla(firstOfType);
     }
     setLoading(false);
@@ -95,9 +186,39 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
 
   const handleSelectPlantilla = (plantilla: Plantilla) => {
     setSelectedPlantilla(plantilla);
+    setActiveType(plantilla.tipo);
   };
 
-  const handleAddField = () => {
+  const isServiceSelected = (serviceLabel: string) => {
+    return selectedPlantilla?.campos.some((c) => c.label === serviceLabel) || false;
+  };
+
+  const handleToggleService = (serviceLabel: string, category: string) => {
+    if (!selectedPlantilla) return;
+
+    if (isServiceSelected(serviceLabel)) {
+      // Remove service
+      setSelectedPlantilla({
+        ...selectedPlantilla,
+        campos: selectedPlantilla.campos.filter((c) => c.label !== serviceLabel),
+      });
+    } else {
+      // Add service
+      const newField: Campo = {
+        id: crypto.randomUUID(),
+        label: serviceLabel,
+        type: "number",
+        required: false,
+        category,
+      };
+      setSelectedPlantilla({
+        ...selectedPlantilla,
+        campos: [...selectedPlantilla.campos, newField],
+      });
+    }
+  };
+
+  const handleAddCustomField = () => {
     if (!selectedPlantilla || !newFieldLabel.trim()) {
       toast.error("Ingrese un nombre para el campo");
       return;
@@ -108,6 +229,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       label: newFieldLabel.trim(),
       type: newFieldType,
       required: newFieldRequired,
+      category: "Personalizado",
       ...(newFieldType === "select" && {
         options: newFieldOptions.split(",").map((o) => o.trim()).filter(Boolean),
       }),
@@ -118,11 +240,12 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       campos: [...selectedPlantilla.campos, newField],
     });
 
-    // Reset form
     setNewFieldLabel("");
     setNewFieldType("text");
     setNewFieldRequired(false);
     setNewFieldOptions("");
+    setShowCustomFieldForm(false);
+    toast.success("Campo agregado");
   };
 
   const handleRemoveField = (fieldId: string) => {
@@ -157,220 +280,317 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     setLoading(false);
   };
 
-  const filteredPlantillas = plantillas.filter((p) => p.tipo === activeTab);
+  const currentServices = activeType === "contabilidad" ? serviciosContabilidad : serviciosTramites;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+          <DialogTitle className="text-xl font-bold flex items-center gap-2">
+            <Settings2 className="h-5 w-5 text-primary" />
             Diseñador de Proformas
           </DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Configura los servicios disponibles para cada tipo de proforma
+          </p>
         </DialogHeader>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => {
-            setActiveTab(v as "contabilidad" | "tramites");
-            const firstOfType = plantillas.find((p) => p.tipo === v);
-            if (firstOfType) setSelectedPlantilla(firstOfType);
-          }}
-          className="flex-1 overflow-hidden flex flex-col"
-        >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="contabilidad">Contabilidad</TabsTrigger>
-            <TabsTrigger value="tramites">Trámites</TabsTrigger>
-          </TabsList>
+        <div className="flex-1 overflow-hidden flex">
+          {/* Sidebar - Lista de plantillas */}
+          <div className="w-64 border-r bg-muted/30 p-4 flex flex-col">
+            <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-3">
+              Plantillas
+            </h3>
+            <div className="space-y-2 flex-1">
+              {plantillas.map((plantilla) => (
+                <button
+                  key={plantilla.id}
+                  onClick={() => handleSelectPlantilla(plantilla)}
+                  className={`w-full text-left p-3 rounded-lg border transition-all ${
+                    selectedPlantilla?.id === plantilla.id
+                      ? "border-primary bg-primary/10 shadow-sm"
+                      : "border-transparent bg-background hover:bg-background/80"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {plantilla.tipo === "contabilidad" ? (
+                      <FileText className="h-4 w-4 text-blue-500" />
+                    ) : (
+                      <Briefcase className="h-4 w-4 text-emerald-500" />
+                    )}
+                    <span className="font-medium text-sm truncate">{plantilla.nombre}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs ${
+                        plantilla.tipo === "contabilidad" 
+                          ? "bg-blue-100 text-blue-700" 
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {plantilla.tipo === "contabilidad" ? "Contabilidad" : "Trámites"}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {plantilla.campos.length} servicios
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
 
-          <TabsContent value={activeTab} className="flex-1 overflow-hidden mt-4">
-            <div className="grid grid-cols-3 gap-4 h-full">
-              {/* Sidebar - Lista de plantillas */}
-              <div className="border rounded-lg p-4 space-y-3 overflow-y-auto">
-                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                  Plantillas
-                </h3>
-                {filteredPlantillas.map((plantilla) => (
-                  <div
-                    key={plantilla.id}
-                    onClick={() => handleSelectPlantilla(plantilla)}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedPlantilla?.id === plantilla.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    <p className="font-medium text-sm">{plantilla.nombre}</p>
+          {/* Main content */}
+          {selectedPlantilla ? (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Header de plantilla */}
+              <div className="px-6 py-4 border-b bg-background">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Nombre de la plantilla</Label>
+                      <Input
+                        value={selectedPlantilla.nombre}
+                        onChange={(e) =>
+                          setSelectedPlantilla({
+                            ...selectedPlantilla,
+                            nombre: e.target.value,
+                          })
+                        }
+                        className="mt-1 max-w-md font-medium"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Descripción</Label>
+                      <Textarea
+                        value={selectedPlantilla.descripcion || ""}
+                        onChange={(e) =>
+                          setSelectedPlantilla({
+                            ...selectedPlantilla,
+                            descripcion: e.target.value,
+                          })
+                        }
+                        className="mt-1 max-w-md resize-none"
+                        rows={2}
+                        placeholder="Descripción de la plantilla..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content area */}
+              <div className="flex-1 overflow-hidden flex">
+                {/* Servicios disponibles */}
+                <div className="flex-1 border-r overflow-hidden flex flex-col">
+                  <div className="px-4 py-3 border-b bg-muted/30">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Servicios Disponibles
+                    </h4>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {plantilla.campos.length} campos
+                      Marca los servicios que deseas incluir
                     </p>
                   </div>
-                ))}
-              </div>
-
-              {/* Main - Editor de campos */}
-              <div className="col-span-2 border rounded-lg p-4 overflow-y-auto space-y-4">
-                {selectedPlantilla ? (
-                  <>
-                    {/* Plantilla info */}
-                    <div className="space-y-3">
-                      <div>
-                        <Label>Nombre de la plantilla</Label>
-                        <Input
-                          value={selectedPlantilla.nombre}
-                          onChange={(e) =>
-                            setSelectedPlantilla({
-                              ...selectedPlantilla,
-                              nombre: e.target.value,
-                            })
-                          }
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label>Descripción</Label>
-                        <Textarea
-                          value={selectedPlantilla.descripcion || ""}
-                          onChange={(e) =>
-                            setSelectedPlantilla({
-                              ...selectedPlantilla,
-                              descripcion: e.target.value,
-                            })
-                          }
-                          className="mt-1"
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Campos existentes */}
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm">Campos personalizados</h4>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {selectedPlantilla.campos.length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-4 text-center">
-                            No hay campos personalizados. Agrega uno abajo.
-                          </p>
-                        ) : (
-                          selectedPlantilla.campos.map((campo) => (
-                            <div
-                              key={campo.id}
-                              className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
-                            >
-                              <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
-                              <div className="flex-1">
-                                <p className="font-medium text-sm">{campo.label}</p>
-                                <div className="flex gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {fieldTypes.find((t) => t.value === campo.type)?.label}
-                                  </Badge>
-                                  {campo.required && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      Requerido
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => handleRemoveField(campo.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                  <ScrollArea className="flex-1">
+                    <Accordion type="multiple" defaultValue={currentServices.map((_, i) => `cat-${i}`)} className="px-4 py-2">
+                      {currentServices.map((category, catIndex) => (
+                        <AccordionItem key={catIndex} value={`cat-${catIndex}`} className="border-b-0">
+                          <AccordionTrigger className="py-3 hover:no-underline">
+                            <span className="font-medium text-sm">{category.category}</span>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-4">
+                            <div className="space-y-2">
+                              {category.services.map((service, svcIndex) => {
+                                const isSelected = isServiceSelected(service);
+                                return (
+                                  <label
+                                    key={svcIndex}
+                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                      isSelected
+                                        ? "border-primary bg-primary/5"
+                                        : "border-border hover:bg-muted/50"
+                                    }`}
+                                  >
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => handleToggleService(service, category.category)}
+                                    />
+                                    <span className="text-sm flex-1">{service}</span>
+                                    {isSelected && (
+                                      <Check className="h-4 w-4 text-primary" />
+                                    )}
+                                  </label>
+                                );
+                              })}
                             </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
 
-                    {/* Agregar nuevo campo */}
-                    <div className="border-t pt-4 space-y-3">
-                      <h4 className="font-semibold text-sm">Agregar nuevo campo</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label>Nombre del campo</Label>
-                          <Input
-                            value={newFieldLabel}
-                            onChange={(e) => setNewFieldLabel(e.target.value)}
-                            placeholder="Ej: Número de trabajadores"
-                            className="mt-1"
-                          />
-                        </div>
-                        <div>
-                          <Label>Tipo de campo</Label>
-                          <Select
-                            value={newFieldType}
-                            onValueChange={(v) => setNewFieldType(v as Campo["type"])}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {fieldTypes.map((type) => (
-                                <SelectItem key={type.value} value={type.value}>
-                                  {type.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                    {/* Custom field section */}
+                    <div className="px-4 pb-4">
+                      <Separator className="my-4" />
+                      {!showCustomFieldForm ? (
+                        <Button
+                          variant="outline"
+                          className="w-full gap-2"
+                          onClick={() => setShowCustomFieldForm(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Agregar campo personalizado
+                        </Button>
+                      ) : (
+                        <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                          <h5 className="font-medium text-sm">Nuevo campo personalizado</h5>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs">Nombre</Label>
+                              <Input
+                                value={newFieldLabel}
+                                onChange={(e) => setNewFieldLabel(e.target.value)}
+                                placeholder="Ej: Número de trabajadores"
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Tipo</Label>
+                              <Select
+                                value={newFieldType}
+                                onValueChange={(v) => setNewFieldType(v as Campo["type"])}
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {fieldTypes.map((type) => (
+                                    <SelectItem key={type.value} value={type.value}>
+                                      {type.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
 
-                      {newFieldType === "select" && (
-                        <div>
-                          <Label>Opciones (separadas por coma)</Label>
-                          <Input
-                            value={newFieldOptions}
-                            onChange={(e) => setNewFieldOptions(e.target.value)}
-                            placeholder="Opción 1, Opción 2, Opción 3"
-                            className="mt-1"
-                          />
+                          {newFieldType === "select" && (
+                            <div>
+                              <Label className="text-xs">Opciones (separadas por coma)</Label>
+                              <Input
+                                value={newFieldOptions}
+                                onChange={(e) => setNewFieldOptions(e.target.value)}
+                                placeholder="Opción 1, Opción 2, Opción 3"
+                                className="mt-1"
+                              />
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={newFieldRequired}
+                              onCheckedChange={setNewFieldRequired}
+                            />
+                            <Label className="text-xs">Campo requerido</Label>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowCustomFieldForm(false)}
+                              className="flex-1"
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleAddCustomField}
+                              className="flex-1"
+                            >
+                              Agregar
+                            </Button>
+                          </div>
                         </div>
                       )}
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={newFieldRequired}
-                            onCheckedChange={setNewFieldRequired}
-                          />
-                          <Label>Campo requerido</Label>
-                        </div>
-                        <Button onClick={handleAddField} size="sm" className="gap-2">
-                          <Plus className="h-4 w-4" />
-                          Agregar campo
-                        </Button>
-                      </div>
                     </div>
+                  </ScrollArea>
+                </div>
 
-                    {/* Save button */}
-                    <div className="border-t pt-4 flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => onOpenChange(false)}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        onClick={handleSavePlantilla}
-                        disabled={loading}
-                        className="gap-2"
-                      >
-                        <Save className="h-4 w-4" />
-                        Guardar plantilla
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    Selecciona una plantilla para editarla
+                {/* Servicios seleccionados */}
+                <div className="w-80 overflow-hidden flex flex-col bg-muted/20">
+                  <div className="px-4 py-3 border-b bg-muted/30">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary" />
+                      Servicios Incluidos ({selectedPlantilla.campos.length})
+                    </h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Estos aparecerán en la proforma
+                    </p>
                   </div>
-                )}
+                  <ScrollArea className="flex-1">
+                    <div className="p-4 space-y-2">
+                      {selectedPlantilla.campos.length === 0 ? (
+                        <div className="text-center py-8">
+                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                            <FileText className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            No hay servicios seleccionados
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Selecciona servicios de la lista
+                          </p>
+                        </div>
+                      ) : (
+                        selectedPlantilla.campos.map((campo) => (
+                          <div
+                            key={campo.id}
+                            className="flex items-start gap-2 p-3 bg-background rounded-lg border group"
+                          >
+                            <ChevronRight className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium leading-tight">{campo.label}</p>
+                              {campo.category && (
+                                <p className="text-xs text-muted-foreground mt-1">{campo.category}</p>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                              onClick={() => handleRemoveField(campo.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t bg-background flex justify-end gap-2">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSavePlantilla} disabled={loading} className="gap-2">
+                  <Save className="h-4 w-4" />
+                  Guardar plantilla
+                </Button>
               </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <Settings2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Selecciona una plantilla para editarla</p>
+              </div>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
