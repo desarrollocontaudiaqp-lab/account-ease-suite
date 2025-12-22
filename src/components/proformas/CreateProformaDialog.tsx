@@ -38,7 +38,7 @@ interface Plantilla {
 interface Cliente {
   id: string;
   razon_social: string;
-  ruc: string;
+  codigo: string;
   direccion: string | null;
   email: string | null;
   telefono: string | null;
@@ -86,7 +86,7 @@ export function CreateProformaDialog({
     // Fetch clientes
     const { data: clientesData } = await supabase
       .from("clientes")
-      .select("id, razon_social, ruc, direccion, email, telefono")
+      .select("id, razon_social, codigo, direccion, email, telefono")
       .eq("activo", true)
       .order("razon_social");
 
@@ -282,7 +282,7 @@ export function CreateProformaDialog({
                   <SelectContent>
                     {clientes.map((cliente) => (
                       <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.razon_social} - {cliente.ruc}
+                        {cliente.razon_social} - {cliente.codigo}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -292,8 +292,8 @@ export function CreateProformaDialog({
               {selectedClienteData && (
                 <>
                   <div>
-                    <Label className="text-muted-foreground">RUC</Label>
-                    <p className="font-medium">{selectedClienteData.ruc}</p>
+                    <Label className="text-muted-foreground">RUC/DNI</Label>
+                    <p className="font-medium">{selectedClienteData.codigo}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Dirección</Label>
