@@ -224,6 +224,7 @@ export type Database = {
       clientes: {
         Row: {
           activo: boolean
+          codigo: string
           contacto_email: string | null
           contacto_nombre: string | null
           contacto_telefono: string | null
@@ -233,15 +234,17 @@ export type Database = {
           email: string | null
           id: string
           nombre_comercial: string | null
+          nombre_persona_natural: string | null
           notas: string | null
           razon_social: string
-          ruc: string
           sector: string | null
           telefono: string | null
+          tipo_cliente: string
           updated_at: string
         }
         Insert: {
           activo?: boolean
+          codigo: string
           contacto_email?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
@@ -251,15 +254,17 @@ export type Database = {
           email?: string | null
           id?: string
           nombre_comercial?: string | null
+          nombre_persona_natural?: string | null
           notas?: string | null
           razon_social: string
-          ruc: string
           sector?: string | null
           telefono?: string | null
+          tipo_cliente?: string
           updated_at?: string
         }
         Update: {
           activo?: boolean
+          codigo?: string
           contacto_email?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
@@ -269,11 +274,12 @@ export type Database = {
           email?: string | null
           id?: string
           nombre_comercial?: string | null
+          nombre_persona_natural?: string | null
           notas?: string | null
           razon_social?: string
-          ruc?: string
           sector?: string | null
           telefono?: string | null
+          tipo_cliente?: string
           updated_at?: string
         }
         Relationships: []

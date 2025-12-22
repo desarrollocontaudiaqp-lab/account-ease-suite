@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus,
   Search,
@@ -13,6 +13,7 @@ import {
   Mail,
   LayoutGrid,
   List,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,101 +32,67 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { CreateClientDialog } from "@/components/clientes/CreateClientDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Client {
   id: string;
-  name: string;
-  type: "Empresa" | "Persona";
-  ruc: string;
-  email: string;
-  phone: string;
-  status: "Prospecto" | "Activo" | "Inactivo";
-  advisor: string;
-  contracts: number;
-  createdAt: string;
+  tipo_cliente: string;
+  codigo: string;
+  razon_social: string;
+  nombre_comercial: string | null;
+  nombre_persona_natural: string | null;
+  email: string | null;
+  telefono: string | null;
+  activo: boolean;
 }
-
-const clients: Client[] = [
-  {
-    id: "1",
-    name: "Empresa ABC S.A.C.",
-    type: "Empresa",
-    ruc: "20123456789",
-    email: "contacto@empresaabc.com",
-    phone: "054-123456",
-    status: "Activo",
-    advisor: "María García",
-    contracts: 3,
-    createdAt: "15/01/2024",
-  },
-  {
-    id: "2",
-    name: "Inversiones XYZ E.I.R.L.",
-    type: "Empresa",
-    ruc: "20987654321",
-    email: "info@inversionesxyz.com",
-    phone: "054-654321",
-    status: "Activo",
-    advisor: "Carlos López",
-    contracts: 2,
-    createdAt: "20/03/2024",
-  },
-  {
-    id: "3",
-    name: "Juan Pérez",
-    type: "Persona",
-    ruc: "10123456789",
-    email: "juan.perez@gmail.com",
-    phone: "951-123456",
-    status: "Prospecto",
-    advisor: "-",
-    contracts: 0,
-    createdAt: "10/12/2024",
-  },
-  {
-    id: "4",
-    name: "Comercial Delta S.A.",
-    type: "Empresa",
-    ruc: "20456789123",
-    email: "ventas@comercialdelta.com",
-    phone: "054-789123",
-    status: "Activo",
-    advisor: "Ana Rodríguez",
-    contracts: 5,
-    createdAt: "05/06/2024",
-  },
-  {
-    id: "5",
-    name: "Tech Solutions Perú",
-    type: "Empresa",
-    ruc: "20789123456",
-    email: "admin@techsolutions.pe",
-    phone: "054-456789",
-    status: "Inactivo",
-    advisor: "Luis Martínez",
-    contracts: 1,
-    createdAt: "12/02/2024",
-  },
-];
-
-const statusStyles = {
-  Prospecto: "bg-blue-100 text-blue-800 border-blue-200",
-  Activo: "bg-green-100 text-green-800 border-green-200",
-  Inactivo: "bg-gray-100 text-gray-800 border-gray-200",
-};
 
 const Clientes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  const fetchClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, tipo_cliente, codigo, razon_social, nombre_comercial, nombre_persona_natural, email, telefono, activo")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setClients(data || []);
+    } catch (error: any) {
+      toast.error("Error al cargar clientes: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const getClientName = (client: Client) => {
+    if (client.tipo_cliente === "persona_natural") {
+      return client.nombre_persona_natural || client.razon_social;
+    }
+    return client.razon_social;
+  };
 
   const filteredClients = clients.filter((client) => {
+    const clientName = getClientName(client) || "";
     const matchesSearch =
-      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.ruc.includes(searchTerm) ||
-      client.email.toLowerCase().includes(searchTerm.toLowerCase());
+      clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.codigo.includes(searchTerm) ||
+      (client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     const matchesStatus =
-      statusFilter === "all" || client.status === statusFilter;
+      statusFilter === "all" ||
+      (statusFilter === "Activo" && client.activo) ||
+      (statusFilter === "Inactivo" && !client.activo);
     return matchesSearch && matchesStatus;
   });
 
@@ -141,11 +108,17 @@ const Clientes = () => {
             Gestiona todos los clientes y prospectos del estudio
           </p>
         </div>
-        <Button className="btn-gradient gap-2">
+        <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           Nuevo Cliente
         </Button>
       </div>
+
+      <CreateClientDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={fetchClients}
+      />
 
       {/* Filters */}
       <div className="bg-card rounded-xl border border-border p-4">
@@ -153,7 +126,7 @@ const Clientes = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nombre, RUC o email..."
+              placeholder="Buscar por nombre, RUC/DNI o email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -166,7 +139,6 @@ const Clientes = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="Prospecto">Prospecto</SelectItem>
                 <SelectItem value="Activo">Activo</SelectItem>
                 <SelectItem value="Inactivo">Inactivo</SelectItem>
               </SelectContent>
@@ -194,37 +166,43 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => c.status === "Activo").length}
+              {clients.filter((c) => c.activo).length}
             </p>
             <p className="text-sm text-muted-foreground">Clientes Activos</p>
           </div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
           <div className="p-3 rounded-lg bg-blue-100">
-            <User className="h-5 w-5 text-blue-700" />
+            <Building2 className="h-5 w-5 text-blue-700" />
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => c.status === "Prospecto").length}
+              {clients.filter((c) => c.tipo_cliente === "empresa").length}
             </p>
-            <p className="text-sm text-muted-foreground">Prospectos</p>
+            <p className="text-sm text-muted-foreground">Empresas</p>
           </div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-gray-100">
-            <Building2 className="h-5 w-5 text-gray-700" />
+          <div className="p-3 rounded-lg bg-purple-100">
+            <User className="h-5 w-5 text-purple-700" />
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => c.status === "Inactivo").length}
+              {clients.filter((c) => c.tipo_cliente === "persona_natural").length}
             </p>
-            <p className="text-sm text-muted-foreground">Inactivos</p>
+            <p className="text-sm text-muted-foreground">Personas Naturales</p>
           </div>
         </div>
       </div>
 
+      {loading && (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+
       {/* Cards View */}
-      {viewMode === "cards" && (
+      {!loading && viewMode === "cards" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredClients.map((client) => (
             <div
@@ -235,20 +213,22 @@ const Clientes = () => {
                 <div className="flex items-center gap-3">
                   <div
                     className={`p-2 rounded-lg ${
-                      client.type === "Empresa"
+                      client.tipo_cliente === "empresa"
                         ? "bg-primary/10"
-                        : "bg-secondary/20"
+                        : "bg-purple-100"
                     }`}
                   >
-                    {client.type === "Empresa" ? (
+                    {client.tipo_cliente === "empresa" ? (
                       <Building2 className="h-5 w-5 text-primary" />
                     ) : (
-                      <User className="h-5 w-5 text-secondary-foreground" />
+                      <User className="h-5 w-5 text-purple-700" />
                     )}
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">{client.name}</p>
-                    <p className="text-sm text-muted-foreground">{client.type}</p>
+                    <p className="font-semibold text-foreground">{getClientName(client)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {client.tipo_cliente === "empresa" ? "Empresa" : "Persona Natural"}
+                    </p>
                   </div>
                 </div>
                 <DropdownMenu>
@@ -275,37 +255,37 @@ const Clientes = () => {
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
-                <Badge variant="outline" className={statusStyles[client.status]}>
-                  {client.status}
+                <Badge variant="outline" className={client.activo ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-800 border-gray-200"}>
+                  {client.activo ? "Activo" : "Inactivo"}
                 </Badge>
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
-                  <p className="text-muted-foreground">RUC/DNI</p>
-                  <p className="font-mono text-foreground">{client.ruc}</p>
+                  <p className="text-muted-foreground">{client.tipo_cliente === "empresa" ? "RUC" : "DNI"}</p>
+                  <p className="font-mono text-foreground">{client.codigo}</p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Contratos</p>
-                  <p className="font-medium text-foreground">{client.contracts}</p>
-                </div>
+                {client.nombre_comercial && (
+                  <div>
+                    <p className="text-muted-foreground">Nombre Comercial</p>
+                    <p className="font-medium text-foreground">{client.nombre_comercial}</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail className="h-4 w-4" />
-                  {client.email}
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Phone className="h-4 w-4" />
-                  {client.phone}
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-sm text-muted-foreground">
-                  Asesor: <span className="font-medium text-foreground">{client.advisor}</span>
-                </p>
+                {client.email && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    {client.email}
+                  </div>
+                )}
+                {client.telefono && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    {client.telefono}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -313,7 +293,7 @@ const Clientes = () => {
       )}
 
       {/* Table View */}
-      {viewMode === "table" && (
+      {!loading && viewMode === "table" && (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -331,12 +311,6 @@ const Clientes = () => {
                   <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
                     Estado
                   </th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                    Asesor
-                  </th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
-                    Contratos
-                  </th>
                   <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
                     Acciones
                   </th>
@@ -349,61 +323,55 @@ const Clientes = () => {
                       <div className="flex items-center gap-3">
                         <div
                           className={`p-2 rounded-lg ${
-                            client.type === "Empresa"
+                            client.tipo_cliente === "empresa"
                               ? "bg-primary/10"
-                              : "bg-secondary/20"
+                              : "bg-purple-100"
                           }`}
                         >
-                          {client.type === "Empresa" ? (
+                          {client.tipo_cliente === "empresa" ? (
                             <Building2 className="h-4 w-4 text-primary" />
                           ) : (
-                            <User className="h-4 w-4 text-secondary" />
+                            <User className="h-4 w-4 text-purple-700" />
                           )}
                         </div>
                         <div>
                           <p className="font-medium text-foreground">
-                            {client.name}
+                            {getClientName(client)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {client.type}
+                            {client.tipo_cliente === "empresa" ? "Empresa" : "Persona Natural"}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm font-mono text-foreground">
-                        {client.ruc}
+                        {client.codigo}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Mail className="h-3.5 w-3.5" />
-                          {client.email}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Phone className="h-3.5 w-3.5" />
-                          {client.phone}
-                        </div>
+                        {client.email && (
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Mail className="h-3.5 w-3.5" />
+                            {client.email}
+                          </div>
+                        )}
+                        {client.telefono && (
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Phone className="h-3.5 w-3.5" />
+                            {client.telefono}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <Badge
                         variant="outline"
-                        className={statusStyles[client.status]}
+                        className={client.activo ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-800 border-gray-200"}
                       >
-                        {client.status}
+                        {client.activo ? "Activo" : "Inactivo"}
                       </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-muted-foreground">
-                        {client.advisor}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-foreground">
-                        {client.contracts}
-                      </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <DropdownMenu>
