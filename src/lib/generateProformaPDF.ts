@@ -1,6 +1,28 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// Helper function to load image as base64
+async function loadImage(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      } else {
+        reject(new Error("Failed to get canvas context"));
+      }
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = url;
+  });
+}
+
 interface ProformaItem {
   descripcion: string;
   cantidad: number;
@@ -50,12 +72,12 @@ const COLORS = {
 
 // Company information
 const COMPANY_INFO = {
-  name: "C&A ASESORES EMPRESARIALES",
-  slogan: "Soluciones Empresariales que Potencian tu Negocio",
-  address: "Jr. Tacna 560 - La Victoria - Chiclayo",
-  phone: "Tel: 986524816",
-  email: "cyaasesoresempresariales@gmail.com",
-  ruc: "RUC: 10167543210"
+  name: "C&A CONTADORES & AUDITORES",
+  slogan: "Soluciones Contables y Empresariales",
+  address: "Calle Santo Domingo N.º 103, Of. 303 y 304 – Arequipa",
+  phone: "(+51) 982 307 213",
+  email: "rmarquez@contadoresyauditoresarequipa.com",
+  website: "Llamanos 24/7"
 };
 
 const BANK_INFO = {
@@ -144,54 +166,36 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   // ========== HEADER SECTION ==========
   // Full-width dark blue header
   doc.setFillColor(...COLORS.primaryBlue);
-  doc.rect(0, 0, pageWidth, 42, "F");
+  doc.rect(0, 0, pageWidth, 45, "F");
   
-  // White box for logo on the left
-  const logoBoxSize = 32;
-  doc.setFillColor(...COLORS.white);
-  doc.roundedRect(margin, 5, logoBoxSize, logoBoxSize, 3, 3, "F");
-  
-  // Draw stylized logo
-  doc.setFillColor(150, 150, 150);
-  // Gray diamond
-  const logoX = margin + logoBoxSize / 2;
-  const logoY = 5 + logoBoxSize / 2;
-  
-  // Draw the three overlapping diamonds
-  // Back gray diamond
-  doc.setFillColor(160, 160, 160);
-  drawSquareDiamond(doc, logoX - 6, logoY - 1, 10);
-  
-  // Middle red diamond
-  doc.setFillColor(...COLORS.accentRed);
-  drawSquareDiamond(doc, logoX - 1, logoY + 4, 10);
-  
-  // Front gold diamond with text
-  doc.setFillColor(...COLORS.accentGold);
-  drawSquareDiamond(doc, logoX + 4, logoY - 1, 12);
-  
-  // C&A text on gold diamond
-  doc.setTextColor(...COLORS.white);
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.text("C&A", logoX + 4, logoY + 1, { align: "center" });
+  // Load and add logo from PNG
+  try {
+    const logoImg = await loadImage("/images/logo-ca.png");
+    const logoBoxSize = 35;
+    doc.setFillColor(...COLORS.white);
+    doc.roundedRect(margin, 5, logoBoxSize, logoBoxSize, 3, 3, "F");
+    doc.addImage(logoImg, "PNG", margin + 2, 7, logoBoxSize - 4, logoBoxSize - 4);
+  } catch (error) {
+    console.error("Error loading logo:", error);
+  }
 
   // Company name and info
-  const textStartX = margin + logoBoxSize + 8;
+  const textStartX = margin + 42;
   
   doc.setTextColor(...COLORS.white);
-  doc.setFontSize(15);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(COMPANY_INFO.name, textStartX, 15);
-  
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "italic");
-  doc.text(COMPANY_INFO.slogan, textStartX, 22);
+  doc.text(COMPANY_INFO.name, textStartX, 14);
   
   doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.text(COMPANY_INFO.slogan, textStartX, 20);
+  
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.text(`${COMPANY_INFO.address} | ${COMPANY_INFO.phone}`, textStartX, 29);
-  doc.text(`${COMPANY_INFO.email} | ${COMPANY_INFO.ruc}`, textStartX, 35);
+  doc.text(`${COMPANY_INFO.website}: ${COMPANY_INFO.phone}`, textStartX, 27);
+  doc.text(`Email: ${COMPANY_INFO.email}`, textStartX, 32);
+  doc.text(`Ubicación: ${COMPANY_INFO.address}`, textStartX, 37);
 
   // Proforma badge on the right
   const badgeWidth = 48;
