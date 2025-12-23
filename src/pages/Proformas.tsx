@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Search, Filter, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +74,7 @@ const typeLabels = {
 };
 
 const Proformas = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("todas");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
@@ -173,6 +175,23 @@ const Proformas = () => {
     } finally {
       setDownloadingId(null);
     }
+  };
+
+  const handleConfirmContract = (proforma: Proforma) => {
+    // Navigate to contracts page with proforma data for creating a new contract
+    navigate("/contratos", {
+      state: {
+        fromProforma: true,
+        proformaId: proforma.id,
+        proformaNumero: proforma.numero,
+        clienteId: proforma.cliente ? undefined : undefined, // Will be fetched from proforma
+        clienteNombre: proforma.cliente?.razon_social,
+        tipo: proforma.tipo,
+        total: proforma.total,
+        moneda: proforma.moneda,
+      }
+    });
+    toast.info(`Creando contrato desde proforma ${proforma.numero}`);
   };
 
   const handleOpenCreateDialog = (tipo: "contabilidad" | "tramites") => {
@@ -452,35 +471,85 @@ const Proformas = () => {
                                 {proforma.fecha_vencimiento}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Ver detalle
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => handleDownloadPDF(proforma)}
-                                    disabled={downloadingId === proforma.id}
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  title="Ver detalle"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleDownloadPDF(proforma)}
+                                  disabled={downloadingId === proforma.id}
+                                  title="Descargar PDF"
+                                >
+                                  {downloadingId === proforma.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Download className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  title="Enviar al cliente"
+                                >
+                                  <Send className="h-4 w-4" />
+                                </Button>
+                                {proforma.status === "aprobada" && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="h-8 gap-1 ml-1"
+                                    onClick={() => handleConfirmContract(proforma)}
+                                    title="Confirmar Contrato"
                                   >
-                                    {downloadingId === proforma.id ? (
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    ) : (
-                                      <Download className="h-4 w-4 mr-2" />
+                                    <FileCheck className="h-4 w-4" />
+                                    <span className="hidden xl:inline">Confirmar Contrato</span>
+                                  </Button>
+                                )}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    {proforma.status !== "aprobada" && (
+                                      <DropdownMenuItem onClick={() => handleConfirmContract(proforma)}>
+                                        <FileCheck className="h-4 w-4 mr-2" />
+                                        Confirmar Contrato
+                                      </DropdownMenuItem>
                                     )}
-                                    Descargar PDF
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Enviar al cliente
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                    <DropdownMenuItem>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      Ver detalle
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleDownloadPDF(proforma)}
+                                      disabled={downloadingId === proforma.id}
+                                    >
+                                      {downloadingId === proforma.id ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      ) : (
+                                        <Download className="h-4 w-4 mr-2" />
+                                      )}
+                                      Descargar PDF
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Enviar al cliente
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </td>
                           </tr>
                         ))}
