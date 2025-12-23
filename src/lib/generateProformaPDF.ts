@@ -51,12 +51,12 @@ interface ProformaData {
   campos_personalizados?: Record<string, string>;
 }
 
-// Corporate colors - Maroon, Gold & Red palette
+// Corporate colors - Red, Gold & Maroon palette
 const COLORS = {
-  // Primary maroon/burgundy (header background)
-  primaryMaroon: [74, 25, 28] as [number, number, number],
+  // Primary red (header background) - brighter corporate red
+  primaryMaroon: [163, 54, 62] as [number, number, number],
   // Deep burgundy for accents
-  deepBurgundy: [96, 24, 34] as [number, number, number],
+  deepBurgundy: [140, 45, 52] as [number, number, number],
   // Accent red (from logo)
   accentRed: [185, 28, 28] as [number, number, number],
   // Gold/Bronze (from logo)
