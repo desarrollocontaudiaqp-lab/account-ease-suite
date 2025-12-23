@@ -29,8 +29,24 @@ interface ProformaData {
   campos_personalizados?: Record<string, string>;
 }
 
-// Logo base64 (placeholder - will be replaced with actual logo)
-const LOGO_BASE64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAABkCAYAAADDhn8LAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF0WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNy4yLWMwMDAgNzkuMWI2NWE3OWI0LCAyMDIyLzA2LzEzLTIyOjAxOjAxICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIiB4bWxuczpzdEV2dD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jlc291cmNlRXZlbnQjIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnBob3Rvc2hvcD0iaHR0cDovL25zLmFkb2JlLmNvbS9waG90b3Nob3AvMS4wLyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgMjQuMCAoV2luZG93cykiIHhtcDpDcmVhdGVEYXRlPSIyMDI0LTAxLTE1VDEwOjAwOjAwLTA1OjAwIiB4bXA6TWV0YWRhdGFEYXRlPSIyMDI0LTAxLTE1VDEwOjAwOjAwLTA1OjAwIiB4bXA6TW9kaWZ5RGF0ZT0iMjAyNC0wMS0xNVQxMDowMDowMC0wNTowMCIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDoxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwYWIiIHhtcE1NOkRvY3VtZW50SUQ9ImFkb2JlOmRvY2lkOnBob3Rvc2hvcDoxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwYWIiIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDoxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwYWIiIGRjOmZvcm1hdD0iaW1hZ2UvcG5nIiBwaG90b3Nob3A6Q29sb3JNb2RlPSIzIj4gPHhtcE1NOkhpc3Rvcnk+IDxyZGY6U2VxPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0iY3JlYXRlZCIgc3RFdnQ6aW5zdGFuY2VJRD0ieG1wLmlpZDoxMjM0NTY3OC0xMjM0LTEyMzQtMTIzNC0xMjM0NTY3ODkwYWIiIHN0RXZ0OndoZW49IjIwMjQtMDEtMTVUMTA6MDA6MDAtMDU6MDAiIHN0RXZ0OnNvZnR3YXJlQWdlbnQ9IkFkb2JlIFBob3Rvc2hvcCAyNC4wIChXaW5kb3dzKSIvPiA8L3JkZjpTZXE+IDwveG1wTU06SGlzdG9yeT4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz4AAAA0SURBVHic7cEBDQAAAMKg909tDjegAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4GYNKwAB1JYRtQAAAABJRU5ErkJggg==";
+// Corporate colors
+const COLORS = {
+  // Primary dark blue (header background)
+  primaryBlue: [26, 54, 93] as [number, number, number],
+  // Accent red (from logo)
+  accentRed: [185, 28, 28] as [number, number, number],
+  // Gold/Bronze (from logo)
+  accentGold: [180, 130, 70] as [number, number, number],
+  // Gray (from logo)
+  accentGray: [120, 120, 120] as [number, number, number],
+  // Light backgrounds
+  lightBg: [245, 247, 250] as [number, number, number],
+  white: [255, 255, 255] as [number, number, number],
+  // Text colors
+  textDark: [30, 30, 30] as [number, number, number],
+  textMuted: [100, 100, 100] as [number, number, number],
+  textLight: [255, 255, 255] as [number, number, number],
+};
 
 // Company information
 const COMPANY_INFO = {
@@ -44,14 +60,74 @@ const COMPANY_INFO = {
 
 const BANK_INFO = {
   bcp: {
-    soles: "BCP - Cuenta Corriente Soles: 305-2345678-0-12",
-    dolares: "BCP - Cuenta Corriente Dólares: 305-2345678-1-19"
+    soles: "BCP Cta. Cte. Soles: 305-2345678-0-12",
+    dolares: "BCP Cta. Cte. Dólares: 305-2345678-1-19"
   },
   interbank: {
-    soles: "Interbank - Cuenta Corriente Soles: 200-3456789012",
-    dolares: "Interbank - Cuenta Corriente Dólares: 200-3456789019"
+    soles: "Interbank Cta. Cte. Soles: 200-3456789012",
+    dolares: "Interbank Cta. Cte. Dólares: 200-3456789019"
   }
 };
+
+// Helper to draw the C&A logo using shapes
+function drawLogo(doc: jsPDF, x: number, y: number, size: number) {
+  const scale = size / 40;
+  
+  // White background with rounded corners
+  doc.setFillColor(...COLORS.white);
+  doc.roundedRect(x, y, size, size, 3, 3, "F");
+  
+  // Draw diamond shapes representing the logo
+  const centerX = x + size / 2;
+  const centerY = y + size / 2;
+  const diamondSize = 12 * scale;
+  
+  // Gray diamond (left/back)
+  doc.setFillColor(150, 150, 150);
+  drawDiamond(doc, centerX - 8 * scale, centerY - 2 * scale, diamondSize * 0.85);
+  
+  // Red diamond (bottom/middle)
+  doc.setFillColor(...COLORS.accentRed);
+  drawDiamond(doc, centerX - 2 * scale, centerY + 4 * scale, diamondSize * 0.85);
+  
+  // Gold diamond (front/right) - with C&A text
+  doc.setFillColor(...COLORS.accentGold);
+  drawDiamond(doc, centerX + 4 * scale, centerY - 2 * scale, diamondSize);
+  
+  // C&A text on gold diamond
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(7 * scale);
+  doc.setFont("helvetica", "bold");
+  doc.text("C&A", centerX + 4 * scale, centerY, { align: "center" });
+}
+
+function drawDiamond(doc: jsPDF, cx: number, cy: number, size: number) {
+  const half = size / 2;
+  // Draw a rotated square (diamond)
+  const points = [
+    [cx, cy - half],       // top
+    [cx + half, cy],       // right
+    [cx, cy + half],       // bottom
+    [cx - half, cy],       // left
+  ];
+  
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(0.3);
+  
+  // Create path manually
+  (doc as any).triangle(
+    points[0][0], points[0][1],
+    points[1][0], points[1][1],
+    points[3][0], points[3][1],
+    "F"
+  );
+  (doc as any).triangle(
+    points[1][0], points[1][1],
+    points[2][0], points[2][1],
+    points[3][0], points[3][1],
+    "F"
+  );
+}
 
 export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   const doc = new jsPDF({
@@ -62,124 +138,168 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 15;
-  let yPos = margin;
+  const margin = 12;
+  let yPos = 0;
 
-  // Colors
-  const primaryColor = data.tipo === "contabilidad" 
-    ? [26, 54, 93] // Dark blue for accounting
-    : [139, 69, 19]; // Brown/bronze for procedures
+  // ========== HEADER SECTION ==========
+  // Full-width dark blue header
+  doc.setFillColor(...COLORS.primaryBlue);
+  doc.rect(0, 0, pageWidth, 42, "F");
   
-  const secondaryColor = data.tipo === "contabilidad"
-    ? [59, 130, 246] // Light blue
-    : [180, 120, 60]; // Light bronze
-
-  // Header background
-  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.rect(0, 0, pageWidth, 45, "F");
-
-  // Try to load and add the logo
-  try {
-    // Use the logo from assets
-    const logoImg = new Image();
-    logoImg.src = "/src/assets/logo-ca-full.png";
-    doc.addImage(LOGO_BASE64, "PNG", margin, 8, 30, 30);
-  } catch (e) {
-    // If logo fails, draw a placeholder
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(margin, 8, 30, 30, 3, 3, "F");
-    doc.setFontSize(10);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("C&A", margin + 15, 25, { align: "center" });
-  }
-
-  // Company name and info in header
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
+  // White box for logo on the left
+  const logoBoxSize = 32;
+  doc.setFillColor(...COLORS.white);
+  doc.roundedRect(margin, 5, logoBoxSize, logoBoxSize, 3, 3, "F");
+  
+  // Draw stylized logo
+  doc.setFillColor(150, 150, 150);
+  // Gray diamond
+  const logoX = margin + logoBoxSize / 2;
+  const logoY = 5 + logoBoxSize / 2;
+  
+  // Draw the three overlapping diamonds
+  // Back gray diamond
+  doc.setFillColor(160, 160, 160);
+  drawSquareDiamond(doc, logoX - 6, logoY - 1, 10);
+  
+  // Middle red diamond
+  doc.setFillColor(...COLORS.accentRed);
+  drawSquareDiamond(doc, logoX - 1, logoY + 4, 10);
+  
+  // Front gold diamond with text
+  doc.setFillColor(...COLORS.accentGold);
+  drawSquareDiamond(doc, logoX + 4, logoY - 1, 12);
+  
+  // C&A text on gold diamond
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text(COMPANY_INFO.name, margin + 38, 18);
+  doc.text("C&A", logoX + 4, logoY + 1, { align: "center" });
+
+  // Company name and info
+  const textStartX = margin + logoBoxSize + 8;
+  
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(15);
+  doc.setFont("helvetica", "bold");
+  doc.text(COMPANY_INFO.name, textStartX, 15);
   
   doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(COMPANY_INFO.slogan, margin + 38, 24);
-  doc.text(`${COMPANY_INFO.address} | ${COMPANY_INFO.phone}`, margin + 38, 30);
-  doc.text(`${COMPANY_INFO.email} | ${COMPANY_INFO.ruc}`, margin + 38, 36);
-
-  // Proforma type badge on the right
-  const badgeWidth = 50;
-  const badgeX = pageWidth - margin - badgeWidth;
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(badgeX, 12, badgeWidth, 22, 3, 3, "F");
+  doc.setFont("helvetica", "italic");
+  doc.text(COMPANY_INFO.slogan, textStartX, 22);
   
-  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("PROFORMA", badgeX + badgeWidth / 2, 20, { align: "center" });
-  
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(data.tipo === "contabilidad" ? "CONTABILIDAD" : "TRÁMITES", badgeX + badgeWidth / 2, 26, { align: "center" });
-  
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text(`N° ${data.numero}`, badgeX + badgeWidth / 2, 32, { align: "center" });
-
-  yPos = 55;
-
-  // Client and dates section
-  doc.setFillColor(245, 247, 250);
-  doc.roundedRect(margin, yPos, pageWidth - margin * 2, 35, 3, 3, "F");
-  
-  // Left side - Client info
-  doc.setTextColor(100, 100, 100);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("CLIENTE:", margin + 5, yPos + 8);
+  doc.text(`${COMPANY_INFO.address} | ${COMPANY_INFO.phone}`, textStartX, 29);
+  doc.text(`${COMPANY_INFO.email} | ${COMPANY_INFO.ruc}`, textStartX, 35);
+
+  // Proforma badge on the right
+  const badgeWidth = 48;
+  const badgeHeight = 28;
+  const badgeX = pageWidth - margin - badgeWidth;
+  const badgeY = 7;
   
-  doc.setTextColor(30, 30, 30);
+  doc.setFillColor(...COLORS.white);
+  doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 4, 4, "F");
+  
+  // Badge content
+  doc.setTextColor(...COLORS.primaryBlue);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(data.cliente.razon_social, margin + 5, yPos + 15);
+  doc.text("PROFORMA", badgeX + badgeWidth / 2, badgeY + 9, { align: "center" });
   
-  doc.setTextColor(80, 80, 80);
+  // Type with colored underline
+  const typeColor = data.tipo === "contabilidad" ? COLORS.primaryBlue : COLORS.accentGold;
+  doc.setTextColor(...typeColor);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.tipo === "contabilidad" ? "CONTABILIDAD" : "TRÁMITES", badgeX + badgeWidth / 2, badgeY + 16, { align: "center" });
+  
+  // Proforma number with accent color
+  doc.setTextColor(...COLORS.accentRed);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text(`N° ${data.numero}`, badgeX + badgeWidth / 2, badgeY + 24, { align: "center" });
+
+  yPos = 50;
+
+  // ========== CLIENT & DATES SECTION ==========
+  // Modern card style
+  doc.setFillColor(...COLORS.lightBg);
+  doc.roundedRect(margin, yPos, pageWidth - margin * 2, 38, 4, 4, "F");
+  
+  // Left column - Client info
+  const leftColX = margin + 8;
+  
+  // Client label with accent
+  doc.setFillColor(...COLORS.primaryBlue);
+  doc.roundedRect(leftColX, yPos + 5, 45, 6, 2, 2, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("DATOS DEL CLIENTE", leftColX + 22.5, yPos + 9, { align: "center" });
+  
+  doc.setTextColor(...COLORS.textDark);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.cliente.razon_social, leftColX, yPos + 18);
+  
+  doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(`RUC/DNI: ${data.cliente.codigo}`, margin + 5, yPos + 22);
+  doc.text(`RUC/DNI: ${data.cliente.codigo}`, leftColX, yPos + 24);
+  
   if (data.cliente.direccion) {
-    doc.text(`Dirección: ${data.cliente.direccion}`, margin + 5, yPos + 28);
+    const direccion = data.cliente.direccion.length > 50 
+      ? data.cliente.direccion.substring(0, 47) + "..." 
+      : data.cliente.direccion;
+    doc.text(`Dir: ${direccion}`, leftColX, yPos + 30);
   }
   if (data.cliente.email) {
-    doc.text(`Email: ${data.cliente.email}`, margin + 5, yPos + 33);
+    doc.text(`Email: ${data.cliente.email}`, leftColX, yPos + 36);
   }
 
-  // Right side - Dates
-  const rightColX = pageWidth / 2 + 10;
-  doc.setTextColor(100, 100, 100);
-  doc.setFontSize(8);
-  doc.text("FECHA DE EMISIÓN:", rightColX, yPos + 8);
-  doc.setTextColor(30, 30, 30);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatDate(data.fecha_emision), rightColX, yPos + 15);
+  // Right column - Dates
+  const rightColX = pageWidth / 2 + 15;
   
-  doc.setTextColor(100, 100, 100);
+  // Dates section
+  doc.setFillColor(...COLORS.primaryBlue);
+  doc.roundedRect(rightColX, yPos + 5, 35, 6, 2, 2, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("FECHAS", rightColX + 17.5, yPos + 9, { align: "center" });
+  
+  doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("VÁLIDO HASTA:", rightColX, yPos + 24);
-  doc.setTextColor(30, 30, 30);
+  doc.text("Fecha de Emisión:", rightColX, yPos + 18);
+  doc.setTextColor(...COLORS.textDark);
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text(formatDate(data.fecha_vencimiento), rightColX, yPos + 31);
-
-  yPos += 45;
-
-  // Services table title
-  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("DETALLE DE SERVICIOS", margin, yPos);
+  doc.text(formatDate(data.fecha_emision), rightColX, yPos + 24);
   
-  yPos += 5;
+  doc.setTextColor(...COLORS.textMuted);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Válido hasta:", rightColX, yPos + 31);
+  doc.setTextColor(...COLORS.accentRed);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(formatDate(data.fecha_vencimiento), rightColX, yPos + 37);
+
+  yPos += 46;
+
+  // ========== SERVICES TABLE ==========
+  // Section title with modern styling
+  doc.setFillColor(...COLORS.primaryBlue);
+  doc.roundedRect(margin, yPos, 55, 7, 2, 2, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("DETALLE DE SERVICIOS", margin + 27.5, yPos + 5, { align: "center" });
+  
+  yPos += 12;
 
   // Services table
   const tableData = data.items.map((item, index) => [
@@ -192,12 +312,12 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
 
   autoTable(doc, {
     startY: yPos,
-    head: [["#", "Descripción del Servicio", "Cant.", "Precio Unit.", "Subtotal"]],
+    head: [["#", "Descripción del Servicio", "Cant.", "P. Unit.", "Subtotal"]],
     body: tableData,
-    theme: "grid",
+    theme: "plain",
     headStyles: {
-      fillColor: [primaryColor[0], primaryColor[1], primaryColor[2]],
-      textColor: [255, 255, 255],
+      fillColor: COLORS.primaryBlue,
+      textColor: COLORS.white,
       fontSize: 9,
       fontStyle: "bold",
       halign: "center",
@@ -207,127 +327,187 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
     bodyStyles: {
       fontSize: 9,
       cellPadding: 4,
-      textColor: [50, 50, 50],
-      valign: "middle"
+      textColor: COLORS.textDark,
+      valign: "middle",
+      lineColor: [230, 230, 230],
+      lineWidth: 0.1
     },
     columnStyles: {
-      0: { halign: "center", cellWidth: 12 },
+      0: { halign: "center", cellWidth: 10 },
       1: { halign: "left", cellWidth: "auto" },
-      2: { halign: "center", cellWidth: 18 },
+      2: { halign: "center", cellWidth: 15 },
       3: { halign: "right", cellWidth: 28 },
       4: { halign: "right", cellWidth: 28 }
     },
     alternateRowStyles: {
-      fillColor: [250, 250, 252]
+      fillColor: [252, 252, 254]
     },
-    margin: { left: margin, right: margin }
+    margin: { left: margin, right: margin },
+    tableLineColor: [200, 200, 200],
+    tableLineWidth: 0.2
   });
 
-  // Get the Y position after the table
-  yPos = (doc as any).lastAutoTable.finalY + 10;
+  yPos = (doc as any).lastAutoTable.finalY + 8;
 
-  // Totals section
-  const totalsX = pageWidth - margin - 70;
-  const totalsWidth = 70;
+  // ========== TOTALS SECTION ==========
+  const totalsX = pageWidth - margin - 75;
+  const totalsWidth = 75;
   
-  // Subtotal
-  doc.setFillColor(245, 247, 250);
-  doc.rect(totalsX, yPos, totalsWidth, 8, "F");
-  doc.setTextColor(80, 80, 80);
+  // Totals box with shadow effect
+  doc.setFillColor(250, 250, 252);
+  doc.roundedRect(totalsX - 2, yPos - 2, totalsWidth + 4, 38, 3, 3, "F");
+  
+  // Subtotal row
+  doc.setFillColor(...COLORS.lightBg);
+  doc.rect(totalsX, yPos, totalsWidth, 9, "F");
+  doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Subtotal:", totalsX + 5, yPos + 5.5);
-  doc.setTextColor(30, 30, 30);
+  doc.text("Subtotal:", totalsX + 5, yPos + 6);
+  doc.setTextColor(...COLORS.textDark);
   doc.setFont("helvetica", "bold");
-  doc.text(formatCurrency(data.subtotal, data.moneda || "PEN"), totalsX + totalsWidth - 5, yPos + 5.5, { align: "right" });
+  doc.text(formatCurrency(data.subtotal, data.moneda || "PEN"), totalsX + totalsWidth - 5, yPos + 6, { align: "right" });
   
-  yPos += 9;
+  yPos += 10;
   
-  // IGV
-  doc.setFillColor(245, 247, 250);
-  doc.rect(totalsX, yPos, totalsWidth, 8, "F");
-  doc.setTextColor(80, 80, 80);
+  // IGV row
+  doc.setFillColor(...COLORS.lightBg);
+  doc.rect(totalsX, yPos, totalsWidth, 9, "F");
+  doc.setTextColor(...COLORS.textMuted);
   doc.setFont("helvetica", "normal");
-  doc.text("IGV (18%):", totalsX + 5, yPos + 5.5);
-  doc.setTextColor(30, 30, 30);
+  doc.text("IGV (18%):", totalsX + 5, yPos + 6);
+  doc.setTextColor(...COLORS.textDark);
   doc.setFont("helvetica", "bold");
-  doc.text(formatCurrency(data.igv, data.moneda || "PEN"), totalsX + totalsWidth - 5, yPos + 5.5, { align: "right" });
+  doc.text(formatCurrency(data.igv, data.moneda || "PEN"), totalsX + totalsWidth - 5, yPos + 6, { align: "right" });
   
-  yPos += 9;
+  yPos += 10;
   
-  // Total
-  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.rect(totalsX, yPos, totalsWidth, 10, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
+  // Total row with gradient-like effect
+  doc.setFillColor(...COLORS.primaryBlue);
+  doc.roundedRect(totalsX, yPos, totalsWidth, 12, 2, 2, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("TOTAL:", totalsX + 5, yPos + 7);
-  doc.text(formatCurrency(data.total, data.moneda || "PEN"), totalsX + totalsWidth - 5, yPos + 7, { align: "right" });
+  doc.text("TOTAL:", totalsX + 5, yPos + 8);
+  doc.text(formatCurrency(data.total, data.moneda || "PEN"), totalsX + totalsWidth - 5, yPos + 8, { align: "right" });
   
-  yPos += 20;
+  yPos += 22;
 
-  // Notes section
+  // ========== NOTES SECTION ==========
   if (data.notas) {
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("OBSERVACIONES:", margin, yPos);
-    yPos += 6;
+    doc.setFillColor(...COLORS.lightBg);
+    doc.roundedRect(margin, yPos, pageWidth - margin * 2, 20, 3, 3, "F");
     
-    doc.setTextColor(80, 80, 80);
+    doc.setTextColor(...COLORS.primaryBlue);
     doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("OBSERVACIONES:", margin + 5, yPos + 7);
+    
+    doc.setTextColor(...COLORS.textMuted);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    const splitNotes = doc.splitTextToSize(data.notas, pageWidth - margin * 2);
-    doc.text(splitNotes, margin, yPos);
-    yPos += splitNotes.length * 5 + 10;
+    const splitNotes = doc.splitTextToSize(data.notas, pageWidth - margin * 2 - 10);
+    doc.text(splitNotes.slice(0, 2), margin + 5, yPos + 14);
+    yPos += 25;
   }
 
-  // Bank info section
-  doc.setFillColor(245, 247, 250);
-  doc.roundedRect(margin, yPos, pageWidth - margin * 2, 28, 3, 3, "F");
+  // ========== BANK INFO SECTION ==========
+  doc.setFillColor(...COLORS.lightBg);
+  doc.roundedRect(margin, yPos, pageWidth - margin * 2, 26, 3, 3, "F");
   
-  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.setFontSize(9);
+  // Bank icon/badge
+  doc.setFillColor(...COLORS.accentGold);
+  doc.roundedRect(margin + 5, yPos + 3, 60, 6, 2, 2, "F");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.text("DATOS BANCARIOS PARA TRANSFERENCIA:", margin + 5, yPos + 7);
+  doc.text("DATOS BANCARIOS", margin + 35, yPos + 7, { align: "center" });
   
-  doc.setTextColor(60, 60, 60);
-  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.textDark);
+  doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
-  doc.text(BANK_INFO.bcp.soles, margin + 5, yPos + 14);
-  doc.text(BANK_INFO.bcp.dolares, margin + 5, yPos + 20);
-  doc.text(BANK_INFO.interbank.soles, pageWidth / 2, yPos + 14);
-  doc.text(BANK_INFO.interbank.dolares, pageWidth / 2, yPos + 20);
   
-  yPos += 35;
+  // Left column
+  doc.text(BANK_INFO.bcp.soles, margin + 5, yPos + 15);
+  doc.text(BANK_INFO.bcp.dolares, margin + 5, yPos + 21);
+  
+  // Right column
+  doc.text(BANK_INFO.interbank.soles, pageWidth / 2 + 5, yPos + 15);
+  doc.text(BANK_INFO.interbank.dolares, pageWidth / 2 + 5, yPos + 21);
+  
+  yPos += 32;
 
-  // Terms and conditions
-  doc.setTextColor(120, 120, 120);
+  // ========== TERMS SECTION ==========
+  doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(7);
   doc.setFont("helvetica", "italic");
-  doc.text("• Los precios incluyen IGV.", margin, yPos);
-  doc.text("• La validez de esta proforma es de 30 días.", margin, yPos + 4);
-  doc.text("• El pago se realiza al contado o según acuerdo con el cliente.", margin, yPos + 8);
-  doc.text("• Los servicios se ejecutarán una vez confirmado el pago.", margin, yPos + 12);
-
-  // Footer
-  const footerY = pageHeight - 12;
-  doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.setLineWidth(0.5);
-  doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
   
-  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  const terms = [
+    "• Los precios incluyen IGV.",
+    "• Validez de la proforma: 30 días calendarios.",
+    "• Forma de pago: Contado o según acuerdo.",
+    "• Los servicios inician una vez confirmado el pago."
+  ];
+  
+  terms.forEach((term, i) => {
+    doc.text(term, margin, yPos + (i * 4));
+  });
+
+  // ========== FOOTER ==========
+  const footerY = pageHeight - 15;
+  
+  // Gradient-like footer line
+  doc.setDrawColor(...COLORS.accentGold);
+  doc.setLineWidth(1);
+  doc.line(margin, footerY - 3, pageWidth / 3, footerY - 3);
+  
+  doc.setDrawColor(...COLORS.accentRed);
+  doc.line(pageWidth / 3, footerY - 3, pageWidth * 2 / 3, footerY - 3);
+  
+  doc.setDrawColor(...COLORS.primaryBlue);
+  doc.line(pageWidth * 2 / 3, footerY - 3, pageWidth - margin, footerY - 3);
+  
+  doc.setTextColor(...COLORS.primaryBlue);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text(COMPANY_INFO.name, pageWidth / 2, footerY, { align: "center" });
+  doc.text(COMPANY_INFO.name, pageWidth / 2, footerY + 2, { align: "center" });
   
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(7);
-  doc.setFont("helvetica", "normal");
-  doc.text("¡Gracias por su preferencia!", pageWidth / 2, footerY + 4, { align: "center" });
+  doc.setFont("helvetica", "italic");
+  doc.text("¡Gracias por confiar en nosotros!", pageWidth / 2, footerY + 7, { align: "center" });
 
-  // Return as blob
   return doc.output("blob");
+}
+
+// Helper function to draw a square diamond
+function drawSquareDiamond(doc: jsPDF, cx: number, cy: number, size: number) {
+  const half = size / 2;
+  
+  // Use lines to create diamond shape
+  doc.setLineWidth(0);
+  
+  // Draw filled diamond using triangles approach
+  const points: [number, number][] = [
+    [cx, cy - half],       // top
+    [cx + half, cy],       // right
+    [cx, cy + half],       // bottom
+    [cx - half, cy],       // left
+  ];
+  
+  // Draw as two triangles
+  doc.triangle(
+    points[0][0], points[0][1],
+    points[1][0], points[1][1],
+    points[3][0], points[3][1],
+    "F"
+  );
+  doc.triangle(
+    points[1][0], points[1][1],
+    points[2][0], points[2][1],
+    points[3][0], points[3][1],
+    "F"
+  );
 }
 
 function formatDate(dateStr: string): string {
