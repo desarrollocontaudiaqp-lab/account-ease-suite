@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet } from "lucide-react";
+import { Plus, Search, Filter, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +14,18 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
 import { ProformaDesigner } from "@/components/proformas/ProformaDesigner";
 import { CreateProformaDialog } from "@/components/proformas/CreateProformaDialog";
+import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
+import { toast } from "sonner";
 
 interface Proforma {
   id: string;
   numero: string;
   cliente: {
     razon_social: string;
+    codigo: string;
+    direccion: string | null;
+    email: string | null;
+    telefono: string | null;
   } | null;
   tipo: "contabilidad" | "tramites";
   subtotal: number;
@@ -28,6 +34,16 @@ interface Proforma {
   status: "borrador" | "enviada" | "aprobada" | "rechazada" | "facturada";
   fecha_emision: string;
   fecha_vencimiento: string;
+  notas: string | null;
+  moneda: string;
+}
+
+interface ProformaItem {
+  id: string;
+  descripcion: string;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
 }
 
 const statusStyles: Record<string, string> = {
@@ -62,6 +78,7 @@ const Proformas = () => {
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [proformas, setProformas] = useState<Proforma[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [designerOpen, setDesignerOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createDialogType, setCreateDialogType] = useState<"contabilidad" | "tramites">("contabilidad");
@@ -84,7 +101,9 @@ const Proformas = () => {
         status,
         fecha_emision,
         fecha_vencimiento,
-        cliente:clientes(razon_social)
+        notas,
+        moneda,
+        cliente:clientes(razon_social, codigo, direccion, email, telefono)
       `)
       .order("created_at", { ascending: false });
 
@@ -95,11 +114,65 @@ const Proformas = () => {
         ...p,
         tipo: p.tipo as "contabilidad" | "tramites",
         status: p.status as Proforma["status"],
-        cliente: p.cliente as { razon_social: string } | null,
+        cliente: p.cliente as Proforma["cliente"],
       }));
       setProformas(parsed);
     }
     setLoading(false);
+  };
+
+  const handleDownloadPDF = async (proforma: Proforma) => {
+    if (!proforma.cliente) {
+      toast.error("No se puede generar PDF sin datos del cliente");
+      return;
+    }
+
+    setDownloadingId(proforma.id);
+    
+    try {
+      // Fetch proforma items
+      const { data: itemsData, error: itemsError } = await supabase
+        .from("proforma_items")
+        .select("*")
+        .eq("proforma_id", proforma.id);
+
+      if (itemsError) throw itemsError;
+
+      const items: ProformaItem[] = itemsData || [];
+
+      const pdfBlob = await generateProformaPDF({
+        numero: proforma.numero,
+        tipo: proforma.tipo,
+        fecha_emision: proforma.fecha_emision,
+        fecha_vencimiento: proforma.fecha_vencimiento,
+        cliente: {
+          razon_social: proforma.cliente.razon_social,
+          codigo: proforma.cliente.codigo,
+          direccion: proforma.cliente.direccion,
+          email: proforma.cliente.email,
+          telefono: proforma.cliente.telefono,
+        },
+        items: items.map(item => ({
+          descripcion: item.descripcion,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          subtotal: item.subtotal,
+        })),
+        subtotal: proforma.subtotal,
+        igv: proforma.igv,
+        total: proforma.total,
+        notas: proforma.notas,
+        moneda: proforma.moneda,
+      });
+
+      downloadPDF(pdfBlob, `Proforma_${proforma.numero}.pdf`);
+      toast.success("PDF descargado correctamente");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Error al generar el PDF");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const handleOpenCreateDialog = (tipo: "contabilidad" | "tramites") => {
@@ -257,20 +330,27 @@ const Proformas = () => {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver detalle
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Download className="h-4 w-4 mr-2" />
-                              Descargar PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Send className="h-4 w-4 mr-2" />
-                              Enviar al cliente
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Ver detalle
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDownloadPDF(proforma)}
+                                    disabled={downloadingId === proforma.id}
+                                  >
+                                    {downloadingId === proforma.id ? (
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                      <Download className="h-4 w-4 mr-2" />
+                                    )}
+                                    Descargar PDF
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Enviar al cliente
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
 
@@ -384,8 +464,15 @@ const Proformas = () => {
                                     <Eye className="h-4 w-4 mr-2" />
                                     Ver detalle
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Download className="h-4 w-4 mr-2" />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDownloadPDF(proforma)}
+                                    disabled={downloadingId === proforma.id}
+                                  >
+                                    {downloadingId === proforma.id ? (
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                      <Download className="h-4 w-4 mr-2" />
+                                    )}
                                     Descargar PDF
                                   </DropdownMenuItem>
                                   <DropdownMenuItem>
