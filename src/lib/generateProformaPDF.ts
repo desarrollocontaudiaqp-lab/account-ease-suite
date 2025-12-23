@@ -51,22 +51,27 @@ interface ProformaData {
   campos_personalizados?: Record<string, string>;
 }
 
-// Corporate colors
+// Corporate colors - Maroon, Gold & Red palette
 const COLORS = {
-  // Primary dark blue (header background)
-  primaryBlue: [26, 54, 93] as [number, number, number],
+  // Primary maroon/burgundy (header background)
+  primaryMaroon: [74, 25, 28] as [number, number, number],
+  // Deep burgundy for accents
+  deepBurgundy: [96, 24, 34] as [number, number, number],
   // Accent red (from logo)
   accentRed: [185, 28, 28] as [number, number, number],
   // Gold/Bronze (from logo)
   accentGold: [180, 130, 70] as [number, number, number],
+  // Light gold for highlights
+  lightGold: [212, 175, 55] as [number, number, number],
   // Gray (from logo)
   accentGray: [120, 120, 120] as [number, number, number],
   // Light backgrounds
-  lightBg: [245, 247, 250] as [number, number, number],
+  lightBg: [252, 248, 245] as [number, number, number],
+  warmLightBg: [255, 250, 245] as [number, number, number],
   white: [255, 255, 255] as [number, number, number],
   // Text colors
-  textDark: [30, 30, 30] as [number, number, number],
-  textMuted: [100, 100, 100] as [number, number, number],
+  textDark: [45, 30, 30] as [number, number, number],
+  textMuted: [100, 80, 80] as [number, number, number],
   textLight: [255, 255, 255] as [number, number, number],
 };
 
@@ -164,66 +169,80 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   let yPos = 0;
 
   // ========== HEADER SECTION ==========
-  // Full-width dark blue header
-  doc.setFillColor(...COLORS.primaryBlue);
-  doc.rect(0, 0, pageWidth, 45, "F");
+  // Full-width maroon header with subtle gradient effect
+  doc.setFillColor(...COLORS.primaryMaroon);
+  doc.rect(0, 0, pageWidth, 48, "F");
   
-  // Load and add logo from PNG
+  // Gold accent line at bottom of header
+  doc.setFillColor(...COLORS.accentGold);
+  doc.rect(0, 46, pageWidth, 2, "F");
+  
+  // Load and add logo from PNG with elegant white background
   try {
     const logoImg = await loadImage("/images/logo-ca.png");
-    const logoBoxSize = 35;
+    const logoBoxSize = 38;
+    // Shadow effect
+    doc.setFillColor(200, 200, 200);
+    doc.roundedRect(margin + 1, 6, logoBoxSize, logoBoxSize, 4, 4, "F");
+    // White box
     doc.setFillColor(...COLORS.white);
-    doc.roundedRect(margin, 5, logoBoxSize, logoBoxSize, 3, 3, "F");
-    doc.addImage(logoImg, "PNG", margin + 2, 7, logoBoxSize - 4, logoBoxSize - 4);
+    doc.roundedRect(margin, 5, logoBoxSize, logoBoxSize, 4, 4, "F");
+    doc.addImage(logoImg, "PNG", margin + 3, 8, logoBoxSize - 6, logoBoxSize - 6);
   } catch (error) {
     console.error("Error loading logo:", error);
   }
 
   // Company name and info
-  const textStartX = margin + 42;
+  const textStartX = margin + 46;
   
   doc.setTextColor(...COLORS.white);
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text(COMPANY_INFO.name, textStartX, 14);
+  doc.text(COMPANY_INFO.name, textStartX, 16);
   
-  doc.setFontSize(8);
+  // Gold slogan
+  doc.setTextColor(...COLORS.lightGold);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "italic");
-  doc.text(COMPANY_INFO.slogan, textStartX, 20);
+  doc.text(COMPANY_INFO.slogan, textStartX, 23);
   
+  doc.setTextColor(...COLORS.white);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.text(`${COMPANY_INFO.website}: ${COMPANY_INFO.phone}`, textStartX, 27);
-  doc.text(`Email: ${COMPANY_INFO.email}`, textStartX, 32);
-  doc.text(`Ubicación: ${COMPANY_INFO.address}`, textStartX, 37);
+  doc.text(`${COMPANY_INFO.website}: ${COMPANY_INFO.phone}`, textStartX, 31);
+  doc.text(`Email: ${COMPANY_INFO.email}`, textStartX, 36);
+  doc.text(`Ubicación: ${COMPANY_INFO.address}`, textStartX, 41);
 
-  // Proforma badge on the right
-  const badgeWidth = 48;
-  const badgeHeight = 28;
+  // Proforma badge on the right with gold border
+  const badgeWidth = 50;
+  const badgeHeight = 32;
   const badgeX = pageWidth - margin - badgeWidth;
-  const badgeY = 7;
+  const badgeY = 6;
   
+  // Gold border effect
+  doc.setFillColor(...COLORS.accentGold);
+  doc.roundedRect(badgeX - 1, badgeY - 1, badgeWidth + 2, badgeHeight + 2, 5, 5, "F");
   doc.setFillColor(...COLORS.white);
   doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 4, 4, "F");
   
   // Badge content
-  doc.setTextColor(...COLORS.primaryBlue);
-  doc.setFontSize(11);
+  doc.setTextColor(...COLORS.primaryMaroon);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("PROFORMA", badgeX + badgeWidth / 2, badgeY + 9, { align: "center" });
+  doc.text("PROFORMA", badgeX + badgeWidth / 2, badgeY + 10, { align: "center" });
   
-  // Type with colored underline
-  const typeColor = data.tipo === "contabilidad" ? COLORS.primaryBlue : COLORS.accentGold;
+  // Type with colored styling
+  const typeColor = data.tipo === "contabilidad" ? COLORS.primaryMaroon : COLORS.accentGold;
   doc.setTextColor(...typeColor);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text(data.tipo === "contabilidad" ? "CONTABILIDAD" : "TRÁMITES", badgeX + badgeWidth / 2, badgeY + 16, { align: "center" });
+  doc.text(data.tipo === "contabilidad" ? "CONTABILIDAD" : "TRÁMITES", badgeX + badgeWidth / 2, badgeY + 18, { align: "center" });
   
-  // Proforma number with accent color
+  // Proforma number with red accent
   doc.setTextColor(...COLORS.accentRed);
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text(`N° ${data.numero}`, badgeX + badgeWidth / 2, badgeY + 24, { align: "center" });
+  doc.text(`N° ${data.numero}`, badgeX + badgeWidth / 2, badgeY + 27, { align: "center" });
 
   yPos = 50;
 
@@ -236,7 +255,7 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   const leftColX = margin + 8;
   
   // Client label with accent
-  doc.setFillColor(...COLORS.primaryBlue);
+  doc.setFillColor(...COLORS.primaryMaroon);
   doc.roundedRect(leftColX, yPos + 5, 45, 6, 2, 2, "F");
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(7);
@@ -267,7 +286,7 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   const rightColX = pageWidth / 2 + 15;
   
   // Dates section
-  doc.setFillColor(...COLORS.primaryBlue);
+  doc.setFillColor(...COLORS.primaryMaroon);
   doc.roundedRect(rightColX, yPos + 5, 35, 6, 2, 2, "F");
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(7);
@@ -296,7 +315,7 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
 
   // ========== SERVICES TABLE ==========
   // Section title with modern styling
-  doc.setFillColor(...COLORS.primaryBlue);
+  doc.setFillColor(...COLORS.primaryMaroon);
   doc.roundedRect(margin, yPos, 55, 7, 2, 2, "F");
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(9);
@@ -320,7 +339,7 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
     body: tableData,
     theme: "plain",
     headStyles: {
-      fillColor: COLORS.primaryBlue,
+      fillColor: COLORS.primaryMaroon,
       textColor: COLORS.white,
       fontSize: 9,
       fontStyle: "bold",
@@ -387,7 +406,7 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   yPos += 10;
   
   // Total row with gradient-like effect
-  doc.setFillColor(...COLORS.primaryBlue);
+  doc.setFillColor(...COLORS.primaryMaroon);
   doc.roundedRect(totalsX, yPos, totalsWidth, 12, 2, 2, "F");
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(11);
@@ -402,7 +421,7 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
     doc.setFillColor(...COLORS.lightBg);
     doc.roundedRect(margin, yPos, pageWidth - margin * 2, 20, 3, 3, "F");
     
-    doc.setTextColor(...COLORS.primaryBlue);
+    doc.setTextColor(...COLORS.primaryMaroon);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text("OBSERVACIONES:", margin + 5, yPos + 7);
@@ -468,10 +487,10 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   doc.setDrawColor(...COLORS.accentRed);
   doc.line(pageWidth / 3, footerY - 3, pageWidth * 2 / 3, footerY - 3);
   
-  doc.setDrawColor(...COLORS.primaryBlue);
+  doc.setDrawColor(...COLORS.primaryMaroon);
   doc.line(pageWidth * 2 / 3, footerY - 3, pageWidth - margin, footerY - 3);
   
-  doc.setTextColor(...COLORS.primaryBlue);
+  doc.setTextColor(...COLORS.primaryMaroon);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.text(COMPANY_INFO.name, pageWidth / 2, footerY + 2, { align: "center" });
