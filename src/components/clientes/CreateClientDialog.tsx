@@ -39,6 +39,14 @@ const clientSchema = z.object({
   contacto_nombre: z.string().optional(),
   contacto_email: z.string().email("Email inválido").optional().or(z.literal("")),
   contacto_telefono: z.string().optional(),
+  contacto_nombre2: z.string().optional(),
+  contacto_telefono2: z.string().optional(),
+  regimen_tributario: z.string().optional(),
+  regimen_laboral: z.string().optional(),
+  actividad_economica: z.string().optional(),
+  usuario_sunat: z.string().optional(),
+  clave_sunat: z.string().optional(),
+  nro_trabajadores: z.coerce.number().optional(),
   notas: z.string().optional(),
 }).refine((data) => {
   if (data.tipo_cliente === "empresa") {
@@ -76,6 +84,14 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
       contacto_nombre: "",
       contacto_email: "",
       contacto_telefono: "",
+      contacto_nombre2: "",
+      contacto_telefono2: "",
+      regimen_tributario: "",
+      regimen_laboral: "",
+      actividad_economica: "",
+      usuario_sunat: "",
+      clave_sunat: "",
+      nro_trabajadores: undefined,
       notas: "",
     },
   });
@@ -98,6 +114,14 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
         contacto_nombre: data.contacto_nombre || null,
         contacto_email: data.contacto_email || null,
         contacto_telefono: data.contacto_telefono || null,
+        contacto_nombre2: data.contacto_nombre2 || null,
+        contacto_telefono2: data.contacto_telefono2 || null,
+        regimen_tributario: data.regimen_tributario || null,
+        regimen_laboral: data.regimen_laboral || null,
+        actividad_economica: data.actividad_economica || null,
+        usuario_sunat: data.usuario_sunat || null,
+        clave_sunat: data.clave_sunat || null,
+        nro_trabajadores: data.nro_trabajadores || null,
         notas: data.notas || null,
       };
 
@@ -306,7 +330,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
             {/* Persona de contacto (solo para empresas) */}
             {tipoCliente === "empresa" && (
               <div className="space-y-4 p-4 rounded-lg bg-muted/50 border border-border">
-                <Label className="text-sm font-medium">Persona de Contacto</Label>
+                <Label className="text-sm font-medium">Persona de Contacto 1</Label>
                 <FormField
                   control={form.control}
                   name="contacto_nombre"
@@ -342,6 +366,140 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                         <FormLabel>Teléfono</FormLabel>
                         <FormControl>
                           <Input placeholder="951-123456" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Persona de contacto 2 (solo para empresas) */}
+            {tipoCliente === "empresa" && (
+              <div className="space-y-4 p-4 rounded-lg bg-muted/50 border border-border">
+                <Label className="text-sm font-medium">Persona de Contacto 2</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="contacto_nombre2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Juan Pérez" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contacto_telefono2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Teléfono</FormLabel>
+                        <FormControl>
+                          <Input placeholder="951-654321" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Información Tributaria y Laboral (solo para empresas) */}
+            {tipoCliente === "empresa" && (
+              <div className="space-y-4 p-4 rounded-lg bg-muted/50 border border-border">
+                <Label className="text-sm font-medium">Información Tributaria y Laboral</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="regimen_tributario"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Régimen Tributario</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Régimen General, MYPE, etc." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="regimen_laboral"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Régimen Laboral</FormLabel>
+                        <FormControl>
+                          <Input placeholder="General, MYPE, Agrario, etc." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="actividad_economica"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Actividad Económica</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Descripción de la actividad económica principal..."
+                          className="resize-none"
+                          rows={2}
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="usuario_sunat"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Usuario SUNAT</FormLabel>
+                        <FormControl>
+                          <Input placeholder="USUARIO123" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="clave_sunat"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Clave SUNAT</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="nro_trabajadores"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nro. Trabajadores</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="10" 
+                            {...field}
+                            value={field.value ?? ""}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
