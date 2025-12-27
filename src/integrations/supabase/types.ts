@@ -223,11 +223,15 @@ export type Database = {
       }
       clientes: {
         Row: {
+          actividad_economica: string | null
           activo: boolean
+          clave_sunat: string | null
           codigo: string
           contacto_email: string | null
           contacto_nombre: string | null
+          contacto_nombre2: string | null
           contacto_telefono: string | null
+          contacto_telefono2: string | null
           created_at: string
           created_by: string | null
           direccion: string | null
@@ -236,18 +240,26 @@ export type Database = {
           nombre_comercial: string | null
           nombre_persona_natural: string | null
           notas: string | null
+          nro_trabajadores: number | null
           razon_social: string
+          regimen_laboral: string | null
+          regimen_tributario: string | null
           sector: string | null
           telefono: string | null
           tipo_cliente: string
           updated_at: string
+          usuario_sunat: string | null
         }
         Insert: {
+          actividad_economica?: string | null
           activo?: boolean
+          clave_sunat?: string | null
           codigo: string
           contacto_email?: string | null
           contacto_nombre?: string | null
+          contacto_nombre2?: string | null
           contacto_telefono?: string | null
+          contacto_telefono2?: string | null
           created_at?: string
           created_by?: string | null
           direccion?: string | null
@@ -256,18 +268,26 @@ export type Database = {
           nombre_comercial?: string | null
           nombre_persona_natural?: string | null
           notas?: string | null
+          nro_trabajadores?: number | null
           razon_social: string
+          regimen_laboral?: string | null
+          regimen_tributario?: string | null
           sector?: string | null
           telefono?: string | null
           tipo_cliente?: string
           updated_at?: string
+          usuario_sunat?: string | null
         }
         Update: {
+          actividad_economica?: string | null
           activo?: boolean
+          clave_sunat?: string | null
           codigo?: string
           contacto_email?: string | null
           contacto_nombre?: string | null
+          contacto_nombre2?: string | null
           contacto_telefono?: string | null
+          contacto_telefono2?: string | null
           created_at?: string
           created_by?: string | null
           direccion?: string | null
@@ -276,11 +296,15 @@ export type Database = {
           nombre_comercial?: string | null
           nombre_persona_natural?: string | null
           notas?: string | null
+          nro_trabajadores?: number | null
           razon_social?: string
+          regimen_laboral?: string | null
+          regimen_tributario?: string | null
           sector?: string | null
           telefono?: string | null
           tipo_cliente?: string
           updated_at?: string
+          usuario_sunat?: string | null
         }
         Relationships: []
       }
