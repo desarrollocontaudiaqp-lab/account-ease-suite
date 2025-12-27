@@ -3,10 +3,6 @@ import {
   Plus,
   Search,
   Filter,
-  MoreHorizontal,
-  Eye,
-  Edit,
-  Trash2,
   Building2,
   User,
   Phone,
@@ -20,12 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,6 +25,9 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CreateClientDialog } from "@/components/clientes/CreateClientDialog";
 import { ImportCSVDialog } from "@/components/clientes/ImportCSVDialog";
+import { EditClientDialog } from "@/components/clientes/EditClientDialog";
+import { DeleteClientDialog } from "@/components/clientes/DeleteClientDialog";
+import { ClientActions } from "@/components/clientes/ClientActions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -45,8 +38,22 @@ interface Client {
   razon_social: string;
   nombre_comercial: string | null;
   nombre_persona_natural: string | null;
-  email: string | null;
+  direccion: string | null;
   telefono: string | null;
+  email: string | null;
+  contacto_nombre: string | null;
+  contacto_telefono: string | null;
+  contacto_email: string | null;
+  contacto_nombre2: string | null;
+  contacto_telefono2: string | null;
+  sector: string | null;
+  notas: string | null;
+  regimen_tributario: string | null;
+  regimen_laboral: string | null;
+  actividad_economica: string | null;
+  usuario_sunat: string | null;
+  clave_sunat: string | null;
+  nro_trabajadores: number | null;
   activo: boolean;
 }
 
@@ -58,11 +65,15 @@ const Clientes = () => {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
   const fetchClients = async () => {
     try {
       const { data, error } = await supabase
         .from("clientes")
-        .select("id, tipo_cliente, codigo, razon_social, nombre_comercial, nombre_persona_natural, email, telefono, activo")
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -72,6 +83,33 @@ const Clientes = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleToggleStatus = async (client: Client) => {
+    try {
+      const newStatus = !client.activo;
+      const { error } = await supabase
+        .from("clientes")
+        .update({ activo: newStatus })
+        .eq("id", client.id);
+
+      if (error) throw error;
+
+      toast.success(`Cliente ${newStatus ? "activado" : "suspendido"} exitosamente`);
+      fetchClients();
+    } catch (error: any) {
+      toast.error("Error al cambiar estado: " + error.message);
+    }
+  };
+
+  const handleEdit = (client: Client) => {
+    setSelectedClient(client);
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = (client: Client) => {
+    setSelectedClient(client);
+    setDeleteDialogOpen(true);
   };
 
   useEffect(() => {
@@ -131,6 +169,21 @@ const Clientes = () => {
       <ImportCSVDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
+        onSuccess={fetchClients}
+      />
+
+      <EditClientDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        client={selectedClient}
+        onSuccess={fetchClients}
+      />
+
+      <DeleteClientDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        clientId={selectedClient?.id || null}
+        clientName={selectedClient ? getClientName(selectedClient) : ""}
         onSuccess={fetchClients}
       />
 
@@ -245,27 +298,13 @@ const Clientes = () => {
                     </p>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver detalle
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <ClientActions
+                  clientName={getClientName(client)}
+                  isActive={client.activo}
+                  onToggleStatus={() => handleToggleStatus(client)}
+                  onEdit={() => handleEdit(client)}
+                  onDelete={() => handleDelete(client)}
+                />
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
@@ -388,27 +427,13 @@ const Clientes = () => {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Ver detalle
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <ClientActions
+                        clientName={getClientName(client)}
+                        isActive={client.activo}
+                        onToggleStatus={() => handleToggleStatus(client)}
+                        onEdit={() => handleEdit(client)}
+                        onDelete={() => handleDelete(client)}
+                      />
                     </td>
                   </tr>
                 ))}

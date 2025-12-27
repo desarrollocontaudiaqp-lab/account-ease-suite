@@ -1,0 +1,395 @@
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+const clientSchema = z.object({
+  tipo_cliente: z.string(),
+  codigo: z.string().min(8, "El RUC/DNI debe tener al menos 8 caracteres"),
+  razon_social: z.string().min(2, "La razón social es requerida"),
+  nombre_comercial: z.string().optional(),
+  nombre_persona_natural: z.string().optional(),
+  direccion: z.string().optional(),
+  telefono: z.string().optional(),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
+  contacto_nombre: z.string().optional(),
+  contacto_telefono: z.string().optional(),
+  contacto_email: z.string().email("Email inválido").optional().or(z.literal("")),
+  contacto_nombre2: z.string().optional(),
+  contacto_telefono2: z.string().optional(),
+  sector: z.string().optional(),
+  notas: z.string().optional(),
+  regimen_tributario: z.string().optional(),
+  regimen_laboral: z.string().optional(),
+  actividad_economica: z.string().optional(),
+  usuario_sunat: z.string().optional(),
+  clave_sunat: z.string().optional(),
+  nro_trabajadores: z.coerce.number().optional(),
+});
+
+type ClientFormData = z.infer<typeof clientSchema>;
+
+interface Client {
+  id: string;
+  tipo_cliente: string;
+  codigo: string;
+  razon_social: string;
+  nombre_comercial: string | null;
+  nombre_persona_natural: string | null;
+  direccion: string | null;
+  telefono: string | null;
+  email: string | null;
+  contacto_nombre: string | null;
+  contacto_telefono: string | null;
+  contacto_email: string | null;
+  contacto_nombre2: string | null;
+  contacto_telefono2: string | null;
+  sector: string | null;
+  notas: string | null;
+  regimen_tributario: string | null;
+  regimen_laboral: string | null;
+  actividad_economica: string | null;
+  usuario_sunat: string | null;
+  clave_sunat: string | null;
+  nro_trabajadores: number | null;
+}
+
+interface EditClientDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  client: Client | null;
+  onSuccess: () => void;
+}
+
+export function EditClientDialog({
+  open,
+  onOpenChange,
+  client,
+  onSuccess,
+}: EditClientDialogProps) {
+  const [loading, setLoading] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<ClientFormData>({
+    resolver: zodResolver(clientSchema),
+  });
+
+  const tipoCliente = watch("tipo_cliente");
+
+  useEffect(() => {
+    if (client && open) {
+      reset({
+        tipo_cliente: client.tipo_cliente,
+        codigo: client.codigo,
+        razon_social: client.razon_social,
+        nombre_comercial: client.nombre_comercial || "",
+        nombre_persona_natural: client.nombre_persona_natural || "",
+        direccion: client.direccion || "",
+        telefono: client.telefono || "",
+        email: client.email || "",
+        contacto_nombre: client.contacto_nombre || "",
+        contacto_telefono: client.contacto_telefono || "",
+        contacto_email: client.contacto_email || "",
+        contacto_nombre2: client.contacto_nombre2 || "",
+        contacto_telefono2: client.contacto_telefono2 || "",
+        sector: client.sector || "",
+        notas: client.notas || "",
+        regimen_tributario: client.regimen_tributario || "",
+        regimen_laboral: client.regimen_laboral || "",
+        actividad_economica: client.actividad_economica || "",
+        usuario_sunat: client.usuario_sunat || "",
+        clave_sunat: client.clave_sunat || "",
+        nro_trabajadores: client.nro_trabajadores || undefined,
+      });
+    }
+  }, [client, open, reset]);
+
+  const onSubmit = async (data: ClientFormData) => {
+    if (!client) return;
+    
+    setLoading(true);
+    try {
+      const updateData = {
+        ...data,
+        nombre_comercial: data.nombre_comercial || null,
+        nombre_persona_natural: data.nombre_persona_natural || null,
+        direccion: data.direccion || null,
+        telefono: data.telefono || null,
+        email: data.email || null,
+        contacto_nombre: data.contacto_nombre || null,
+        contacto_telefono: data.contacto_telefono || null,
+        contacto_email: data.contacto_email || null,
+        contacto_nombre2: data.contacto_nombre2 || null,
+        contacto_telefono2: data.contacto_telefono2 || null,
+        sector: data.sector || null,
+        notas: data.notas || null,
+        regimen_tributario: data.regimen_tributario || null,
+        regimen_laboral: data.regimen_laboral || null,
+        actividad_economica: data.actividad_economica || null,
+        usuario_sunat: data.usuario_sunat || null,
+        clave_sunat: data.clave_sunat || null,
+        nro_trabajadores: data.nro_trabajadores || null,
+      };
+
+      const { error } = await supabase
+        .from("clientes")
+        .update(updateData)
+        .eq("id", client.id);
+
+      if (error) throw error;
+
+      toast.success("Cliente actualizado exitosamente");
+      onOpenChange(false);
+      onSuccess();
+    } catch (error: any) {
+      toast.error("Error al actualizar cliente: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar Cliente</DialogTitle>
+          <DialogDescription>
+            Modifica los datos del cliente
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Tipo de Cliente */}
+          <div className="space-y-2">
+            <Label>Tipo de Cliente</Label>
+            <Select
+              value={tipoCliente}
+              onValueChange={(value) => setValue("tipo_cliente", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="empresa">Empresa</SelectItem>
+                <SelectItem value="persona_natural">Persona Natural</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Datos Principales */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="codigo">
+                {tipoCliente === "empresa" ? "RUC" : "DNI"} *
+              </Label>
+              <Input
+                id="codigo"
+                {...register("codigo")}
+                maxLength={tipoCliente === "empresa" ? 11 : 8}
+              />
+              {errors.codigo && (
+                <p className="text-sm text-destructive">{errors.codigo.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="razon_social">
+                {tipoCliente === "empresa" ? "Razón Social" : "Nombre Completo"} *
+              </Label>
+              <Input id="razon_social" {...register("razon_social")} />
+              {errors.razon_social && (
+                <p className="text-sm text-destructive">{errors.razon_social.message}</p>
+              )}
+            </div>
+
+            {tipoCliente === "empresa" && (
+              <div className="space-y-2">
+                <Label htmlFor="nombre_comercial">Nombre Comercial</Label>
+                <Input id="nombre_comercial" {...register("nombre_comercial")} />
+              </div>
+            )}
+
+            {tipoCliente === "persona_natural" && (
+              <div className="space-y-2">
+                <Label htmlFor="nombre_persona_natural">Nombre de Persona Natural</Label>
+                <Input id="nombre_persona_natural" {...register("nombre_persona_natural")} />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="direccion">Dirección</Label>
+              <Input id="direccion" {...register("direccion")} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="telefono">Teléfono</Label>
+              <Input id="telefono" {...register("telefono")} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" {...register("email")} />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sector">Sector</Label>
+              <Input id="sector" {...register("sector")} />
+            </div>
+          </div>
+
+          {/* Datos Tributarios (solo empresa) */}
+          {tipoCliente === "empresa" && (
+            <>
+              <div className="border-t pt-4">
+                <h3 className="font-medium mb-4">Datos Tributarios</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="regimen_tributario">Régimen Tributario</Label>
+                    <Select
+                      value={watch("regimen_tributario") || ""}
+                      onValueChange={(value) => setValue("regimen_tributario", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar régimen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="RUS">RUS</SelectItem>
+                        <SelectItem value="RER">RER</SelectItem>
+                        <SelectItem value="MYPE">MYPE Tributario</SelectItem>
+                        <SelectItem value="General">Régimen General</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="regimen_laboral">Régimen Laboral</Label>
+                    <Select
+                      value={watch("regimen_laboral") || ""}
+                      onValueChange={(value) => setValue("regimen_laboral", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar régimen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Microempresa">Microempresa</SelectItem>
+                        <SelectItem value="Pequeña Empresa">Pequeña Empresa</SelectItem>
+                        <SelectItem value="Régimen General">Régimen General</SelectItem>
+                        <SelectItem value="Agrario">Agrario</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="actividad_economica">Actividad Económica</Label>
+                    <Input id="actividad_economica" {...register("actividad_economica")} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="nro_trabajadores">Nro. Trabajadores</Label>
+                    <Input
+                      id="nro_trabajadores"
+                      type="number"
+                      {...register("nro_trabajadores")}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="usuario_sunat">Usuario SUNAT</Label>
+                    <Input id="usuario_sunat" {...register("usuario_sunat")} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="clave_sunat">Clave SUNAT</Label>
+                    <Input id="clave_sunat" type="password" {...register("clave_sunat")} />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Contactos */}
+          <div className="border-t pt-4">
+            <h3 className="font-medium mb-4">Contactos</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contacto_nombre">Nombre Contacto 1</Label>
+                <Input id="contacto_nombre" {...register("contacto_nombre")} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contacto_telefono">Teléfono Contacto 1</Label>
+                <Input id="contacto_telefono" {...register("contacto_telefono")} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contacto_email">Email Contacto</Label>
+                <Input id="contacto_email" type="email" {...register("contacto_email")} />
+                {errors.contacto_email && (
+                  <p className="text-sm text-destructive">{errors.contacto_email.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contacto_nombre2">Nombre Contacto 2</Label>
+                <Input id="contacto_nombre2" {...register("contacto_nombre2")} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contacto_telefono2">Teléfono Contacto 2</Label>
+                <Input id="contacto_telefono2" {...register("contacto_telefono2")} />
+              </div>
+            </div>
+          </div>
+
+          {/* Notas */}
+          <div className="space-y-2">
+            <Label htmlFor="notas">Notas</Label>
+            <Textarea id="notas" {...register("notas")} rows={3} />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
