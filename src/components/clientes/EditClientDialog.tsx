@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 
 const clientSchema = z.object({
   tipo_cliente: z.string(),
@@ -90,6 +91,8 @@ export function EditClientDialog({
   onSuccess,
 }: EditClientDialogProps) {
   const [loading, setLoading] = useState(false);
+  const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
+  const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
 
   const {
     register,
@@ -284,10 +287,13 @@ export function EditClientDialog({
                         <SelectValue placeholder="Seleccionar régimen" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="RUS">RUS</SelectItem>
-                        <SelectItem value="RER">RER</SelectItem>
-                        <SelectItem value="MYPE">MYPE Tributario</SelectItem>
-                        <SelectItem value="General">Régimen General</SelectItem>
+                        {regimenesTributarios
+                          .filter((r) => r.activo)
+                          .map((regimen) => (
+                            <SelectItem key={regimen.id} value={regimen.nombre}>
+                              {regimen.nombre}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -302,10 +308,13 @@ export function EditClientDialog({
                         <SelectValue placeholder="Seleccionar régimen" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Microempresa">Microempresa</SelectItem>
-                        <SelectItem value="Pequeña Empresa">Pequeña Empresa</SelectItem>
-                        <SelectItem value="Régimen General">Régimen General</SelectItem>
-                        <SelectItem value="Agrario">Agrario</SelectItem>
+                        {regimenesLaborales
+                          .filter((r) => r.activo)
+                          .map((regimen) => (
+                            <SelectItem key={regimen.id} value={regimen.nombre}>
+                              {regimen.nombre}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>

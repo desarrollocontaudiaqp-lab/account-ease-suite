@@ -1,12 +1,17 @@
-import { Settings, Shield, Briefcase, FileText, Bell, Database } from "lucide-react";
+import { Settings, Shield, Briefcase, FileText, Bell, Database, Receipt, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { OpcionesManager } from "@/components/configuracion/OpcionesManager";
+import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 
 const Configuracion = () => {
+  const regimenTributario = useConfiguracionOpciones("regimen_tributario");
+  const regimenLaboral = useConfiguracionOpciones("regimen_laboral");
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -19,8 +24,12 @@ const Configuracion = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="roles" className="space-y-6">
-        <TabsList className="bg-muted/50">
+      <Tabs defaultValue="regimenes" className="space-y-6">
+        <TabsList className="bg-muted/50 flex-wrap h-auto gap-1 p-1">
+          <TabsTrigger value="regimenes" className="gap-2">
+            <Receipt className="h-4 w-4" />
+            Regímenes
+          </TabsTrigger>
           <TabsTrigger value="roles" className="gap-2">
             <Shield className="h-4 w-4" />
             Roles
@@ -42,6 +51,34 @@ const Configuracion = () => {
             Sistema
           </TabsTrigger>
         </TabsList>
+
+        {/* Regímenes Tab */}
+        <TabsContent value="regimenes">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <OpcionesManager
+              titulo="Régimen Tributario"
+              descripcion="Gestiona las opciones de régimen tributario para clientes"
+              opciones={regimenTributario.opciones}
+              onAdd={regimenTributario.addOpcion}
+              onUpdate={regimenTributario.updateOpcion}
+              onToggle={regimenTributario.toggleOpcion}
+              onDelete={regimenTributario.deleteOpcion}
+              icon={<Receipt className="h-4 w-4" />}
+              colorClass="bg-primary/10 text-primary"
+            />
+            <OpcionesManager
+              titulo="Régimen Laboral"
+              descripcion="Gestiona las opciones de régimen laboral para clientes"
+              opciones={regimenLaboral.opciones}
+              onAdd={regimenLaboral.addOpcion}
+              onUpdate={regimenLaboral.updateOpcion}
+              onToggle={regimenLaboral.toggleOpcion}
+              onDelete={regimenLaboral.deleteOpcion}
+              icon={<Users className="h-4 w-4" />}
+              colorClass="bg-secondary/20 text-secondary"
+            />
+          </div>
+        </TabsContent>
 
         {/* Roles Tab */}
         <TabsContent value="roles">

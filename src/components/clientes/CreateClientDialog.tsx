@@ -23,8 +23,16 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 
 const clientSchema = z.object({
   tipo_cliente: z.enum(["empresa", "persona_natural"]),
@@ -68,6 +76,8 @@ interface CreateClientDialogProps {
 
 export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClientDialogProps) {
   const [loading, setLoading] = useState(false);
+  const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
+  const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -421,9 +431,22 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Régimen Tributario</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Régimen General, MYPE, etc." {...field} />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccionar régimen" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {regimenesTributarios
+                              .filter((r) => r.activo)
+                              .map((regimen) => (
+                                <SelectItem key={regimen.id} value={regimen.nombre}>
+                                  {regimen.nombre}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -434,9 +457,22 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Régimen Laboral</FormLabel>
-                        <FormControl>
-                          <Input placeholder="General, MYPE, Agrario, etc." {...field} />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccionar régimen" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {regimenesLaborales
+                              .filter((r) => r.activo)
+                              .map((regimen) => (
+                                <SelectItem key={regimen.id} value={regimen.nombre}>
+                                  {regimen.nombre}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
