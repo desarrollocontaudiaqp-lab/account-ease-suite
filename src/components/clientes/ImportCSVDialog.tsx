@@ -71,6 +71,7 @@ export function ImportCSVDialog({ open, onOpenChange, onSuccess }: ImportCSVDial
   const [generateId, setGenerateId] = useState(true);
   const [registerCreatedAt, setRegisterCreatedAt] = useState(true);
   const [registerUpdatedAt, setRegisterUpdatedAt] = useState(true);
+  const [replaceExisting, setReplaceExisting] = useState(false);
   const [fieldConfigs, setFieldConfigs] = useState<FieldConfig[]>(CSV_FIELDS);
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -312,6 +313,33 @@ export function ImportCSVDialog({ open, onOpenChange, onSuccess }: ImportCSVDial
             }
           });
 
+          // Check if record exists by codigo (RUC/DNI)
+          if (replaceExisting && rowData.codigo) {
+            const { data: existingClient } = await supabase
+              .from("clientes")
+              .select("id")
+              .eq("codigo", rowData.codigo)
+              .maybeSingle();
+
+            if (existingClient) {
+              // Update existing record
+              const { error } = await supabase
+                .from("clientes")
+                .update(rowData as any)
+                .eq("id", existingClient.id);
+
+              if (error) {
+                importResult.errors.push({
+                  row: i + 2,
+                  message: `Error al actualizar: ${error.message}`,
+                });
+              } else {
+                importResult.success++;
+              }
+              continue;
+            }
+          }
+
           const { error } = await supabase.from("clientes").insert([rowData as any]);
 
           if (error) {
@@ -437,6 +465,16 @@ export function ImportCSVDialog({ open, onOpenChange, onSuccess }: ImportCSVDial
                       id="updatedAt"
                       checked={registerUpdatedAt}
                       onCheckedChange={setRegisterUpdatedAt}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="replaceExisting" className="font-normal">
+                      Reemplazar si ya existe (por Código RUC/DNI)
+                    </Label>
+                    <Switch
+                      id="replaceExisting"
+                      checked={replaceExisting}
+                      onCheckedChange={setReplaceExisting}
                     />
                   </div>
                 </div>
