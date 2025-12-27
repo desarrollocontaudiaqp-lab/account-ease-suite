@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   List,
   Loader2,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CreateClientDialog } from "@/components/clientes/CreateClientDialog";
+import { ImportCSVDialog } from "@/components/clientes/ImportCSVDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -55,7 +57,7 @@ const Clientes = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const fetchClients = async () => {
     try {
       const { data, error } = await supabase
@@ -108,15 +110,27 @@ const Clientes = () => {
             Gestiona todos los clientes y prospectos del estudio
           </p>
         </div>
-        <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Nuevo Cliente
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
+            <Upload className="h-4 w-4" />
+            Importar CSV
+          </Button>
+          <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Nuevo Cliente
+          </Button>
+        </div>
       </div>
 
       <CreateClientDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+        onSuccess={fetchClients}
+      />
+
+      <ImportCSVDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
         onSuccess={fetchClients}
       />
 
