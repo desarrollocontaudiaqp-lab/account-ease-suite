@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { OpcionesManager } from "@/components/configuracion/OpcionesManager";
 import { RolesManager } from "@/components/configuracion/RolesManager";
+import { ServiciosManager } from "@/components/configuracion/ServiciosManager";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 const Configuracion = () => {
   const regimenTributario = useConfiguracionOpciones("regimen_tributario");
@@ -126,42 +127,8 @@ const Configuracion = () => {
         {/* Servicios Tab */}
         <TabsContent value="servicios">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Servicios de Contabilidad</h3>
-              <div className="space-y-3">
-                {[
-                  { name: "Declaración mensual IGV", price: 150 },
-                  { name: "Balance General", price: 500 },
-                  { name: "Estados Financieros", price: 800 },
-                  { name: "Planilla de sueldos", price: 200 },
-                  { name: "Auditoría interna", price: 1500 },
-                ].map((service) => (
-                  <div key={service.name} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <span className="text-sm text-foreground">{service.name}</span>
-                    <span className="text-sm font-medium text-foreground">S/ {service.price}</span>
-                  </div>
-                ))}
-              </div>
-              <Button variant="outline" className="w-full mt-4">Agregar servicio</Button>
-            </div>
-
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Servicios de Trámites</h3>
-              <div className="space-y-3">
-                {[
-                  { name: "Constitución de empresa", price: 1200 },
-                  { name: "Inscripción SUNARP", price: 350 },
-                  { name: "Licencia de funcionamiento", price: 400 },
-                  { name: "Registro de marca INDECOPI", price: 600 },
-                ].map((service) => (
-                  <div key={service.name} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <span className="text-sm text-foreground">{service.name}</span>
-                    <span className="text-sm font-medium text-foreground">S/ {service.price}</span>
-                  </div>
-                ))}
-              </div>
-              <Button variant="outline" className="w-full mt-4">Agregar servicio</Button>
-            </div>
+            <ServiciosManager tipo="contabilidad" titulo="Servicios de Contabilidad" />
+            <ServiciosManager tipo="tramites" titulo="Servicios de Trámites" />
           </div>
         </TabsContent>
 
