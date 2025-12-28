@@ -748,6 +748,9 @@ export type Database = {
         | "asesor"
         | "auxiliar"
         | "practicante"
+        | "supervisor"
+        | "contador"
+        | "asistente"
       assignment_priority: "baja" | "media" | "alta" | "urgente"
       assignment_status:
         | "pendiente"
@@ -896,6 +899,9 @@ export const Constants = {
         "asesor",
         "auxiliar",
         "practicante",
+        "supervisor",
+        "contador",
+        "asistente",
       ],
       assignment_priority: ["baja", "media", "alta", "urgente"],
       assignment_status: [
