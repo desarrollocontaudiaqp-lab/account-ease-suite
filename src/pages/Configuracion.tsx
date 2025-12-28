@@ -6,8 +6,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { OpcionesManager } from "@/components/configuracion/OpcionesManager";
+import { RolesManager } from "@/components/configuracion/RolesManager";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
-
 const Configuracion = () => {
   const regimenTributario = useConfiguracionOpciones("regimen_tributario");
   const regimenLaboral = useConfiguracionOpciones("regimen_laboral");
@@ -82,35 +82,7 @@ const Configuracion = () => {
 
         {/* Roles Tab */}
         <TabsContent value="roles">
-          <div className="bg-card rounded-xl border border-border p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Gestión de Roles</h3>
-                <p className="text-sm text-muted-foreground">Define los roles y permisos del sistema</p>
-              </div>
-              <Button className="btn-gradient gap-2">
-                <Settings className="h-4 w-4" />
-                Nuevo Rol
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              {["Administrador", "Gerente", "Supervisor", "Asesor", "Auxiliar", "Practicante"].map((role) => (
-                <div key={role} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Shield className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">{role}</p>
-                      <p className="text-sm text-muted-foreground">Permisos configurados</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">Editar permisos</Button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <RolesManager />
         </TabsContent>
 
         {/* Carteras Tab */}

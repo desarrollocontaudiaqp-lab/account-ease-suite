@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
+import { useRolePermisos } from '@/hooks/useRolePermisos';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -25,15 +26,8 @@ interface EditUserDialogProps {
   loading: boolean;
 }
 
-const roleLabels: Record<AppRole, string> = {
-  administrador: 'Administrador',
-  gerente: 'Gerente',
-  asesor: 'Asesor',
-  auxiliar: 'Auxiliar',
-  practicante: 'Practicante',
-};
-
 const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserDialogProps) => {
+  const { roles: availableRoles } = useRolePermisos();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<AppRole>('asesor');
@@ -91,9 +85,9 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(roleLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
+                {availableRoles.filter(r => r.activo).map((r) => (
+                  <SelectItem key={r.role} value={r.role}>
+                    {r.nombre_display}
                   </SelectItem>
                 ))}
               </SelectContent>

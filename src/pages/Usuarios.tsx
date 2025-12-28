@@ -3,10 +3,10 @@ import { Users, Shield, Settings, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Database } from '@/integrations/supabase/types';
+import { useRolePermisos } from '@/hooks/useRolePermisos';
 import UserActions from '@/components/usuarios/UserActions';
 import EditUserDialog from '@/components/usuarios/EditUserDialog';
 import ChangePasswordDialog from '@/components/usuarios/ChangePasswordDialog';
@@ -33,14 +33,6 @@ const roleStyles: Record<AppRole, string> = {
   practicante: 'bg-orange-100 text-orange-800',
 };
 
-const roleLabels: Record<AppRole, string> = {
-  administrador: 'Administrador',
-  gerente: 'Gerente',
-  asesor: 'Asesor',
-  auxiliar: 'Auxiliar',
-  practicante: 'Practicante',
-};
-
 const getInitials = (name: string | null, email: string) => {
   if (name) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -49,6 +41,7 @@ const getInitials = (name: string | null, email: string) => {
 };
 
 const Usuarios = () => {
+  const { roles: availableRoles } = useRolePermisos();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -59,6 +52,11 @@ const Usuarios = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+
+  const getRoleLabel = (role: AppRole) => {
+    const roleInfo = availableRoles.find(r => r.role === role);
+    return roleInfo?.nombre_display || role;
+  };
 
   const fetchUsers = async () => {
     try {
@@ -257,8 +255,8 @@ const Usuarios = () => {
             <Settings className="h-5 w-5 text-secondary" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground">5</p>
-            <p className="text-sm text-muted-foreground">Roles Definidos</p>
+            <p className="text-2xl font-bold text-foreground">{availableRoles.filter(r => r.activo).length}</p>
+            <p className="text-sm text-muted-foreground">Roles Activos</p>
           </div>
         </div>
       </div>
@@ -307,7 +305,7 @@ const Usuarios = () => {
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant="outline" className={roleStyles[user.role]}>
-                      {roleLabels[user.role]}
+                      {getRoleLabel(user.role)}
                     </Badge>
                   </td>
                   <td className="px-6 py-4">
