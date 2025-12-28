@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2 } from "lucide-react";
+import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2, Copy, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -61,6 +61,11 @@ interface Cliente {
   contacto_nombre: string | null;
   contacto_telefono: string | null;
   contacto_email: string | null;
+  actividad_economica: string | null;
+  usuario_sunat: string | null;
+  clave_sunat: string | null;
+  regimen_tributario: string | null;
+  regimen_laboral: string | null;
 }
 
 interface ProformaItem {
@@ -140,6 +145,12 @@ export function CreateProformaDialog({
   const [clienteSearch, setClienteSearch] = useState("");
   const [openClientePopover, setOpenClientePopover] = useState(false);
   const [showClienteDetails, setShowClienteDetails] = useState(true);
+  const [showClaveSol, setShowClaveSol] = useState(false);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copiado al portapapeles`);
+  };
 
   const serviciosPredeterminados = tipo === "contabilidad" ? serviciosContabilidad : serviciosTramites;
 
@@ -153,7 +164,7 @@ export function CreateProformaDialog({
     // Fetch clientes
     const { data: clientesData } = await supabase
       .from("clientes")
-      .select("id, razon_social, codigo, direccion, email, telefono, tipo_cliente, nombre_persona_natural, nombre_comercial, contacto_nombre, contacto_telefono, contacto_email")
+      .select("id, razon_social, codigo, direccion, email, telefono, tipo_cliente, nombre_persona_natural, nombre_comercial, contacto_nombre, contacto_telefono, contacto_email, actividad_economica, usuario_sunat, clave_sunat, regimen_tributario, regimen_laboral")
       .eq("activo", true)
       .order("razon_social");
 
@@ -512,6 +523,65 @@ export function CreateProformaDialog({
                       )}
                     </div>
                   )}
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Actividad Económica</Label>
+                    <p className="font-medium text-sm">{selectedClienteData.actividad_economica || "-"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Régimen Tributario</Label>
+                    <p className="font-medium text-sm">{selectedClienteData.regimen_tributario || "-"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Régimen Laboral</Label>
+                    <p className="font-medium text-sm">{selectedClienteData.regimen_laboral || "-"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Usuario SUNAT</Label>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{selectedClienteData.usuario_sunat || "-"}</p>
+                      {selectedClienteData.usuario_sunat && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => copyToClipboard(selectedClienteData.usuario_sunat!, "Usuario SUNAT")}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Clave SOL</Label>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium font-mono">
+                        {selectedClienteData.clave_sunat 
+                          ? (showClaveSol ? selectedClienteData.clave_sunat : "••••••••")
+                          : "-"
+                        }
+                      </p>
+                      {selectedClienteData.clave_sunat && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => setShowClaveSol(!showClaveSol)}
+                          >
+                            {showClaveSol ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => copyToClipboard(selectedClienteData.clave_sunat!, "Clave SOL")}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
