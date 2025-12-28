@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +55,12 @@ interface Cliente {
   direccion: string | null;
   email: string | null;
   telefono: string | null;
+  tipo_cliente: string;
+  nombre_persona_natural: string | null;
+  nombre_comercial: string | null;
+  contacto_nombre: string | null;
+  contacto_telefono: string | null;
+  contacto_email: string | null;
 }
 
 interface ProformaItem {
@@ -131,6 +137,9 @@ export function CreateProformaDialog({
   const [notas, setNotas] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState("");
   const [openServicePopovers, setOpenServicePopovers] = useState<Record<number, boolean>>({});
+  const [clienteSearch, setClienteSearch] = useState("");
+  const [openClientePopover, setOpenClientePopover] = useState(false);
+  const [showClienteDetails, setShowClienteDetails] = useState(true);
 
   const serviciosPredeterminados = tipo === "contabilidad" ? serviciosContabilidad : serviciosTramites;
 
@@ -144,7 +153,7 @@ export function CreateProformaDialog({
     // Fetch clientes
     const { data: clientesData } = await supabase
       .from("clientes")
-      .select("id, razon_social, codigo, direccion, email, telefono")
+      .select("id, razon_social, codigo, direccion, email, telefono, tipo_cliente, nombre_persona_natural, nombre_comercial, contacto_nombre, contacto_telefono, contacto_email")
       .eq("activo", true)
       .order("razon_social");
 
@@ -313,10 +322,43 @@ export function CreateProformaDialog({
 
   const resetForm = () => {
     setSelectedCliente("");
+    setClienteSearch("");
     setCamposValues({});
     setItems([{ descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
     setNotas("");
     setFechaVencimiento("");
+  };
+
+  const filteredClientes = useMemo(() => {
+    if (!clienteSearch.trim()) return clientes;
+    const searchLower = clienteSearch.toLowerCase();
+    return clientes.filter((cliente) => {
+      const nombre = cliente.tipo_cliente === "persona_natural" 
+        ? cliente.nombre_persona_natural || cliente.razon_social
+        : cliente.razon_social;
+      return (
+        nombre.toLowerCase().includes(searchLower) ||
+        cliente.codigo.toLowerCase().includes(searchLower) ||
+        (cliente.nombre_comercial?.toLowerCase().includes(searchLower) ?? false)
+      );
+    });
+  }, [clientes, clienteSearch]);
+
+  const getClienteDisplayName = (cliente: Cliente) => {
+    if (cliente.tipo_cliente === "persona_natural") {
+      return cliente.nombre_persona_natural || cliente.razon_social;
+    }
+    return cliente.razon_social;
+  };
+
+  const handleSelectCliente = (clienteId: string) => {
+    setSelectedCliente(clienteId);
+    const cliente = clientes.find((c) => c.id === clienteId);
+    if (cliente) {
+      setClienteSearch(`${getClienteDisplayName(cliente)} - ${cliente.codigo}`);
+    }
+    setOpenClientePopover(false);
+    setShowClienteDetails(true);
   };
 
   const selectedClienteData = clientes.find((c) => c.id === selectedCliente);
@@ -334,45 +376,145 @@ export function CreateProformaDialog({
         <div className="space-y-6">
           {/* Datos del cliente */}
           <div className="border rounded-lg p-4 space-y-4">
-            <h3 className="font-semibold">Datos del Cliente</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="col-span-1 md:col-span-2">
-                <Label>Cliente</Label>
-                <Select value={selectedCliente} onValueChange={setSelectedCliente}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Seleccionar cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientes.map((cliente) => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.razon_social} - {cliente.codigo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Datos del Cliente</h3>
               {selectedClienteData && (
-                <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowClienteDetails(!showClienteDetails)}
+                  className="gap-1 text-muted-foreground"
+                >
+                  {showClienteDetails ? (
+                    <>
+                      <ChevronUp className="h-4 w-4" />
+                      Ocultar detalles
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4" />
+                      Mostrar detalles
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* Buscador de clientes */}
+            <div className="space-y-2">
+              <Label>Buscar cliente por RUC/DNI o Nombre</Label>
+              <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
+                <PopoverTrigger asChild>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Escriba RUC, DNI o nombre del cliente..."
+                      value={clienteSearch}
+                      onChange={(e) => {
+                        setClienteSearch(e.target.value);
+                        setOpenClientePopover(true);
+                        if (!e.target.value.trim()) {
+                          setSelectedCliente("");
+                        }
+                      }}
+                      onFocus={() => setOpenClientePopover(true)}
+                      className="pl-9"
+                    />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="p-0 w-[var(--radix-popover-trigger-width)]"
+                  align="start"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  <Command>
+                    <CommandInput placeholder="Buscar cliente..." className="h-9" />
+                    <CommandList>
+                      <CommandEmpty>No se encontraron clientes</CommandEmpty>
+                      <CommandGroup heading="Clientes">
+                        {filteredClientes.slice(0, 10).map((cliente) => (
+                          <CommandItem
+                            key={cliente.id}
+                            onSelect={() => handleSelectCliente(cliente.id)}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2 w-full">
+                              {cliente.tipo_cliente === "persona_natural" ? (
+                                <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              ) : (
+                                <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">
+                                  {getClienteDisplayName(cliente)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {cliente.codigo}
+                                  {cliente.nombre_comercial && ` • ${cliente.nombre_comercial}`}
+                                </p>
+                              </div>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Datos del cliente seleccionado - colapsable */}
+            {selectedClienteData && showClienteDetails && (
+              <div className="bg-muted/50 rounded-lg p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  {selectedClienteData.tipo_cliente === "persona_natural" ? (
+                    <User className="h-5 w-5 text-primary" />
+                  ) : (
+                    <Building2 className="h-5 w-5 text-primary" />
+                  )}
+                  <span className="font-semibold text-lg">
+                    {getClienteDisplayName(selectedClienteData)}
+                  </span>
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                    {selectedClienteData.tipo_cliente === "persona_natural" ? "Persona Natural" : "Empresa"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <Label className="text-muted-foreground">RUC/DNI</Label>
+                    <Label className="text-muted-foreground text-xs">RUC/DNI</Label>
                     <p className="font-medium">{selectedClienteData.codigo}</p>
                   </div>
+                  {selectedClienteData.nombre_comercial && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Nombre Comercial</Label>
+                      <p className="font-medium">{selectedClienteData.nombre_comercial}</p>
+                    </div>
+                  )}
                   <div>
-                    <Label className="text-muted-foreground">Dirección</Label>
+                    <Label className="text-muted-foreground text-xs">Dirección</Label>
                     <p className="font-medium text-sm">{selectedClienteData.direccion || "-"}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Email</Label>
+                    <Label className="text-muted-foreground text-xs">Email</Label>
                     <p className="font-medium">{selectedClienteData.email || "-"}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Teléfono</Label>
+                    <Label className="text-muted-foreground text-xs">Teléfono</Label>
                     <p className="font-medium">{selectedClienteData.telefono || "-"}</p>
                   </div>
-                </>
-              )}
-            </div>
+                  {selectedClienteData.contacto_nombre && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Contacto</Label>
+                      <p className="font-medium">{selectedClienteData.contacto_nombre}</p>
+                      {selectedClienteData.contacto_telefono && (
+                        <p className="text-xs text-muted-foreground">{selectedClienteData.contacto_telefono}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Campos personalizados de la plantilla */}
