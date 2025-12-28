@@ -702,6 +702,45 @@ export type Database = {
         }
         Relationships: []
       }
+      servicios: {
+        Row: {
+          activo: boolean
+          categoria: string
+          created_at: string
+          id: string
+          precio: number
+          producto: string | null
+          servicio: string
+          tipo: string
+          updated_at: string
+          variante: string | null
+        }
+        Insert: {
+          activo?: boolean
+          categoria: string
+          created_at?: string
+          id?: string
+          precio?: number
+          producto?: string | null
+          servicio: string
+          tipo: string
+          updated_at?: string
+          variante?: string | null
+        }
+        Update: {
+          activo?: boolean
+          categoria?: string
+          created_at?: string
+          id?: string
+          precio?: number
+          producto?: string | null
+          servicio?: string
+          tipo?: string
+          updated_at?: string
+          variante?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
