@@ -62,87 +62,21 @@ const fieldTypes = [
   { value: "date", label: "Fecha" },
 ];
 
-// Servicios predeterminados de Contabilidad
-const serviciosContabilidad = [
-  {
-    category: "Auditoría y Finanzas",
-    services: [
-      "Auditoría Financiera",
-      "Conciliaciones bancarias",
-      "Análisis de cuentas",
-      "Flujo de efectivo",
-      "Evaluación fiscal",
-    ],
-  },
-  {
-    category: "Implementación de Sistemas",
-    services: [
-      "Implementación de Sistemas Integrados de Gestión",
-      "Implementación de sistemas de Control Interno",
-    ],
-  },
-  {
-    category: "Contabilidad",
-    services: [
-      "Contabilidad Integral (libros electrónicos, control interno, proyección financiera, estados financieros)",
-      "Outsourcing Contable",
-    ],
-  },
-  {
-    category: "Asesoría Tributaria",
-    services: [
-      "Declaraciones mensuales PDT",
-      "Detracciones",
-      "Percepciones",
-      "Retenciones",
-      "Fraccionamientos",
-      "DJ Anual",
-    ],
-  },
-];
+interface ServicioFromDB {
+  id: string;
+  tipo: string;
+  categoria: string;
+  servicio: string;
+  producto: string | null;
+  variante: string | null;
+  precio: number;
+  activo: boolean;
+}
 
-// Servicios predeterminados de Trámites
-const serviciosTramites = [
-  {
-    category: "Constitución de Empresas",
-    services: [
-      "Reserva de nombre",
-      "Elaboración de estatutos",
-      "Inscripción en SUNARP",
-      "Publicidad registral",
-      "Alta en SUNAT",
-    ],
-  },
-  {
-    category: "Licencias y Registros",
-    services: [
-      "Licencias Municipales",
-      "Registro de Marca INDECOPI",
-      "Registro RNP/OSCE",
-    ],
-  },
-  {
-    category: "Laboral y Planillas",
-    services: [
-      "Elaboración de contratos laborales",
-      "Registro PLAME",
-      "AFP Net",
-      "Essalud",
-      "Liquidación de beneficios",
-      "Trámites SUNAFIL",
-    ],
-  },
-  {
-    category: "Trámites SUNAT",
-    services: [
-      "Modificación de datos RUC",
-      "Comprobantes electrónicos",
-      "Libros electrónicos",
-      "Baja de comprobantes",
-      "Suspensión temporal",
-    ],
-  },
-];
+interface ServiceCategory {
+  category: string;
+  services: { label: string; precio: number }[];
+}
 
 export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) {
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
@@ -154,12 +88,77 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
   const [newFieldType, setNewFieldType] = useState<Campo["type"]>("text");
   const [newFieldRequired, setNewFieldRequired] = useState(false);
   const [newFieldOptions, setNewFieldOptions] = useState("");
+  const [serviciosDB, setServiciosDB] = useState<ServiceCategory[]>([]);
 
   useEffect(() => {
     if (open) {
       fetchPlantillas();
+      fetchServicios();
     }
   }, [open]);
+
+  const fetchServicios = async () => {
+    const { data, error } = await supabase
+      .from("servicios")
+      .select("*")
+      .eq("activo", true)
+      .order("categoria", { ascending: true })
+      .order("servicio", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching servicios:", error);
+      return;
+    }
+
+    // Group services by category for the active type
+    const groupedContabilidad: Record<string, { label: string; precio: number }[]> = {};
+    const groupedTramites: Record<string, { label: string; precio: number }[]> = {};
+
+    (data || []).forEach((s: ServicioFromDB) => {
+      // Build label with producto and variante if available
+      let label = s.servicio;
+      if (s.producto) {
+        label += ` - ${s.producto}`;
+      }
+      if (s.variante) {
+        label += ` (${s.variante})`;
+      }
+
+      const serviceItem = { label, precio: s.precio };
+
+      if (s.tipo === "contabilidad") {
+        if (!groupedContabilidad[s.categoria]) {
+          groupedContabilidad[s.categoria] = [];
+        }
+        groupedContabilidad[s.categoria].push(serviceItem);
+      } else if (s.tipo === "tramites") {
+        if (!groupedTramites[s.categoria]) {
+          groupedTramites[s.categoria] = [];
+        }
+        groupedTramites[s.categoria].push(serviceItem);
+      }
+    });
+
+    // Convert to array format
+    const contabilidadArray: ServiceCategory[] = Object.entries(groupedContabilidad).map(([category, services]) => ({
+      category,
+      services,
+    }));
+
+    const tramitesArray: ServiceCategory[] = Object.entries(groupedTramites).map(([category, services]) => ({
+      category,
+      services,
+    }));
+
+    // Store both in state based on active type
+    setServiciosDB(activeType === "contabilidad" ? contabilidadArray : tramitesArray);
+  };
+
+  useEffect(() => {
+    if (open) {
+      fetchServicios();
+    }
+  }, [activeType, open]);
 
   const fetchPlantillas = async () => {
     setLoading(true);
@@ -280,7 +279,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     setLoading(false);
   };
 
-  const currentServices = activeType === "contabilidad" ? serviciosContabilidad : serviciosTramites;
+  const currentServices = serviciosDB;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -402,7 +401,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                           <AccordionContent className="pb-4">
                             <div className="space-y-2">
                               {category.services.map((service, svcIndex) => {
-                                const isSelected = isServiceSelected(service);
+                                const isSelected = isServiceSelected(service.label);
                                 return (
                                   <label
                                     key={svcIndex}
@@ -414,9 +413,12 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                                   >
                                     <Checkbox
                                       checked={isSelected}
-                                      onCheckedChange={() => handleToggleService(service, category.category)}
+                                      onCheckedChange={() => handleToggleService(service.label, category.category)}
                                     />
-                                    <span className="text-sm flex-1">{service}</span>
+                                    <span className="text-sm flex-1">{service.label}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      S/ {service.precio.toLocaleString()}
+                                    </span>
                                     {isSelected && (
                                       <Check className="h-4 w-4 text-primary" />
                                     )}
