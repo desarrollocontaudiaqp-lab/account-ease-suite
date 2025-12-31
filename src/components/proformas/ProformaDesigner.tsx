@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Save, ChevronRight, FileText, Briefcase, Check, Settings2, PlusCircle } from "lucide-react";
+import { Plus, Trash2, Save, ChevronRight, FileText, Briefcase, Check, Settings2, PlusCircle, Search, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,20 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -37,7 +51,13 @@ interface Campo {
   type: "text" | "number" | "select" | "textarea" | "date";
   options?: string[];
   required: boolean;
-  category?: string;
+}
+
+interface ServicioPlantilla {
+  id: string;
+  label: string;
+  precio: number;
+  categoria: string;
 }
 
 interface Plantilla {
@@ -46,6 +66,7 @@ interface Plantilla {
   tipo: "contabilidad" | "tramites";
   descripcion: string | null;
   campos: Campo[];
+  servicios: ServicioPlantilla[];
   activa: boolean;
 }
 
@@ -75,7 +96,7 @@ interface ServicioFromDB {
 
 interface ServiceCategory {
   category: string;
-  services: { label: string; precio: number }[];
+  services: { id: string; label: string; precio: number }[];
 }
 
 export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) {
@@ -93,6 +114,8 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
   const [newPlantillaNombre, setNewPlantillaNombre] = useState("");
   const [newPlantillaTipo, setNewPlantillaTipo] = useState<"contabilidad" | "tramites">("contabilidad");
   const [newPlantillaDescripcion, setNewPlantillaDescripcion] = useState("");
+  const [activeTab, setActiveTab] = useState<"campos" | "servicios">("campos");
+  const [servicioSearch, setServicioSearch] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -115,11 +138,10 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     }
 
     // Group services by category for the active type
-    const groupedContabilidad: Record<string, { label: string; precio: number }[]> = {};
-    const groupedTramites: Record<string, { label: string; precio: number }[]> = {};
+    const groupedContabilidad: Record<string, { id: string; label: string; precio: number }[]> = {};
+    const groupedTramites: Record<string, { id: string; label: string; precio: number }[]> = {};
 
     (data || []).forEach((s: ServicioFromDB) => {
-      // Build label with producto and variante if available
       let label = s.servicio;
       if (s.producto) {
         label += ` - ${s.producto}`;
@@ -128,7 +150,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
         label += ` (${s.variante})`;
       }
 
-      const serviceItem = { label, precio: s.precio };
+      const serviceItem = { id: s.id, label, precio: s.precio };
 
       if (s.tipo === "contabilidad") {
         if (!groupedContabilidad[s.categoria]) {
@@ -143,7 +165,6 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       }
     });
 
-    // Convert to array format
     const contabilidadArray: ServiceCategory[] = Object.entries(groupedContabilidad).map(([category, services]) => ({
       category,
       services,
@@ -154,7 +175,6 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       services,
     }));
 
-    // Store both in state based on active type
     setServiciosDB(activeType === "contabilidad" ? contabilidadArray : tramitesArray);
   };
 
@@ -179,6 +199,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
         ...p,
         tipo: p.tipo as "contabilidad" | "tramites",
         campos: (Array.isArray(p.campos) ? p.campos : []) as unknown as Campo[],
+        servicios: (Array.isArray(p.servicios) ? p.servicios : []) as unknown as ServicioPlantilla[],
       }));
       setPlantillas(parsed);
       const firstOfType = parsed.find((pl) => pl.tipo === activeType);
@@ -192,35 +213,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     setActiveType(plantilla.tipo);
   };
 
-  const isServiceSelected = (serviceLabel: string) => {
-    return selectedPlantilla?.campos.some((c) => c.label === serviceLabel) || false;
-  };
-
-  const handleToggleService = (serviceLabel: string, category: string) => {
-    if (!selectedPlantilla) return;
-
-    if (isServiceSelected(serviceLabel)) {
-      // Remove service
-      setSelectedPlantilla({
-        ...selectedPlantilla,
-        campos: selectedPlantilla.campos.filter((c) => c.label !== serviceLabel),
-      });
-    } else {
-      // Add service
-      const newField: Campo = {
-        id: crypto.randomUUID(),
-        label: serviceLabel,
-        type: "number",
-        required: false,
-        category,
-      };
-      setSelectedPlantilla({
-        ...selectedPlantilla,
-        campos: [...selectedPlantilla.campos, newField],
-      });
-    }
-  };
-
+  // === CAMPOS (Custom Fields) ===
   const handleAddCustomField = () => {
     if (!selectedPlantilla || !newFieldLabel.trim()) {
       toast.error("Ingrese un nombre para el campo");
@@ -232,7 +225,6 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       label: newFieldLabel.trim(),
       type: newFieldType,
       required: newFieldRequired,
-      category: "Personalizado",
       ...(newFieldType === "select" && {
         options: newFieldOptions.split(",").map((o) => o.trim()).filter(Boolean),
       }),
@@ -259,6 +251,41 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     });
   };
 
+  // === SERVICIOS ===
+  const isServiceSelected = (serviceId: string) => {
+    return selectedPlantilla?.servicios.some((s) => s.id === serviceId) || false;
+  };
+
+  const handleToggleService = (service: { id: string; label: string; precio: number }, category: string) => {
+    if (!selectedPlantilla) return;
+
+    if (isServiceSelected(service.id)) {
+      setSelectedPlantilla({
+        ...selectedPlantilla,
+        servicios: selectedPlantilla.servicios.filter((s) => s.id !== service.id),
+      });
+    } else {
+      const newService: ServicioPlantilla = {
+        id: service.id,
+        label: service.label,
+        precio: service.precio,
+        categoria: category,
+      };
+      setSelectedPlantilla({
+        ...selectedPlantilla,
+        servicios: [...selectedPlantilla.servicios, newService],
+      });
+    }
+  };
+
+  const handleRemoveService = (serviceId: string) => {
+    if (!selectedPlantilla) return;
+    setSelectedPlantilla({
+      ...selectedPlantilla,
+      servicios: selectedPlantilla.servicios.filter((s) => s.id !== serviceId),
+    });
+  };
+
   const handleSavePlantilla = async () => {
     if (!selectedPlantilla) return;
 
@@ -269,6 +296,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
         nombre: selectedPlantilla.nombre,
         descripcion: selectedPlantilla.descripcion,
         campos: JSON.parse(JSON.stringify(selectedPlantilla.campos)),
+        servicios: JSON.parse(JSON.stringify(selectedPlantilla.servicios)),
         activa: selectedPlantilla.activa,
       })
       .eq("id", selectedPlantilla.id);
@@ -297,6 +325,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
         tipo: newPlantillaTipo,
         descripcion: newPlantillaDescripcion.trim() || null,
         campos: [],
+        servicios: [],
         activa: true,
       })
       .select()
@@ -311,12 +340,12 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       setNewPlantillaDescripcion("");
       setShowNewPlantillaForm(false);
       await fetchPlantillas();
-      // Select the new template
       if (data) {
         const newPlantilla: Plantilla = {
           ...data,
           tipo: data.tipo as "contabilidad" | "tramites",
           campos: [] as Campo[],
+          servicios: [] as ServicioPlantilla[],
         };
         setSelectedPlantilla(newPlantilla);
         setActiveType(newPlantilla.tipo);
@@ -349,7 +378,12 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     setLoading(false);
   };
 
-  const currentServices = serviciosDB;
+  const filteredServicios = serviciosDB.map((cat) => ({
+    ...cat,
+    services: cat.services.filter((s) => 
+      s.label.toLowerCase().includes(servicioSearch.toLowerCase())
+    ),
+  })).filter((cat) => cat.services.length > 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -360,7 +394,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
             Diseñador de Proformas
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Configura los servicios disponibles para cada tipo de proforma
+            Configura los campos y servicios para cada tipo de proforma
           </p>
         </DialogHeader>
 
@@ -381,7 +415,6 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
               </Button>
             </div>
 
-            {/* Form para nueva plantilla */}
             {showNewPlantillaForm && (
               <div className="mb-4 p-3 border rounded-lg bg-background space-y-3">
                 <h4 className="font-medium text-sm">Nueva Plantilla</h4>
@@ -476,7 +509,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                         {plantilla.tipo === "contabilidad" ? "Contabilidad" : "Trámites"}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {plantilla.campos.length} servicios
+                        {plantilla.campos.length} campos, {plantilla.servicios.length} servicios
                       </span>
                     </div>
                   </button>
@@ -532,199 +565,288 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                 </div>
               </div>
 
-              {/* Content area */}
-              <div className="flex-1 overflow-hidden flex">
-                {/* Servicios disponibles */}
-                <div className="flex-1 border-r overflow-hidden flex flex-col">
-                  <div className="px-4 py-3 border-b bg-muted/30">
-                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                      <Plus className="h-4 w-4" />
-                      Servicios Disponibles
-                    </h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Marca los servicios que deseas incluir
-                    </p>
+              {/* Tabs for Campos and Servicios */}
+              <div className="flex-1 overflow-hidden flex flex-col">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campos" | "servicios")} className="flex-1 flex flex-col overflow-hidden">
+                  <div className="px-6 pt-4 border-b">
+                    <TabsList className="grid w-full max-w-md grid-cols-2">
+                      <TabsTrigger value="campos" className="gap-2">
+                        <FileText className="h-4 w-4" />
+                        Campos Específicos ({selectedPlantilla.campos.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="servicios" className="gap-2">
+                        <Briefcase className="h-4 w-4" />
+                        Servicios ({selectedPlantilla.servicios.length})
+                      </TabsTrigger>
+                    </TabsList>
                   </div>
-                  <ScrollArea className="flex-1">
-                    <Accordion type="multiple" defaultValue={currentServices.map((_, i) => `cat-${i}`)} className="px-4 py-2">
-                      {currentServices.map((category, catIndex) => (
-                        <AccordionItem key={catIndex} value={`cat-${catIndex}`} className="border-b-0">
-                          <AccordionTrigger className="py-3 hover:no-underline">
-                            <span className="font-medium text-sm">{category.category}</span>
-                          </AccordionTrigger>
-                          <AccordionContent className="pb-4">
-                            <div className="space-y-2">
-                              {category.services.map((service, svcIndex) => {
-                                const isSelected = isServiceSelected(service.label);
-                                return (
-                                  <label
-                                    key={svcIndex}
-                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                                      isSelected
-                                        ? "border-primary bg-primary/5"
-                                        : "border-border hover:bg-muted/50"
-                                    }`}
-                                  >
-                                    <Checkbox
-                                      checked={isSelected}
-                                      onCheckedChange={() => handleToggleService(service.label, category.category)}
-                                    />
-                                    <span className="text-sm flex-1">{service.label}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      S/ {service.precio.toLocaleString()}
-                                    </span>
-                                    {isSelected && (
-                                      <Check className="h-4 w-4 text-primary" />
-                                    )}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
-                    </Accordion>
 
-                    {/* Custom field section */}
-                    <div className="px-4 pb-4">
-                      <Separator className="my-4" />
-                      {!showCustomFieldForm ? (
-                        <Button
-                          variant="outline"
-                          className="w-full gap-2"
-                          onClick={() => setShowCustomFieldForm(true)}
-                        >
-                          <Plus className="h-4 w-4" />
-                          Agregar campo personalizado
-                        </Button>
-                      ) : (
-                        <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                          <h5 className="font-medium text-sm">Nuevo campo personalizado</h5>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <Label className="text-xs">Nombre</Label>
-                              <Input
-                                value={newFieldLabel}
-                                onChange={(e) => setNewFieldLabel(e.target.value)}
-                                placeholder="Ej: Número de trabajadores"
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Tipo</Label>
-                              <Select
-                                value={newFieldType}
-                                onValueChange={(v) => setNewFieldType(v as Campo["type"])}
-                              >
-                                <SelectTrigger className="mt-1">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {fieldTypes.map((type) => (
-                                    <SelectItem key={type.value} value={type.value}>
-                                      {type.label}
-                                    </SelectItem>
+                  {/* Campos Tab */}
+                  <TabsContent value="campos" className="flex-1 overflow-hidden m-0 p-0">
+                    <div className="h-full flex flex-col">
+                      <div className="px-6 py-3 border-b bg-muted/30">
+                        <p className="text-sm text-muted-foreground">
+                          Define campos personalizados que se mostrarán al crear una proforma con esta plantilla
+                        </p>
+                      </div>
+                      <ScrollArea className="flex-1 px-6 py-4">
+                        <div className="space-y-4">
+                          {/* Lista de campos */}
+                          {selectedPlantilla.campos.length > 0 && (
+                            <div className="border rounded-lg overflow-hidden">
+                              <table className="w-full">
+                                <thead className="bg-muted/50">
+                                  <tr>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Campo</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Tipo</th>
+                                    <th className="px-4 py-2 text-center text-xs font-medium text-muted-foreground">Requerido</th>
+                                    <th className="px-4 py-2 w-10"></th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                  {selectedPlantilla.campos.map((campo) => (
+                                    <tr key={campo.id} className="hover:bg-muted/30">
+                                      <td className="px-4 py-3 text-sm font-medium">{campo.label}</td>
+                                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                                        {fieldTypes.find((t) => t.value === campo.type)?.label || campo.type}
+                                      </td>
+                                      <td className="px-4 py-3 text-center">
+                                        {campo.required && <Check className="h-4 w-4 text-primary mx-auto" />}
+                                      </td>
+                                      <td className="px-2 py-3">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                          onClick={() => handleRemoveField(campo.id)}
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      </td>
+                                    </tr>
                                   ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          {newFieldType === "select" && (
-                            <div>
-                              <Label className="text-xs">Opciones (separadas por coma)</Label>
-                              <Input
-                                value={newFieldOptions}
-                                onChange={(e) => setNewFieldOptions(e.target.value)}
-                                placeholder="Opción 1, Opción 2, Opción 3"
-                                className="mt-1"
-                              />
+                                </tbody>
+                              </table>
                             </div>
                           )}
 
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={newFieldRequired}
-                              onCheckedChange={setNewFieldRequired}
-                            />
-                            <Label className="text-xs">Campo requerido</Label>
-                          </div>
+                          {selectedPlantilla.campos.length === 0 && !showCustomFieldForm && (
+                            <div className="text-center py-8 border rounded-lg bg-muted/20">
+                              <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                              <p className="text-sm text-muted-foreground">No hay campos definidos</p>
+                              <p className="text-xs text-muted-foreground mt-1">Agregue campos personalizados</p>
+                            </div>
+                          )}
 
-                          <div className="flex gap-2">
+                          {/* Formulario para agregar campo */}
+                          {!showCustomFieldForm ? (
                             <Button
                               variant="outline"
-                              size="sm"
-                              onClick={() => setShowCustomFieldForm(false)}
-                              className="flex-1"
+                              className="w-full gap-2"
+                              onClick={() => setShowCustomFieldForm(true)}
                             >
-                              Cancelar
+                              <Plus className="h-4 w-4" />
+                              Agregar campo personalizado
                             </Button>
-                            <Button
-                              size="sm"
-                              onClick={handleAddCustomField}
-                              className="flex-1"
-                            >
-                              Agregar
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </div>
+                          ) : (
+                            <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                              <h5 className="font-medium text-sm">Nuevo campo personalizado</h5>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="text-xs">Nombre</Label>
+                                  <Input
+                                    value={newFieldLabel}
+                                    onChange={(e) => setNewFieldLabel(e.target.value)}
+                                    placeholder="Ej: Número de trabajadores"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Tipo</Label>
+                                  <Select
+                                    value={newFieldType}
+                                    onValueChange={(v) => setNewFieldType(v as Campo["type"])}
+                                  >
+                                    <SelectTrigger className="mt-1">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {fieldTypes.map((type) => (
+                                        <SelectItem key={type.value} value={type.value}>
+                                          {type.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
 
-                {/* Servicios seleccionados */}
-                <div className="w-80 overflow-hidden flex flex-col bg-muted/20">
-                  <div className="px-4 py-3 border-b bg-muted/30">
-                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      Servicios Incluidos ({selectedPlantilla.campos.length})
-                    </h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Estos aparecerán en la proforma
-                    </p>
-                  </div>
-                  <ScrollArea className="flex-1">
-                    <div className="p-4 space-y-2">
-                      {selectedPlantilla.campos.length === 0 ? (
-                        <div className="text-center py-8">
-                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-                            <FileText className="h-6 w-6 text-muted-foreground" />
+                              {newFieldType === "select" && (
+                                <div>
+                                  <Label className="text-xs">Opciones (separadas por coma)</Label>
+                                  <Input
+                                    value={newFieldOptions}
+                                    onChange={(e) => setNewFieldOptions(e.target.value)}
+                                    placeholder="Opción 1, Opción 2, Opción 3"
+                                    className="mt-1"
+                                  />
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={newFieldRequired}
+                                  onCheckedChange={setNewFieldRequired}
+                                />
+                                <Label className="text-xs">Campo requerido</Label>
+                              </div>
+
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setShowCustomFieldForm(false)}
+                                  className="flex-1"
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={handleAddCustomField}
+                                  className="flex-1"
+                                >
+                                  Agregar
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </TabsContent>
+
+                  {/* Servicios Tab */}
+                  <TabsContent value="servicios" className="flex-1 overflow-hidden m-0 p-0">
+                    <div className="h-full flex">
+                      {/* Servicios disponibles */}
+                      <div className="flex-1 border-r overflow-hidden flex flex-col">
+                        <div className="px-4 py-3 border-b bg-muted/30 space-y-2">
+                          <h4 className="font-semibold text-sm flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            Servicios Disponibles
+                          </h4>
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Buscar servicio..."
+                              value={servicioSearch}
+                              onChange={(e) => setServicioSearch(e.target.value)}
+                              className="pl-9 h-8"
+                            />
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            No hay servicios seleccionados
-                          </p>
+                        </div>
+                        <ScrollArea className="flex-1">
+                          <Accordion type="multiple" defaultValue={filteredServicios.map((_, i) => `cat-${i}`)} className="px-4 py-2">
+                            {filteredServicios.map((category, catIndex) => (
+                              <AccordionItem key={catIndex} value={`cat-${catIndex}`} className="border-b-0">
+                                <AccordionTrigger className="py-3 hover:no-underline">
+                                  <span className="font-medium text-sm">{category.category}</span>
+                                </AccordionTrigger>
+                                <AccordionContent className="pb-4">
+                                  <div className="space-y-2">
+                                    {category.services.map((service) => {
+                                      const isSelected = isServiceSelected(service.id);
+                                      return (
+                                        <label
+                                          key={service.id}
+                                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                            isSelected
+                                              ? "border-primary bg-primary/5"
+                                              : "border-border hover:bg-muted/50"
+                                          }`}
+                                        >
+                                          <Checkbox
+                                            checked={isSelected}
+                                            onCheckedChange={() => handleToggleService(service, category.category)}
+                                          />
+                                          <span className="text-sm flex-1">{service.label}</span>
+                                          <span className="text-xs text-muted-foreground">
+                                            S/ {service.precio.toLocaleString()}
+                                          </span>
+                                          {isSelected && (
+                                            <Check className="h-4 w-4 text-primary" />
+                                          )}
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            ))}
+                          </Accordion>
+                          {filteredServicios.length === 0 && (
+                            <div className="p-8 text-center text-muted-foreground">
+                              <p className="text-sm">No se encontraron servicios</p>
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </div>
+
+                      {/* Servicios seleccionados */}
+                      <div className="w-80 overflow-hidden flex flex-col bg-muted/20">
+                        <div className="px-4 py-3 border-b bg-muted/30">
+                          <h4 className="font-semibold text-sm flex items-center gap-2">
+                            <Check className="h-4 w-4 text-primary" />
+                            Servicios Incluidos ({selectedPlantilla.servicios.length})
+                          </h4>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Selecciona servicios de la lista
+                            Disponibles para buscar al crear proforma
                           </p>
                         </div>
-                      ) : (
-                        selectedPlantilla.campos.map((campo) => (
-                          <div
-                            key={campo.id}
-                            className="flex items-start gap-2 p-3 bg-background rounded-lg border group"
-                          >
-                            <ChevronRight className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium leading-tight">{campo.label}</p>
-                              {campo.category && (
-                                <p className="text-xs text-muted-foreground mt-1">{campo.category}</p>
-                              )}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                              onClick={() => handleRemoveField(campo.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                        <ScrollArea className="flex-1">
+                          <div className="p-4 space-y-2">
+                            {selectedPlantilla.servicios.length === 0 ? (
+                              <div className="text-center py-8">
+                                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                                  <Briefcase className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  No hay servicios seleccionados
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Selecciona servicios de la lista
+                                </p>
+                              </div>
+                            ) : (
+                              selectedPlantilla.servicios.map((servicio) => (
+                                <div
+                                  key={servicio.id}
+                                  className="flex items-start gap-2 p-3 bg-background rounded-lg border group"
+                                >
+                                  <ChevronRight className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium leading-tight">{servicio.label}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {servicio.categoria} • S/ {servicio.precio.toLocaleString()}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                    onClick={() => handleRemoveService(servicio.id)}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))
+                            )}
                           </div>
-                        ))
-                      )}
+                        </ScrollArea>
+                      </div>
                     </div>
-                  </ScrollArea>
-                </div>
+                  </TabsContent>
+                </Tabs>
               </div>
 
               {/* Footer */}
