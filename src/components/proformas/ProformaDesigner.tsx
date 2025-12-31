@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Save, ChevronRight, FileText, Briefcase, Check, Settings2 } from "lucide-react";
+import { Plus, Trash2, Save, ChevronRight, FileText, Briefcase, Check, Settings2, PlusCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -89,6 +89,10 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
   const [newFieldRequired, setNewFieldRequired] = useState(false);
   const [newFieldOptions, setNewFieldOptions] = useState("");
   const [serviciosDB, setServiciosDB] = useState<ServiceCategory[]>([]);
+  const [showNewPlantillaForm, setShowNewPlantillaForm] = useState(false);
+  const [newPlantillaNombre, setNewPlantillaNombre] = useState("");
+  const [newPlantillaTipo, setNewPlantillaTipo] = useState<"contabilidad" | "tramites">("contabilidad");
+  const [newPlantillaDescripcion, setNewPlantillaDescripcion] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -279,6 +283,72 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     setLoading(false);
   };
 
+  const handleCreatePlantilla = async () => {
+    if (!newPlantillaNombre.trim()) {
+      toast.error("Ingrese un nombre para la plantilla");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("proforma_plantillas")
+      .insert({
+        nombre: newPlantillaNombre.trim(),
+        tipo: newPlantillaTipo,
+        descripcion: newPlantillaDescripcion.trim() || null,
+        campos: [],
+        activa: true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error("Error al crear plantilla");
+      console.error(error);
+    } else {
+      toast.success("Plantilla creada correctamente");
+      setNewPlantillaNombre("");
+      setNewPlantillaDescripcion("");
+      setShowNewPlantillaForm(false);
+      await fetchPlantillas();
+      // Select the new template
+      if (data) {
+        const newPlantilla: Plantilla = {
+          ...data,
+          tipo: data.tipo as "contabilidad" | "tramites",
+          campos: [] as Campo[],
+        };
+        setSelectedPlantilla(newPlantilla);
+        setActiveType(newPlantilla.tipo);
+      }
+    }
+    setLoading(false);
+  };
+
+  const handleDeletePlantilla = async () => {
+    if (!selectedPlantilla) return;
+    
+    if (!confirm(`¿Está seguro de eliminar la plantilla "${selectedPlantilla.nombre}"?`)) {
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase
+      .from("proforma_plantillas")
+      .delete()
+      .eq("id", selectedPlantilla.id);
+
+    if (error) {
+      toast.error("Error al eliminar plantilla");
+      console.error(error);
+    } else {
+      toast.success("Plantilla eliminada");
+      setSelectedPlantilla(null);
+      fetchPlantillas();
+    }
+    setLoading(false);
+  };
+
   const currentServices = serviciosDB;
 
   return (
@@ -297,46 +367,122 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
         <div className="flex-1 overflow-hidden flex">
           {/* Sidebar - Lista de plantillas */}
           <div className="w-64 border-r bg-muted/30 p-4 flex flex-col">
-            <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-3">
-              Plantillas
-            </h3>
-            <div className="space-y-2 flex-1">
-              {plantillas.map((plantilla) => (
-                <button
-                  key={plantilla.id}
-                  onClick={() => handleSelectPlantilla(plantilla)}
-                  className={`w-full text-left p-3 rounded-lg border transition-all ${
-                    selectedPlantilla?.id === plantilla.id
-                      ? "border-primary bg-primary/10 shadow-sm"
-                      : "border-transparent bg-background hover:bg-background/80"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {plantilla.tipo === "contabilidad" ? (
-                      <FileText className="h-4 w-4 text-blue-500" />
-                    ) : (
-                      <Briefcase className="h-4 w-4 text-emerald-500" />
-                    )}
-                    <span className="font-medium text-sm truncate">{plantilla.nombre}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge 
-                      variant="secondary" 
-                      className={`text-xs ${
-                        plantilla.tipo === "contabilidad" 
-                          ? "bg-blue-100 text-blue-700" 
-                          : "bg-emerald-100 text-emerald-700"
-                      }`}
-                    >
-                      {plantilla.tipo === "contabilidad" ? "Contabilidad" : "Trámites"}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {plantilla.campos.length} servicios
-                    </span>
-                  </div>
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">
+                Plantillas
+              </h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setShowNewPlantillaForm(true)}
+              >
+                <PlusCircle className="h-4 w-4" />
+              </Button>
             </div>
+
+            {/* Form para nueva plantilla */}
+            {showNewPlantillaForm && (
+              <div className="mb-4 p-3 border rounded-lg bg-background space-y-3">
+                <h4 className="font-medium text-sm">Nueva Plantilla</h4>
+                <div>
+                  <Label className="text-xs">Nombre</Label>
+                  <Input
+                    value={newPlantillaNombre}
+                    onChange={(e) => setNewPlantillaNombre(e.target.value)}
+                    placeholder="Nombre de la plantilla"
+                    className="mt-1 h-8"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Tipo</Label>
+                  <Select
+                    value={newPlantillaTipo}
+                    onValueChange={(v) => setNewPlantillaTipo(v as "contabilidad" | "tramites")}
+                  >
+                    <SelectTrigger className="mt-1 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="contabilidad">Contabilidad</SelectItem>
+                      <SelectItem value="tramites">Trámites</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Descripción (opcional)</Label>
+                  <Textarea
+                    value={newPlantillaDescripcion}
+                    onChange={(e) => setNewPlantillaDescripcion(e.target.value)}
+                    placeholder="Descripción..."
+                    className="mt-1 resize-none"
+                    rows={2}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setShowNewPlantillaForm(false);
+                      setNewPlantillaNombre("");
+                      setNewPlantillaDescripcion("");
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={handleCreatePlantilla}
+                    disabled={loading}
+                  >
+                    Crear
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <ScrollArea className="flex-1">
+              <div className="space-y-2">
+                {plantillas.map((plantilla) => (
+                  <button
+                    key={plantilla.id}
+                    onClick={() => handleSelectPlantilla(plantilla)}
+                    className={`w-full text-left p-3 rounded-lg border transition-all ${
+                      selectedPlantilla?.id === plantilla.id
+                        ? "border-primary bg-primary/10 shadow-sm"
+                        : "border-transparent bg-background hover:bg-background/80"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {plantilla.tipo === "contabilidad" ? (
+                        <FileText className="h-4 w-4 text-blue-500" />
+                      ) : (
+                        <Briefcase className="h-4 w-4 text-emerald-500" />
+                      )}
+                      <span className="font-medium text-sm truncate">{plantilla.nombre}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge 
+                        variant="secondary" 
+                        className={`text-xs ${
+                          plantilla.tipo === "contabilidad" 
+                            ? "bg-blue-100 text-blue-700" 
+                            : "bg-emerald-100 text-emerald-700"
+                        }`}
+                      >
+                        {plantilla.tipo === "contabilidad" ? "Contabilidad" : "Trámites"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {plantilla.campos.length} servicios
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
 
           {/* Main content */}
@@ -344,7 +490,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Header de plantilla */}
               <div className="px-6 py-4 border-b bg-background">
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 space-y-3">
                     <div>
                       <Label className="text-xs text-muted-foreground">Nombre de la plantilla</Label>
@@ -375,6 +521,14 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                       />
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={handleDeletePlantilla}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 
