@@ -191,11 +191,6 @@ const Contratos = () => {
       return;
     }
 
-    // Generate contract number
-    const year = new Date().getFullYear();
-    const count = contracts.length + 1;
-    const numero = `CTR-${year}-${count.toString().padStart(3, "0")}`;
-
     // First, we need to get the client_id from the proforma if coming from proforma flow
     let clienteId = newContract.cliente_id;
     
@@ -216,7 +211,26 @@ const Contratos = () => {
       return;
     }
 
-    // Create contract in BORRADOR status (from proforma flow)
+    // Generate unique contract number based on max existing number
+    const year = new Date().getFullYear();
+    const { data: maxContrato } = await supabase
+      .from("contratos")
+      .select("numero")
+      .ilike("numero", `CTR-${year}-%`)
+      .order("numero", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let nextNum = 1;
+    if (maxContrato?.numero) {
+      const match = maxContrato.numero.match(/CTR-\d{4}-(\d+)/);
+      if (match) {
+        nextNum = parseInt(match[1], 10) + 1;
+      }
+    }
+    const numero = `CTR-${year}-${nextNum.toString().padStart(3, "0")}`;
+
+    // Create contract in BORRADOR status
     const { error } = await supabase.from("contratos").insert({
       numero,
       descripcion: newContract.descripcion,
@@ -228,7 +242,7 @@ const Contratos = () => {
       moneda: newContract.moneda,
       notas: newContract.notas || null,
       cliente_id: clienteId,
-      status: proformaData ? "borrador" : "borrador", // Always start in borrador
+      status: "borrador",
       proforma_id: proformaData?.proformaId || null,
     });
 
