@@ -169,82 +169,64 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   let yPos = 0;
 
   // ========== HEADER SECTION ==========
-  // Full-width maroon header with subtle gradient effect
+  const headerHeight = 38;
+  
+  // Full-width maroon header background (solid, no boxes)
   doc.setFillColor(...COLORS.primaryMaroon);
-  doc.rect(0, 0, pageWidth, 48, "F");
+  doc.rect(0, 0, pageWidth, headerHeight, "F");
   
-  // Gold accent line at bottom of header
-  doc.setFillColor(...COLORS.accentGold);
-  doc.rect(0, 46, pageWidth, 2, "F");
-  
-  // Load and add logo from PNG with elegant white background
+  // Load and add logo from PNG (no background box)
   try {
     const logoImg = await loadImage("/images/logo-ca.png");
-    const logoBoxSize = 38;
-    // Shadow effect
-    doc.setFillColor(200, 200, 200);
-    doc.roundedRect(margin + 1, 6, logoBoxSize, logoBoxSize, 4, 4, "F");
-    // White box
-    doc.setFillColor(...COLORS.white);
-    doc.roundedRect(margin, 5, logoBoxSize, logoBoxSize, 4, 4, "F");
-    doc.addImage(logoImg, "PNG", margin + 3, 8, logoBoxSize - 6, logoBoxSize - 6);
+    const logoSize = 30;
+    doc.addImage(logoImg, "PNG", margin, 4, logoSize, logoSize);
   } catch (error) {
     console.error("Error loading logo:", error);
   }
 
-  // Company name and info
-  const textStartX = margin + 46;
+  // Company name and info - centered in header
+  const textStartX = margin + 38;
   
   doc.setTextColor(...COLORS.white);
-  doc.setFontSize(16);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(COMPANY_INFO.name, textStartX, 16);
+  doc.text(COMPANY_INFO.name, textStartX, 12);
   
   // Gold slogan
   doc.setTextColor(...COLORS.lightGold);
   doc.setFontSize(9);
   doc.setFont("helvetica", "italic");
-  doc.text(COMPANY_INFO.slogan, textStartX, 23);
+  doc.text(COMPANY_INFO.slogan, textStartX, 18);
   
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.text(`${COMPANY_INFO.website}: ${COMPANY_INFO.phone}`, textStartX, 31);
-  doc.text(`Email: ${COMPANY_INFO.email}`, textStartX, 36);
-  doc.text(`Ubicación: ${COMPANY_INFO.address}`, textStartX, 41);
+  doc.text(`${COMPANY_INFO.website}: ${COMPANY_INFO.phone}`, textStartX, 25);
+  doc.text(`Email: ${COMPANY_INFO.email}`, textStartX, 30);
+  doc.text(`Ubicación: ${COMPANY_INFO.address}`, textStartX, 35);
 
-  // Proforma badge on the right with gold border
-  const badgeWidth = 50;
-  const badgeHeight = 32;
-  const badgeX = pageWidth - margin - badgeWidth;
-  const badgeY = 6;
+  // Proforma info on the right - text only, no boxes
+  const rightTextX = pageWidth - margin;
   
-  // Gold border effect
-  doc.setFillColor(...COLORS.accentGold);
-  doc.roundedRect(badgeX - 1, badgeY - 1, badgeWidth + 2, badgeHeight + 2, 5, 5, "F");
-  doc.setFillColor(...COLORS.white);
-  doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 4, 4, "F");
-  
-  // Badge content
-  doc.setTextColor(...COLORS.primaryMaroon);
-  doc.setFontSize(12);
+  // PROFORMA title in white
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("PROFORMA", badgeX + badgeWidth / 2, badgeY + 10, { align: "center" });
+  doc.text("PROFORMA", rightTextX, 12, { align: "right" });
   
-  // Type with colored styling
-  const typeColor = data.tipo === "contabilidad" ? COLORS.primaryMaroon : COLORS.accentGold;
-  doc.setTextColor(...typeColor);
-  doc.setFontSize(8);
+  // Type label (CONTABILIDAD or TRÁMITES) in white
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text(data.tipo === "contabilidad" ? "CONTABILIDAD" : "TRÁMITES", badgeX + badgeWidth / 2, badgeY + 18, { align: "center" });
+  doc.text(data.tipo === "contabilidad" ? "CONTABILIDAD" : "TRÁMITES", rightTextX, 20, { align: "right" });
   
-  // Proforma number with red accent
-  doc.setTextColor(...COLORS.accentRed);
-  doc.setFontSize(10);
+  // Proforma number in gold/yellow
+  doc.setTextColor(...COLORS.lightGold);
+  doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(`N° ${data.numero}`, badgeX + badgeWidth / 2, badgeY + 27, { align: "center" });
+  doc.text(`N° ${data.numero}`, rightTextX, 28, { align: "right" });
 
-  yPos = 50;
+  yPos = 42;
 
   // ========== CLIENT & DATES SECTION ==========
   // Modern card style
