@@ -164,12 +164,12 @@ export function ApplyTemplateModal({
       setPlantillas(plantillasData);
     }
 
-    // Fetch contract data
+    // Fetch contract data with existing template data
     const { data: contrato } = await supabase
       .from("contratos")
       .select(`
         id, numero, descripcion, tipo_servicio, fecha_inicio, fecha_fin,
-        monto_mensual, monto_total, moneda, proforma_id,
+        monto_mensual, monto_total, moneda, proforma_id, plantilla_id, datos_plantilla,
         cliente:clientes(id, razon_social, nombre_comercial, codigo, direccion, telefono, email, contacto_nombre)
       `)
       .eq("id", contractId)
@@ -192,8 +192,32 @@ export function ApplyTemplateModal({
       const cliente = contrato.cliente as unknown as ClienteData;
       if (cliente) {
         setClienteData(cliente);
+      }
+
+      // Check if there's already saved template data
+      const savedData = contrato.datos_plantilla as {
+        plantilla_id?: string;
+        partes?: Record<string, Record<string, string>>;
+        clausulas?: { id: string; contenido: string }[];
+      } | null;
+
+      if (savedData && savedData.plantilla_id) {
+        // Load previously saved template data
+        setSelectedPlantillaId(savedData.plantilla_id);
         
-        // Pre-fill "LA SEGUNDA PARTE" with client data
+        if (savedData.partes) {
+          setPartesData(savedData.partes);
+        }
+        
+        if (savedData.clausulas) {
+          const editedMap: Record<string, string> = {};
+          savedData.clausulas.forEach((c) => {
+            editedMap[c.id] = c.contenido;
+          });
+          setEditedClausulas(editedMap);
+        }
+      } else if (cliente) {
+        // Pre-fill "LA SEGUNDA PARTE" with client data only if no saved data
         setPartesData((prev) => ({
           ...prev,
           "LA SEGUNDA PARTE": {
