@@ -510,6 +510,7 @@ export type Database = {
           created_by: string | null
           datos_plantilla: Json | null
           descripcion: string
+          dia_vencimiento: number | null
           fecha_fin: string | null
           fecha_inicio: string
           id: string
@@ -518,6 +519,7 @@ export type Database = {
           monto_total: number | null
           notas: string | null
           numero: string
+          numero_cuotas: number | null
           plantilla_id: string | null
           proforma_id: string | null
           responsable_id: string | null
@@ -531,6 +533,7 @@ export type Database = {
           created_by?: string | null
           datos_plantilla?: Json | null
           descripcion: string
+          dia_vencimiento?: number | null
           fecha_fin?: string | null
           fecha_inicio: string
           id?: string
@@ -539,6 +542,7 @@ export type Database = {
           monto_total?: number | null
           notas?: string | null
           numero: string
+          numero_cuotas?: number | null
           plantilla_id?: string | null
           proforma_id?: string | null
           responsable_id?: string | null
@@ -552,6 +556,7 @@ export type Database = {
           created_by?: string | null
           datos_plantilla?: Json | null
           descripcion?: string
+          dia_vencimiento?: number | null
           fecha_fin?: string | null
           fecha_inicio?: string
           id?: string
@@ -560,6 +565,7 @@ export type Database = {
           monto_total?: number | null
           notas?: string | null
           numero?: string
+          numero_cuotas?: number | null
           plantilla_id?: string | null
           proforma_id?: string | null
           responsable_id?: string | null

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Eye, Edit, Trash2, MoreHorizontal, FileText, CheckCircle, XCircle, ArrowRight, Ban, FileSignature } from "lucide-react";
+import { addMonths } from "date-fns";
 import { ApplyTemplateModal } from "./ApplyTemplateModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,31 +49,109 @@ export const ContractActions = ({
   const [loading, setLoading] = useState(false);
   const [applyTemplateOpen, setApplyTemplateOpen] = useState(false);
 
+  const generatePaymentSchedule = async () => {
+    // Fetch contract data to get payment schedule info
+    const { data: contract, error: fetchError } = await supabase
+      .from("contratos")
+      .select("*")
+      .eq("id", contractId)
+      .maybeSingle();
+
+    if (fetchError || !contract) {
+      console.error("Error fetching contract:", fetchError);
+      throw new Error("No se pudo obtener los datos del contrato");
+    }
+
+    const numeroCuotas = contract.numero_cuotas || 1;
+    const montoTotal = contract.monto_total || 0;
+    const diaVencimiento = contract.dia_vencimiento || 15;
+    const fechaInicio = new Date(contract.fecha_inicio);
+    const montoCuota = numeroCuotas > 0 ? montoTotal / numeroCuotas : 0;
+
+    // Check if payments already exist for this contract
+    const { data: existingPayments } = await supabase
+      .from("pagos")
+      .select("id")
+      .eq("contrato_id", contractId);
+
+    if (existingPayments && existingPayments.length > 0) {
+      // Payments already exist, don't create duplicates
+      return existingPayments.length;
+    }
+
+    // Generate payments
+    const payments = [];
+    for (let i = 0; i < numeroCuotas; i++) {
+      const paymentDate = addMonths(fechaInicio, i);
+      paymentDate.setDate(Math.min(diaVencimiento, 28));
+
+      payments.push({
+        contrato_id: contractId,
+        monto: montoCuota,
+        fecha_vencimiento: paymentDate.toISOString().split("T")[0],
+        status: "pendiente" as const,
+      });
+    }
+
+    if (payments.length > 0) {
+      const { error: insertError } = await supabase
+        .from("pagos")
+        .insert(payments);
+
+      if (insertError) {
+        console.error("Error creating payments:", insertError);
+        throw new Error("No se pudo crear el calendario de pagos");
+      }
+    }
+
+    return payments.length;
+  };
+
   const handleStatusChange = async (newStatus: ContractStatus) => {
     setLoading(true);
-    const { error } = await supabase
-      .from("contratos")
-      .update({ status: newStatus })
-      .eq("id", contractId);
+    
+    try {
+      // If approving, generate payment schedule first
+      if (newStatus === "aprobado") {
+        const paymentCount = await generatePaymentSchedule();
+        toast.success(`Se generaron ${paymentCount} cuotas en el calendario de pagos`);
+      }
 
-    if (error) {
-      console.error("Error updating status:", error);
-      toast.error("Error al actualizar el estado");
-    } else {
-      const statusLabels: Record<string, string> = {
-        en_gestion: "En Gestión",
-        aprobado: "Aprobado",
-        anulado: "Anulado",
-      };
-      toast.success(`Contrato ${statusLabels[newStatus] || newStatus}`);
-      onStatusChange();
+      const { error } = await supabase
+        .from("contratos")
+        .update({ status: newStatus })
+        .eq("id", contractId);
+
+      if (error) {
+        console.error("Error updating status:", error);
+        toast.error("Error al actualizar el estado");
+      } else {
+        const statusLabels: Record<string, string> = {
+          en_gestion: "En Gestión",
+          aprobado: "Aprobado",
+          anulado: "Anulado",
+        };
+        toast.success(`Contrato ${statusLabels[newStatus] || newStatus}`);
+        onStatusChange();
+      }
+    } catch (err) {
+      console.error("Error in status change:", err);
+      toast.error(err instanceof Error ? err.message : "Error al procesar la operación");
     }
+    
     setLoading(false);
     setConfirmDialog({ open: false, action: null });
   };
 
   const handleDelete = async () => {
     setLoading(true);
+    
+    // First delete associated payments
+    await supabase
+      .from("pagos")
+      .delete()
+      .eq("contrato_id", contractId);
+
     const { error } = await supabase
       .from("contratos")
       .delete()
@@ -193,8 +272,7 @@ export const ContractActions = ({
             <AlertDialogDescription>
               {confirmDialog.action === "aprobar" && (
                 <>
-                  El contrato <strong>{contractNumero}</strong> pasará a estado Aprobado. 
-                  Esta acción confirma que el contrato ha sido revisado y aceptado.
+                  El contrato <strong>{contractNumero}</strong> pasará a estado Aprobado y se generará automáticamente el calendario de pagos según las cuotas configuradas.
                 </>
               )}
               {confirmDialog.action === "anular" && (
@@ -205,7 +283,7 @@ export const ContractActions = ({
               )}
               {confirmDialog.action === "eliminar" && (
                 <>
-                  El contrato <strong>{contractNumero}</strong> será eliminado permanentemente. 
+                  El contrato <strong>{contractNumero}</strong> será eliminado permanentemente junto con sus pagos asociados. 
                   Esta acción no se puede deshacer.
                 </>
               )}
