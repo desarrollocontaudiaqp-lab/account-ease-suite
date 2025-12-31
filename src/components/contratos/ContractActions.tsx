@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Eye, Edit, Trash2, MoreHorizontal, FileText, CheckCircle, XCircle, ArrowRight, Ban } from "lucide-react";
+import { Eye, Edit, Trash2, MoreHorizontal, FileText, CheckCircle, XCircle, ArrowRight, Ban, FileSignature } from "lucide-react";
+import { ApplyTemplateModal } from "./ApplyTemplateModal";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -45,6 +46,7 @@ export const ContractActions = ({
     action: "aprobar" | "anular" | "eliminar" | null;
   }>({ open: false, action: null });
   const [loading, setLoading] = useState(false);
+  const [applyTemplateOpen, setApplyTemplateOpen] = useState(false);
 
   const handleStatusChange = async (newStatus: ContractStatus) => {
     setLoading(true);
@@ -132,8 +134,8 @@ export const ContractActions = ({
           )}
 
           {actions.includes("gestion") && (
-            <DropdownMenuItem onClick={() => handleStatusChange("en_gestion")}>
-              <ArrowRight className="h-4 w-4 mr-2" />
+            <DropdownMenuItem onClick={() => setApplyTemplateOpen(true)}>
+              <FileSignature className="h-4 w-4 mr-2" />
               Iniciar Gestión
             </DropdownMenuItem>
           )}
@@ -238,6 +240,13 @@ export const ContractActions = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* Apply Template Modal */}
+      <ApplyTemplateModal
+        open={applyTemplateOpen}
+        onOpenChange={setApplyTemplateOpen}
+        contractId={contractId}
+        onSuccess={onStatusChange}
+      />
     </>
   );
 };
