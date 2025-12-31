@@ -311,6 +311,30 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     setLoading(false);
   };
 
+  // Campos por defecto para nuevas plantillas
+  const defaultCampos: Campo[] = [
+    {
+      id: crypto.randomUUID(),
+      label: "Régimen Tributario",
+      type: "select",
+      options: ["RER", "RMT", "RG"],
+      required: true,
+    },
+    {
+      id: crypto.randomUUID(),
+      label: "Tipo de Declaración",
+      type: "select",
+      options: ["Mensual", "Anual"],
+      required: true,
+    },
+    {
+      id: crypto.randomUUID(),
+      label: "Período",
+      type: "text",
+      required: true,
+    },
+  ];
+
   const handleCreatePlantilla = async () => {
     if (!newPlantillaNombre.trim()) {
       toast.error("Ingrese un nombre para la plantilla");
@@ -324,7 +348,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
         nombre: newPlantillaNombre.trim(),
         tipo: newPlantillaTipo,
         descripcion: newPlantillaDescripcion.trim() || null,
-        campos: [],
+        campos: JSON.parse(JSON.stringify(defaultCampos)),
         servicios: [],
         activa: true,
       })
@@ -344,7 +368,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
         const newPlantilla: Plantilla = {
           ...data,
           tipo: data.tipo as "contabilidad" | "tramites",
-          campos: [] as Campo[],
+          campos: defaultCampos,
           servicios: [] as ServicioPlantilla[],
         };
         setSelectedPlantilla(newPlantilla);
