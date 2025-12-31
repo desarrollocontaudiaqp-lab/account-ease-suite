@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface ProformaItem {
   id: string;
@@ -33,7 +35,7 @@ interface Proforma {
   subtotal: number;
   igv: number;
   total: number;
-  status: "borrador" | "enviada" | "aprobada" | "rechazada" | "facturada";
+  status: string;
   fecha_emision: string;
   fecha_vencimiento: string;
   notas: string | null;
@@ -50,22 +52,6 @@ interface ProformaDetailModalProps {
   onSendEmail: () => void;
   downloadingPDF: boolean;
 }
-
-const statusStyles: Record<string, string> = {
-  borrador: "bg-gray-100 text-gray-800 border-gray-200",
-  enviada: "bg-blue-100 text-blue-800 border-blue-200",
-  aprobada: "bg-green-100 text-green-800 border-green-200",
-  rechazada: "bg-red-100 text-red-800 border-red-200",
-  facturada: "bg-purple-100 text-purple-800 border-purple-200",
-};
-
-const statusLabels: Record<string, string> = {
-  borrador: "Borrador",
-  enviada: "Enviada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  facturada: "Facturada",
-};
 
 const typeStyles = {
   contabilidad: "bg-primary/10 text-primary",
@@ -87,6 +73,26 @@ export function ProformaDetailModal({
   onSendEmail,
   downloadingPDF,
 }: ProformaDetailModalProps) {
+  const { data: estados = [] } = useQuery({
+    queryKey: ["proforma-estados-modal"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proforma_estados")
+        .select("*")
+        .order("orden");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const getStatusInfo = (statusName: string) => {
+    const estado = estados.find((e) => e.nombre === statusName);
+    return {
+      label: estado?.nombre_display || statusName,
+      color: estado?.color || "#6B7280",
+    };
+  };
+
   if (!proforma) return null;
 
   const formatDate = (dateStr: string) => {
@@ -129,8 +135,15 @@ export function ProformaDetailModal({
               <Badge variant="outline" className={typeStyles[proforma.tipo]}>
                 {typeLabels[proforma.tipo]}
               </Badge>
-              <Badge variant="outline" className={statusStyles[proforma.status]}>
-                {statusLabels[proforma.status]}
+              <Badge 
+                variant="outline" 
+                style={{ 
+                  backgroundColor: `${getStatusInfo(proforma.status).color}15`,
+                  color: getStatusInfo(proforma.status).color,
+                  borderColor: `${getStatusInfo(proforma.status).color}50`
+                }}
+              >
+                {getStatusInfo(proforma.status).label}
               </Badge>
             </div>
 

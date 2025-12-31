@@ -1,4 +1,4 @@
-import { Settings, Shield, Briefcase, FileText, Bell, Database, Receipt, Users } from "lucide-react";
+import { Settings, Shield, Briefcase, FileText, Bell, Database, Receipt, Users, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,9 @@ import { Separator } from "@/components/ui/separator";
 import { OpcionesManager } from "@/components/configuracion/OpcionesManager";
 import { RolesManager } from "@/components/configuracion/RolesManager";
 import { ServiciosManager } from "@/components/configuracion/ServiciosManager";
+import { ProformaEstadosManager } from "@/components/configuracion/ProformaEstadosManager";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
+
 const Configuracion = () => {
   const regimenTributario = useConfiguracionOpciones("regimen_tributario");
   const regimenLaboral = useConfiguracionOpciones("regimen_laboral");
@@ -34,6 +36,10 @@ const Configuracion = () => {
           <TabsTrigger value="roles" className="gap-2">
             <Shield className="h-4 w-4" />
             Roles
+          </TabsTrigger>
+          <TabsTrigger value="proformas" className="gap-2">
+            <ClipboardList className="h-4 w-4" />
+            Proformas
           </TabsTrigger>
           <TabsTrigger value="carteras" className="gap-2">
             <Briefcase className="h-4 w-4" />
@@ -84,6 +90,11 @@ const Configuracion = () => {
         {/* Roles Tab */}
         <TabsContent value="roles">
           <RolesManager />
+        </TabsContent>
+
+        {/* Proformas Tab */}
+        <TabsContent value="proformas">
+          <ProformaEstadosManager />
         </TabsContent>
 
         {/* Carteras Tab */}

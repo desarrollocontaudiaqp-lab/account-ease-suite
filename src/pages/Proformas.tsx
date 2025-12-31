@@ -13,6 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { ProformaDesigner } from "@/components/proformas/ProformaDesigner";
 import { CreateProformaDialog } from "@/components/proformas/CreateProformaDialog";
 import { ProformaDetailModal } from "@/components/proformas/ProformaDetailModal";
@@ -36,7 +37,7 @@ interface Proforma {
   subtotal: number;
   igv: number;
   total: number;
-  status: "borrador" | "enviada" | "aprobada" | "rechazada" | "facturada";
+  status: string;
   fecha_emision: string;
   fecha_vencimiento: string;
   notas: string | null;
@@ -55,21 +56,14 @@ interface ProformaWithItems extends Proforma {
   items?: ProformaItem[];
 }
 
-const statusStyles: Record<string, string> = {
-  borrador: "bg-gray-100 text-gray-800 border-gray-200",
-  enviada: "bg-blue-100 text-blue-800 border-blue-200",
-  aprobada: "bg-green-100 text-green-800 border-green-200",
-  rechazada: "bg-red-100 text-red-800 border-red-200",
-  facturada: "bg-purple-100 text-purple-800 border-purple-200",
-};
-
-const statusLabels: Record<string, string> = {
-  borrador: "Borrador",
-  enviada: "Enviada",
-  aprobada: "Aprobada",
-  rechazada: "Rechazada",
-  facturada: "Facturada",
-};
+interface ProformaEstado {
+  id: string;
+  nombre: string;
+  nombre_display: string;
+  color: string;
+  orden: number;
+  activo: boolean;
+}
 
 const typeStyles = {
   contabilidad: "bg-primary/10 text-primary",
@@ -110,6 +104,36 @@ const Proformas = () => {
   
   // Service filter state
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+
+  // Fetch dynamic statuses
+  const { data: estados = [] } = useQuery({
+    queryKey: ["proforma-estados-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proforma_estados")
+        .select("*")
+        .order("orden");
+      if (error) throw error;
+      return data as ProformaEstado[];
+    },
+  });
+
+  // Helper functions for dynamic status display
+  const getStatusStyle = (statusName: string) => {
+    const estado = estados.find((e) => e.nombre === statusName);
+    if (!estado) return "bg-gray-100 text-gray-800 border-gray-200";
+    return `border-[${estado.color}]/30`;
+  };
+
+  const getStatusLabel = (statusName: string) => {
+    const estado = estados.find((e) => e.nombre === statusName);
+    return estado?.nombre_display || statusName;
+  };
+
+  const getStatusColor = (statusName: string) => {
+    const estado = estados.find((e) => e.nombre === statusName);
+    return estado?.color || "#6B7280";
+  };
 
   useEffect(() => {
     fetchProformas();
@@ -469,8 +493,15 @@ const Proformas = () => {
                         <Badge variant="outline" className={typeStyles[proforma.tipo]}>
                           {typeLabels[proforma.tipo]}
                         </Badge>
-                        <Badge variant="outline" className={statusStyles[proforma.status]}>
-                          {statusLabels[proforma.status]}
+                        <Badge 
+                          variant="outline" 
+                          style={{ 
+                            backgroundColor: `${getStatusColor(proforma.status)}15`,
+                            color: getStatusColor(proforma.status),
+                            borderColor: `${getStatusColor(proforma.status)}50`
+                          }}
+                        >
+                          {getStatusLabel(proforma.status)}
                         </Badge>
                       </div>
 
@@ -554,8 +585,15 @@ const Proformas = () => {
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              <Badge variant="outline" className={statusStyles[proforma.status]}>
-                                {statusLabels[proforma.status]}
+                              <Badge 
+                                variant="outline" 
+                                style={{ 
+                                  backgroundColor: `${getStatusColor(proforma.status)}15`,
+                                  color: getStatusColor(proforma.status),
+                                  borderColor: `${getStatusColor(proforma.status)}50`
+                                }}
+                              >
+                                {getStatusLabel(proforma.status)}
                               </Badge>
                             </td>
                             <td className="px-6 py-4">
