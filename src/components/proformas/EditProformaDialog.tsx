@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, Loader2, Save } from "lucide-react";
 import {
   Dialog,
@@ -18,8 +18,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 interface ProformaItem {
   id?: string;
@@ -63,6 +77,22 @@ export function EditProformaDialog({
   const [notas, setNotas] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState("");
   const [status, setStatus] = useState<Proforma["status"]>("borrador");
+  const [openServiceIndex, setOpenServiceIndex] = useState<number | null>(null);
+  const [serviceSearches, setServiceSearches] = useState<{ [key: number]: string }>({});
+
+  // Fetch services for autocomplete
+  const { data: servicios = [] } = useQuery({
+    queryKey: ["servicios-edit"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("servicios")
+        .select("*")
+        .eq("activo", true)
+        .order("servicio");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   useEffect(() => {
     if (proforma && open) {
@@ -70,8 +100,34 @@ export function EditProformaDialog({
       setNotas(proforma.notas || "");
       setFechaVencimiento(proforma.fecha_vencimiento);
       setStatus(proforma.status);
+      setServiceSearches({});
     }
   }, [proforma, initialItems, open]);
+
+  const getFilteredServices = (index: number) => {
+    const search = serviceSearches[index] || items[index]?.descripcion || "";
+    if (!search) return servicios;
+    const searchLower = search.toLowerCase();
+    return servicios.filter((s) => 
+      s.servicio.toLowerCase().includes(searchLower) ||
+      s.categoria?.toLowerCase().includes(searchLower) ||
+      s.producto?.toLowerCase().includes(searchLower) ||
+      s.variante?.toLowerCase().includes(searchLower)
+    );
+  };
+
+  const handleServiceSelect = (index: number, servicio: typeof servicios[0]) => {
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      descripcion: servicio.servicio,
+      precio_unitario: servicio.precio,
+      subtotal: Number(newItems[index].cantidad) * servicio.precio,
+    };
+    setItems(newItems);
+    setOpenServiceIndex(null);
+    setServiceSearches((prev) => ({ ...prev, [index]: "" }));
+  };
 
   const handleItemChange = (
     index: number,
@@ -96,6 +152,11 @@ export function EditProformaDialog({
   const removeItem = (index: number) => {
     if (items.length > 1) {
       setItems(items.filter((_, i) => i !== index));
+      setServiceSearches((prev) => {
+        const newSearches = { ...prev };
+        delete newSearches[index];
+        return newSearches;
+      });
     }
   };
 
@@ -219,11 +280,52 @@ export function EditProformaDialog({
               {items.map((item, index) => (
                 <div key={index} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-6">
-                    <Input
-                      placeholder="Descripción del servicio"
-                      value={item.descripcion}
-                      onChange={(e) => handleItemChange(index, "descripcion", e.target.value)}
-                    />
+                    <Popover 
+                      open={openServiceIndex === index} 
+                      onOpenChange={(open) => setOpenServiceIndex(open ? index : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <Input
+                          placeholder="Descripción del servicio"
+                          value={item.descripcion}
+                          onChange={(e) => {
+                            handleItemChange(index, "descripcion", e.target.value);
+                            setServiceSearches((prev) => ({ ...prev, [index]: e.target.value }));
+                            setOpenServiceIndex(index);
+                          }}
+                          onClick={() => setOpenServiceIndex(index)}
+                        />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0" align="start">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Buscar servicio..." 
+                            value={serviceSearches[index] || ""}
+                            onValueChange={(value) => setServiceSearches((prev) => ({ ...prev, [index]: value }))}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No se encontraron servicios</CommandEmpty>
+                            <CommandGroup className="max-h-[200px] overflow-y-auto">
+                              {getFilteredServices(index).map((servicio) => (
+                                <CommandItem
+                                  key={servicio.id}
+                                  value={servicio.servicio}
+                                  onSelect={() => handleServiceSelect(index, servicio)}
+                                  className="cursor-pointer"
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{servicio.servicio}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {servicio.categoria} {servicio.producto && `• ${servicio.producto}`} • S/ {servicio.precio.toFixed(2)}
+                                    </span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="col-span-2">
                     <Input
