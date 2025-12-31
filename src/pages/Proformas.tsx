@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2, FileCheck } from "lucide-react";
+import { Plus, Search, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2, FileCheck, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,10 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
 import { ProformaDesigner } from "@/components/proformas/ProformaDesigner";
 import { CreateProformaDialog } from "@/components/proformas/CreateProformaDialog";
+import { ProformaDetailModal } from "@/components/proformas/ProformaDetailModal";
+import { SendEmailDialog } from "@/components/proformas/SendEmailDialog";
+import { EditProformaDialog } from "@/components/proformas/EditProformaDialog";
+import { ServiceFilterDropdown } from "@/components/proformas/ServiceFilterDropdown";
 import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
 import { toast } from "sonner";
 
@@ -45,6 +49,10 @@ interface ProformaItem {
   cantidad: number;
   precio_unitario: number;
   subtotal: number;
+}
+
+interface ProformaWithItems extends Proforma {
+  items?: ProformaItem[];
 }
 
 const statusStyles: Record<string, string> = {
@@ -78,12 +86,30 @@ const Proformas = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("todas");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
-  const [proformas, setProformas] = useState<Proforma[]>([]);
+  const [proformas, setProformas] = useState<ProformaWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [designerOpen, setDesignerOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createDialogType, setCreateDialogType] = useState<"contabilidad" | "tramites">("contabilidad");
+  
+  // Detail modal state
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedProforma, setSelectedProforma] = useState<Proforma | null>(null);
+  const [selectedProformaItems, setSelectedProformaItems] = useState<ProformaItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+  
+  // Email dialog state
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailProforma, setEmailProforma] = useState<Proforma | null>(null);
+  
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editProforma, setEditProforma] = useState<Proforma | null>(null);
+  const [editProformaItems, setEditProformaItems] = useState<ProformaItem[]>([]);
+  
+  // Service filter state
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
   useEffect(() => {
     fetchProformas();
@@ -91,6 +117,8 @@ const Proformas = () => {
 
   const fetchProformas = async () => {
     setLoading(true);
+    
+    // Fetch proformas with items for filtering
     const { data, error } = await supabase
       .from("proformas")
       .select(`
@@ -112,15 +140,64 @@ const Proformas = () => {
     if (error) {
       console.error("Error fetching proformas:", error);
     } else {
+      // Fetch items for all proformas to enable filtering
+      const proformaIds = (data || []).map(p => p.id);
+      const { data: allItems } = await supabase
+        .from("proforma_items")
+        .select("*")
+        .in("proforma_id", proformaIds);
+      
+      const itemsByProforma = (allItems || []).reduce((acc, item) => {
+        if (!acc[item.proforma_id]) acc[item.proforma_id] = [];
+        acc[item.proforma_id].push(item);
+        return acc;
+      }, {} as Record<string, ProformaItem[]>);
+      
       const parsed = (data || []).map((p) => ({
         ...p,
         tipo: p.tipo as "contabilidad" | "tramites",
         status: p.status as Proforma["status"],
         cliente: p.cliente as Proforma["cliente"],
+        items: itemsByProforma[p.id] || [],
       }));
       setProformas(parsed);
     }
     setLoading(false);
+  };
+
+  const fetchProformaItems = async (proformaId: string) => {
+    const { data, error } = await supabase
+      .from("proforma_items")
+      .select("*")
+      .eq("proforma_id", proformaId);
+    
+    if (error) {
+      console.error("Error fetching items:", error);
+      return [];
+    }
+    return data || [];
+  };
+
+  const handleViewDetail = async (proforma: Proforma) => {
+    setSelectedProforma(proforma);
+    setDetailModalOpen(true);
+    setLoadingItems(true);
+    
+    const items = await fetchProformaItems(proforma.id);
+    setSelectedProformaItems(items);
+    setLoadingItems(false);
+  };
+
+  const handleEdit = async (proforma: Proforma) => {
+    setEditProforma(proforma);
+    const items = await fetchProformaItems(proforma.id);
+    setEditProformaItems(items);
+    setEditDialogOpen(true);
+  };
+
+  const handleSendEmail = (proforma: Proforma) => {
+    setEmailProforma(proforma);
+    setEmailDialogOpen(true);
   };
 
   const handleDownloadPDF = async (proforma: Proforma) => {
@@ -132,15 +209,7 @@ const Proformas = () => {
     setDownloadingId(proforma.id);
     
     try {
-      // Fetch proforma items
-      const { data: itemsData, error: itemsError } = await supabase
-        .from("proforma_items")
-        .select("*")
-        .eq("proforma_id", proforma.id);
-
-      if (itemsError) throw itemsError;
-
-      const items: ProformaItem[] = itemsData || [];
+      const items = await fetchProformaItems(proforma.id);
 
       const pdfBlob = await generateProformaPDF({
         numero: proforma.numero,
@@ -178,13 +247,12 @@ const Proformas = () => {
   };
 
   const handleConfirmContract = (proforma: Proforma) => {
-    // Navigate to contracts page with proforma data for creating a new contract
     navigate("/contratos", {
       state: {
         fromProforma: true,
         proformaId: proforma.id,
         proformaNumero: proforma.numero,
-        clienteId: proforma.cliente ? undefined : undefined, // Will be fetched from proforma
+        clienteId: proforma.cliente ? undefined : undefined,
         clienteNombre: proforma.cliente?.razon_social,
         tipo: proforma.tipo,
         total: proforma.total,
@@ -199,16 +267,35 @@ const Proformas = () => {
     setCreateDialogOpen(true);
   };
 
-  const filteredProformas = proformas.filter((proforma) => {
-    const matchesSearch =
-      proforma.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      proforma.cliente?.razon_social.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (activeTab === "todas") return matchesSearch;
-    if (activeTab === "contabilidad") return matchesSearch && proforma.tipo === "contabilidad";
-    if (activeTab === "tramites") return matchesSearch && proforma.tipo === "tramites";
-    return matchesSearch;
-  });
+  // Filter proformas with dynamic search and service filter
+  const filteredProformas = useMemo(() => {
+    return proformas.filter((proforma) => {
+      // Search filter - by client name, proforma number, or item descriptions
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = searchTerm === "" ||
+        proforma.numero.toLowerCase().includes(searchLower) ||
+        proforma.cliente?.razon_social.toLowerCase().includes(searchLower) ||
+        proforma.items?.some(item => 
+          item.descripcion.toLowerCase().includes(searchLower)
+        );
+      
+      // Tab filter
+      const matchesTab = 
+        activeTab === "todas" ||
+        (activeTab === "contabilidad" && proforma.tipo === "contabilidad") ||
+        (activeTab === "tramites" && proforma.tipo === "tramites");
+      
+      // Service filter - check if any selected service matches any item description
+      const matchesService = selectedServices.length === 0 ||
+        proforma.items?.some(item =>
+          selectedServices.some(service =>
+            item.descripcion.toLowerCase().includes(service.toLowerCase())
+          )
+        );
+      
+      return matchesSearch && matchesTab && matchesService;
+    });
+  }, [proformas, searchTerm, activeTab, selectedServices]);
 
   const stats = {
     total: proformas.length,
@@ -290,15 +377,16 @@ const Proformas = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar proforma..."
+                placeholder="Buscar cliente, N° proforma, descripción..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-[250px]"
+                className="pl-10 w-[300px]"
               />
             </div>
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
+            <ServiceFilterDropdown
+              selectedServices={selectedServices}
+              onServicesChange={setSelectedServices}
+            />
             <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as "cards" | "table")}>
               <ToggleGroupItem value="cards" aria-label="Vista tarjetas">
                 <LayoutGrid className="h-4 w-4" />
@@ -349,27 +437,31 @@ const Proformas = () => {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Ver detalle
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => handleDownloadPDF(proforma)}
-                                    disabled={downloadingId === proforma.id}
-                                  >
-                                    {downloadingId === proforma.id ? (
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    ) : (
-                                      <Download className="h-4 w-4 mr-2" />
-                                    )}
-                                    Descargar PDF
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Enviar al cliente
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewDetail(proforma)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver detalle
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEdit(proforma)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDownloadPDF(proforma)}
+                              disabled={downloadingId === proforma.id}
+                            >
+                              {downloadingId === proforma.id ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4 mr-2" />
+                              )}
+                              Descargar PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSendEmail(proforma)}>
+                              <Send className="h-4 w-4 mr-2" />
+                              Enviar al cliente
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
 
@@ -478,8 +570,18 @@ const Proformas = () => {
                                   size="icon"
                                   className="h-8 w-8"
                                   title="Ver detalle"
+                                  onClick={() => handleViewDetail(proforma)}
                                 >
                                   <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  title="Editar"
+                                  onClick={() => handleEdit(proforma)}
+                                >
+                                  <Pencil className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -500,6 +602,7 @@ const Proformas = () => {
                                   size="icon"
                                   className="h-8 w-8"
                                   title="Enviar al cliente"
+                                  onClick={() => handleSendEmail(proforma)}
                                 >
                                   <Send className="h-4 w-4" />
                                 </Button>
@@ -528,9 +631,13 @@ const Proformas = () => {
                                         Confirmar Contrato
                                       </DropdownMenuItem>
                                     )}
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleViewDetail(proforma)}>
                                       <Eye className="h-4 w-4 mr-2" />
                                       Ver detalle
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleEdit(proforma)}>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Editar
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                       onClick={() => handleDownloadPDF(proforma)}
@@ -543,7 +650,7 @@ const Proformas = () => {
                                       )}
                                       Descargar PDF
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleSendEmail(proforma)}>
                                       <Send className="h-4 w-4 mr-2" />
                                       Enviar al cliente
                                     </DropdownMenuItem>
@@ -570,6 +677,37 @@ const Proformas = () => {
         onOpenChange={setCreateDialogOpen}
         onSuccess={fetchProformas}
         tipo={createDialogType}
+      />
+      <ProformaDetailModal
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        proforma={selectedProforma}
+        items={selectedProformaItems}
+        loading={loadingItems}
+        onDownloadPDF={() => selectedProforma && handleDownloadPDF(selectedProforma)}
+        onSendEmail={() => {
+          if (selectedProforma) {
+            setDetailModalOpen(false);
+            handleSendEmail(selectedProforma);
+          }
+        }}
+        downloadingPDF={downloadingId === selectedProforma?.id}
+      />
+      <SendEmailDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        proformaNumero={emailProforma?.numero || ""}
+        proformaId={emailProforma?.id || ""}
+        clienteEmail={emailProforma?.cliente?.email || null}
+        clienteNombre={emailProforma?.cliente?.razon_social || ""}
+        onSuccess={fetchProformas}
+      />
+      <EditProformaDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        proforma={editProforma}
+        items={editProformaItems}
+        onSuccess={fetchProformas}
       />
     </div>
   );
