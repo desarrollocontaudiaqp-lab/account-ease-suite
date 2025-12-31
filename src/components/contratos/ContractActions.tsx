@@ -116,16 +116,16 @@ export const ContractActions = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           {actions.includes("view") && (
-            <DropdownMenuItem onClick={onViewDetail}>
-              <Eye className="h-4 w-4 mr-2" />
-              Ver detalle
+            <DropdownMenuItem onClick={() => setApplyTemplateOpen(true)}>
+              <FileSignature className="h-4 w-4 mr-2" />
+              Ver Contrato
             </DropdownMenuItem>
           )}
           
           {actions.includes("edit") && (
             <DropdownMenuItem onClick={onEdit}>
               <Edit className="h-4 w-4 mr-2" />
-              Editar
+              Editar Detalles
             </DropdownMenuItem>
           )}
 
