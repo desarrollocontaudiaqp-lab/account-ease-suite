@@ -41,11 +41,19 @@ interface Campo {
   required: boolean;
 }
 
+interface ServicioPlantilla {
+  id: string;
+  label: string;
+  precio: number;
+  categoria: string;
+}
+
 interface Plantilla {
   id: string;
   nombre: string;
   tipo: "contabilidad" | "tramites";
   campos: Campo[];
+  servicios: ServicioPlantilla[];
 }
 
 interface Cliente {
@@ -82,48 +90,6 @@ interface CreateProformaDialogProps {
   tipo: "contabilidad" | "tramites";
 }
 
-// Servicios predeterminados de Contabilidad
-const serviciosContabilidad = [
-  "Auditoría Financiera",
-  "Conciliaciones bancarias",
-  "Análisis de cuentas",
-  "Flujo de efectivo",
-  "Evaluación fiscal",
-  "Implementación de Sistemas Integrados de Gestión",
-  "Implementación de sistemas de Control Interno",
-  "Contabilidad Integral (libros electrónicos, control interno, proyección financiera, estados financieros)",
-  "Outsourcing Contable",
-  "Declaraciones mensuales PDT",
-  "Detracciones",
-  "Percepciones",
-  "Retenciones",
-  "Fraccionamientos",
-  "DJ Anual",
-];
-
-// Servicios predeterminados de Trámites
-const serviciosTramites = [
-  "Reserva de nombre",
-  "Elaboración de estatutos",
-  "Inscripción en SUNARP",
-  "Publicidad registral",
-  "Alta en SUNAT",
-  "Licencias Municipales",
-  "Registro de Marca INDECOPI",
-  "Registro RNP/OSCE",
-  "Elaboración de contratos laborales",
-  "Registro PLAME",
-  "AFP Net",
-  "Essalud",
-  "Liquidación de beneficios",
-  "Trámites SUNAFIL",
-  "Modificación de datos RUC",
-  "Comprobantes electrónicos",
-  "Libros electrónicos",
-  "Baja de comprobantes",
-  "Suspensión temporal",
-];
-
 export function CreateProformaDialog({
   open,
   onOpenChange,
@@ -136,7 +102,7 @@ export function CreateProformaDialog({
   const [selectedCliente, setSelectedCliente] = useState<string>("");
   const [selectedPlantilla, setSelectedPlantilla] = useState<Plantilla | null>(null);
   const [camposValues, setCamposValues] = useState<Record<string, string>>({});
-  const [activeCampos, setActiveCampos] = useState<string[]>([]); // IDs of active campos
+  const [activeCampos, setActiveCampos] = useState<string[]>([]);
   const [items, setItems] = useState<ProformaItem[]>([
     { descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 },
   ]);
@@ -154,8 +120,6 @@ export function CreateProformaDialog({
     toast.success(`${label} copiado al portapapeles`);
   };
 
-  const serviciosPredeterminados = tipo === "contabilidad" ? serviciosContabilidad : serviciosTramites;
-
   useEffect(() => {
     if (open) {
       fetchData();
@@ -163,7 +127,6 @@ export function CreateProformaDialog({
   }, [open, tipo]);
 
   const fetchData = async () => {
-    // Fetch clientes
     const { data: clientesData } = await supabase
       .from("clientes")
       .select("id, razon_social, codigo, direccion, email, telefono, tipo_cliente, nombre_persona_natural, nombre_comercial, contacto_nombre, contacto_telefono, contacto_email, actividad_economica, usuario_sunat, clave_sunat, regimen_tributario, regimen_laboral")
@@ -172,7 +135,6 @@ export function CreateProformaDialog({
 
     if (clientesData) setClientes(clientesData);
 
-    // Fetch plantillas
     const { data: plantillasData } = await supabase
       .from("proforma_plantillas")
       .select("*")
@@ -184,15 +146,12 @@ export function CreateProformaDialog({
         ...p,
         tipo: p.tipo as "contabilidad" | "tramites",
         campos: (Array.isArray(p.campos) ? p.campos : []) as unknown as Campo[],
+        servicios: (Array.isArray(p.servicios) ? p.servicios : []) as unknown as ServicioPlantilla[],
       }));
       setPlantillas(parsed);
       if (parsed.length > 0) {
         setSelectedPlantilla(parsed[0]);
-        // Initialize active campos with all campos from first plantilla
-        const filteredCampos = parsed[0].campos.filter(
-          (campo) => !campo.label.toLowerCase().includes("régimen tributario") && !campo.label.toLowerCase().includes("regimen tributario")
-        );
-        setActiveCampos(filteredCampos.map((c) => c.id));
+        setActiveCampos(parsed[0].campos.map((c) => c.id));
       }
     }
   };
@@ -201,12 +160,8 @@ export function CreateProformaDialog({
     const plantilla = plantillas.find((p) => p.id === plantillaId);
     setSelectedPlantilla(plantilla || null);
     setCamposValues({});
-    // Initialize active campos with all campos from the plantilla
     if (plantilla) {
-      const filteredCampos = plantilla.campos.filter(
-        (campo) => !campo.label.toLowerCase().includes("régimen tributario") && !campo.label.toLowerCase().includes("regimen tributario")
-      );
-      setActiveCampos(filteredCampos.map((c) => c.id));
+      setActiveCampos(plantilla.campos.map((c) => c.id));
     } else {
       setActiveCampos([]);
     }
@@ -232,24 +187,23 @@ export function CreateProformaDialog({
     setOpenAddCampoPopover(false);
   };
 
-  // Get available campos that are not yet active
   const availableCampos = useMemo(() => {
     if (!selectedPlantilla) return [];
-    return selectedPlantilla.campos.filter(
-      (campo) => 
-        !activeCampos.includes(campo.id) &&
-        !campo.label.toLowerCase().includes("régimen tributario") && 
-        !campo.label.toLowerCase().includes("regimen tributario")
-    );
+    return selectedPlantilla.campos.filter((campo) => !activeCampos.includes(campo.id));
   }, [selectedPlantilla, activeCampos]);
 
-  // Get active campo objects in order
   const activeCampoObjects = useMemo(() => {
     if (!selectedPlantilla) return [];
     return activeCampos
       .map((id) => selectedPlantilla.campos.find((c) => c.id === id))
       .filter((c): c is Campo => c !== undefined);
   }, [selectedPlantilla, activeCampos]);
+
+  // Get servicios from the selected plantilla for searching
+  const plantillaServicios = useMemo(() => {
+    if (!selectedPlantilla) return [];
+    return selectedPlantilla.servicios;
+  }, [selectedPlantilla]);
 
   const handleItemChange = (
     index: number,
@@ -259,7 +213,6 @@ export function CreateProformaDialog({
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    // Recalculate subtotal
     if (field === "cantidad" || field === "precio_unitario") {
       newItems[index].subtotal =
         Number(newItems[index].cantidad) * Number(newItems[index].precio_unitario);
@@ -268,8 +221,15 @@ export function CreateProformaDialog({
     setItems(newItems);
   };
 
-  const handleSelectService = (index: number, service: string) => {
-    handleItemChange(index, "descripcion", service);
+  const handleSelectService = (index: number, service: ServicioPlantilla) => {
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      descripcion: service.label,
+      precio_unitario: service.precio,
+      subtotal: Number(newItems[index].cantidad) * service.precio,
+    };
+    setItems(newItems);
     setOpenServicePopovers((prev) => ({ ...prev, [index]: false }));
   };
 
@@ -311,9 +271,8 @@ export function CreateProformaDialog({
       return;
     }
 
-    // Validate required fields
     if (selectedPlantilla) {
-      for (const campo of selectedPlantilla.campos) {
+      for (const campo of activeCampoObjects) {
         if (campo.required && !camposValues[campo.id]) {
           toast.error(`El campo "${campo.label}" es requerido`);
           return;
@@ -321,17 +280,15 @@ export function CreateProformaDialog({
       }
     }
 
-    // Validate items
     const validItems = items.filter((item) => item.descripcion.trim() !== "");
     if (validItems.length === 0) {
-      toast.error("Agregue al menos un item");
+      toast.error("Agregue al menos un servicio");
       return;
     }
 
     setLoading(true);
     const { subtotal, igv, total } = calculateTotals();
 
-    // Create proforma
     const { data: proforma, error: proformaError } = await supabase
       .from("proformas")
       .insert({
@@ -356,7 +313,6 @@ export function CreateProformaDialog({
       return;
     }
 
-    // Create proforma items
     const proformaItems = validItems.map((item) => ({
       proforma_id: proforma.id,
       descripcion: item.descripcion,
@@ -386,6 +342,7 @@ export function CreateProformaDialog({
     setSelectedCliente("");
     setClienteSearch("");
     setCamposValues({});
+    setActiveCampos([]);
     setItems([{ descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
     setNotas("");
     setFechaVencimiento("");
@@ -462,7 +419,6 @@ export function CreateProformaDialog({
               )}
             </div>
 
-            {/* Buscador de clientes */}
             <div className="space-y-2">
               <Label>Buscar cliente por RUC/DNI o Nombre</Label>
               <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
@@ -525,7 +481,6 @@ export function CreateProformaDialog({
               </Popover>
             </div>
 
-            {/* Datos del cliente seleccionado - colapsable */}
             {selectedClienteData && showClienteDetails && (
               <div className="bg-muted/50 rounded-lg p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
                 <div className="flex items-center gap-2 pb-2 border-b">
@@ -638,8 +593,8 @@ export function CreateProformaDialog({
             )}
           </div>
 
-          {/* Campos personalizados de la plantilla */}
-          {selectedPlantilla && selectedPlantilla.campos.length > 0 && (
+          {/* Plantilla y Campos Específicos */}
+          {selectedPlantilla && (
             <div className="border rounded-lg p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Campos Específicos</h3>
@@ -660,7 +615,6 @@ export function CreateProformaDialog({
                 </Select>
               </div>
 
-              {/* Add campo button */}
               {availableCampos.length > 0 && (
                 <Popover open={openAddCampoPopover} onOpenChange={setOpenAddCampoPopover}>
                   <PopoverTrigger asChild>
@@ -696,7 +650,6 @@ export function CreateProformaDialog({
                 </Popover>
               )}
 
-              {/* Campos table */}
               {activeCampoObjects.length > 0 && (
                 <div className="border rounded-md overflow-hidden">
                   <table className="w-full">
@@ -759,7 +712,13 @@ export function CreateProformaDialog({
                 </div>
               )}
 
-              {activeCampoObjects.length === 0 && (
+              {activeCampoObjects.length === 0 && selectedPlantilla.campos.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Esta plantilla no tiene campos específicos configurados.
+                </p>
+              )}
+
+              {activeCampoObjects.length === 0 && selectedPlantilla.campos.length > 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No hay campos activos. Use el botón "Agregar campo" para añadir campos.
                 </p>
@@ -776,6 +735,12 @@ export function CreateProformaDialog({
                 Agregar servicio
               </Button>
             </div>
+
+            {plantillaServicios.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Esta plantilla no tiene servicios configurados. Puede escribir los servicios manualmente.
+              </p>
+            )}
 
             <div className="space-y-3">
               <div className="hidden lg:grid lg:grid-cols-12 gap-3 text-xs font-medium text-muted-foreground px-1">
@@ -799,47 +764,57 @@ export function CreateProformaDialog({
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input
-                            placeholder="Buscar o escribir servicio..."
+                            placeholder={plantillaServicios.length > 0 ? "Buscar en servicios de la plantilla..." : "Escribir servicio..."}
                             value={item.descripcion}
                             onChange={(e) => {
                               handleItemChange(index, "descripcion", e.target.value);
-                              setOpenServicePopovers((prev) => ({ ...prev, [index]: true }));
+                              if (plantillaServicios.length > 0) {
+                                setOpenServicePopovers((prev) => ({ ...prev, [index]: true }));
+                              }
                             }}
-                            onFocus={() =>
-                              setOpenServicePopovers((prev) => ({ ...prev, [index]: true }))
-                            }
+                            onFocus={() => {
+                              if (plantillaServicios.length > 0) {
+                                setOpenServicePopovers((prev) => ({ ...prev, [index]: true }));
+                              }
+                            }}
                             className="pl-9"
                           />
                         </div>
                       </PopoverTrigger>
-                      <PopoverContent 
-                        className="p-0 w-[var(--radix-popover-trigger-width)]" 
-                        align="start"
-                        onOpenAutoFocus={(e) => e.preventDefault()}
-                      >
-                        <Command>
-                          <CommandInput placeholder="Buscar servicio..." className="h-9" />
-                          <CommandList>
-                            <CommandEmpty>No se encontraron servicios</CommandEmpty>
-                            <CommandGroup heading="Servicios sugeridos">
-                              {serviciosPredeterminados
-                                .filter((s) =>
-                                  s.toLowerCase().includes(item.descripcion.toLowerCase())
-                                )
-                                .slice(0, 10)
-                                .map((service) => (
-                                  <CommandItem
-                                    key={service}
-                                    onSelect={() => handleSelectService(index, service)}
-                                    className="cursor-pointer"
-                                  >
-                                    {service}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
+                      {plantillaServicios.length > 0 && (
+                        <PopoverContent 
+                          className="p-0 w-[var(--radix-popover-trigger-width)]" 
+                          align="start"
+                          onOpenAutoFocus={(e) => e.preventDefault()}
+                        >
+                          <Command>
+                            <CommandInput placeholder="Buscar servicio..." className="h-9" />
+                            <CommandList>
+                              <CommandEmpty>No se encontraron servicios</CommandEmpty>
+                              <CommandGroup heading="Servicios de la plantilla">
+                                {plantillaServicios
+                                  .filter((s) =>
+                                    s.label.toLowerCase().includes(item.descripcion.toLowerCase())
+                                  )
+                                  .map((service) => (
+                                    <CommandItem
+                                      key={service.id}
+                                      onSelect={() => handleSelectService(index, service)}
+                                      className="cursor-pointer"
+                                    >
+                                      <div className="flex items-center justify-between w-full">
+                                        <span>{service.label}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          S/ {service.precio.toLocaleString()}
+                                        </span>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      )}
                     </Popover>
                   </div>
                   <div className="lg:col-span-1">
@@ -861,23 +836,25 @@ export function CreateProformaDialog({
                         handleItemChange(index, "precio_unitario", Number(e.target.value))
                       }
                       min={0}
-                      step={0.01}
+                      step="0.01"
+                      className="text-center"
                     />
                   </div>
                   <div className="lg:col-span-2">
                     <Input
-                      value={`S/ ${item.subtotal.toFixed(2)}`}
+                      type="number"
+                      value={item.subtotal.toFixed(2)}
                       readOnly
-                      className="bg-muted text-center"
+                      className="text-center bg-muted/50"
                     />
                   </div>
                   <div className="lg:col-span-1 flex justify-center">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-destructive hover:text-destructive"
                       onClick={() => removeItem(index)}
                       disabled={items.length === 1}
+                      className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -885,56 +862,55 @@ export function CreateProformaDialog({
                 </div>
               ))}
             </div>
+          </div>
 
-            {/* Totales */}
-            <div className="flex justify-end">
-              <div className="w-full max-w-xs space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal:</span>
-                  <span>S/ {subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">IGV (18%):</span>
-                  <span>S/ {igv.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-base border-t pt-2">
-                  <span>Total:</span>
-                  <span>S/ {total.toFixed(2)}</span>
-                </div>
+          {/* Totales y Fecha */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <Label>Fecha de Vencimiento</Label>
+                <Input
+                  type="date"
+                  value={fechaVencimiento}
+                  onChange={(e) => setFechaVencimiento(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Notas</Label>
+                <Textarea
+                  value={notas}
+                  onChange={(e) => setNotas(e.target.value)}
+                  placeholder="Notas adicionales..."
+                  className="mt-1"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+              <div className="flex justify-between text-sm">
+                <span>Subtotal:</span>
+                <span className="font-medium">S/ {subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>IGV (18%):</span>
+                <span className="font-medium">S/ {igv.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-lg font-bold border-t pt-3">
+                <span>Total:</span>
+                <span>S/ {total.toFixed(2)}</span>
               </div>
             </div>
           </div>
 
-          {/* Fecha y notas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Fecha de Vencimiento</Label>
-              <Input
-                type="date"
-                value={fechaVencimiento}
-                onChange={(e) => setFechaVencimiento(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Notas</Label>
-              <Textarea
-                value={notas}
-                onChange={(e) => setNotas(e.target.value)}
-                placeholder="Notas adicionales..."
-                className="mt-1"
-                rows={2}
-              />
-            </div>
-          </div>
-
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button onClick={handleSubmit} disabled={loading}>
-              {loading ? "Guardando..." : "Crear Proforma"}
+              {loading ? "Creando..." : "Crear Proforma"}
             </Button>
           </div>
         </div>

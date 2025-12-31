@@ -576,6 +576,7 @@ export type Database = {
           descripcion: string | null
           id: string
           nombre: string
+          servicios: Json
           tipo: Database["public"]["Enums"]["proforma_tipo"]
           updated_at: string
         }
@@ -587,6 +588,7 @@ export type Database = {
           descripcion?: string | null
           id?: string
           nombre: string
+          servicios?: Json
           tipo: Database["public"]["Enums"]["proforma_tipo"]
           updated_at?: string
         }
@@ -598,6 +600,7 @@ export type Database = {
           descripcion?: string | null
           id?: string
           nombre?: string
+          servicios?: Json
           tipo?: Database["public"]["Enums"]["proforma_tipo"]
           updated_at?: string
         }
