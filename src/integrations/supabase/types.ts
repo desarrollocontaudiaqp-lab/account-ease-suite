@@ -191,11 +191,44 @@ export type Database = {
           },
         ]
       }
+      cartera_miembros: {
+        Row: {
+          cartera_id: string
+          created_at: string
+          id: string
+          rol_en_cartera: string
+          user_id: string
+        }
+        Insert: {
+          cartera_id: string
+          created_at?: string
+          id?: string
+          rol_en_cartera?: string
+          user_id: string
+        }
+        Update: {
+          cartera_id?: string
+          created_at?: string
+          id?: string
+          rol_en_cartera?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartera_miembros_cartera_id_fkey"
+            columns: ["cartera_id"]
+            isOneToOne: false
+            referencedRelation: "carteras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carteras: {
         Row: {
           activa: boolean
           created_at: string
           descripcion: string | null
+          especialidad: string | null
           id: string
           nombre: string
           responsable_id: string | null
@@ -205,6 +238,7 @@ export type Database = {
           activa?: boolean
           created_at?: string
           descripcion?: string | null
+          especialidad?: string | null
           id?: string
           nombre: string
           responsable_id?: string | null
@@ -214,6 +248,7 @@ export type Database = {
           activa?: boolean
           created_at?: string
           descripcion?: string | null
+          especialidad?: string | null
           id?: string
           nombre?: string
           responsable_id?: string | null
