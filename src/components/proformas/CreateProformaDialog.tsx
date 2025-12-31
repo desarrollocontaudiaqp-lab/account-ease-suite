@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2, Copy, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2, Copy, Eye, EyeOff, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -136,6 +136,7 @@ export function CreateProformaDialog({
   const [selectedCliente, setSelectedCliente] = useState<string>("");
   const [selectedPlantilla, setSelectedPlantilla] = useState<Plantilla | null>(null);
   const [camposValues, setCamposValues] = useState<Record<string, string>>({});
+  const [activeCampos, setActiveCampos] = useState<string[]>([]); // IDs of active campos
   const [items, setItems] = useState<ProformaItem[]>([
     { descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 },
   ]);
@@ -146,6 +147,7 @@ export function CreateProformaDialog({
   const [openClientePopover, setOpenClientePopover] = useState(false);
   const [showClienteDetails, setShowClienteDetails] = useState(true);
   const [showClaveSol, setShowClaveSol] = useState(false);
+  const [openAddCampoPopover, setOpenAddCampoPopover] = useState(false);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -186,6 +188,11 @@ export function CreateProformaDialog({
       setPlantillas(parsed);
       if (parsed.length > 0) {
         setSelectedPlantilla(parsed[0]);
+        // Initialize active campos with all campos from first plantilla
+        const filteredCampos = parsed[0].campos.filter(
+          (campo) => !campo.label.toLowerCase().includes("régimen tributario") && !campo.label.toLowerCase().includes("regimen tributario")
+        );
+        setActiveCampos(filteredCampos.map((c) => c.id));
       }
     }
   };
@@ -194,11 +201,55 @@ export function CreateProformaDialog({
     const plantilla = plantillas.find((p) => p.id === plantillaId);
     setSelectedPlantilla(plantilla || null);
     setCamposValues({});
+    // Initialize active campos with all campos from the plantilla
+    if (plantilla) {
+      const filteredCampos = plantilla.campos.filter(
+        (campo) => !campo.label.toLowerCase().includes("régimen tributario") && !campo.label.toLowerCase().includes("regimen tributario")
+      );
+      setActiveCampos(filteredCampos.map((c) => c.id));
+    } else {
+      setActiveCampos([]);
+    }
   };
 
   const handleCampoChange = (campoId: string, value: string) => {
     setCamposValues((prev) => ({ ...prev, [campoId]: value }));
   };
+
+  const handleRemoveCampo = (campoId: string) => {
+    setActiveCampos((prev) => prev.filter((id) => id !== campoId));
+    setCamposValues((prev) => {
+      const newValues = { ...prev };
+      delete newValues[campoId];
+      return newValues;
+    });
+  };
+
+  const handleAddCampo = (campoId: string) => {
+    if (!activeCampos.includes(campoId)) {
+      setActiveCampos((prev) => [...prev, campoId]);
+    }
+    setOpenAddCampoPopover(false);
+  };
+
+  // Get available campos that are not yet active
+  const availableCampos = useMemo(() => {
+    if (!selectedPlantilla) return [];
+    return selectedPlantilla.campos.filter(
+      (campo) => 
+        !activeCampos.includes(campo.id) &&
+        !campo.label.toLowerCase().includes("régimen tributario") && 
+        !campo.label.toLowerCase().includes("regimen tributario")
+    );
+  }, [selectedPlantilla, activeCampos]);
+
+  // Get active campo objects in order
+  const activeCampoObjects = useMemo(() => {
+    if (!selectedPlantilla) return [];
+    return activeCampos
+      .map((id) => selectedPlantilla.campos.find((c) => c.id === id))
+      .filter((c): c is Campo => c !== undefined);
+  }, [selectedPlantilla, activeCampos]);
 
   const handleItemChange = (
     index: number,
@@ -609,49 +660,110 @@ export function CreateProformaDialog({
                 </Select>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {selectedPlantilla.campos
-                  .filter((campo) => !campo.label.toLowerCase().includes("régimen tributario") && !campo.label.toLowerCase().includes("regimen tributario"))
-                  .map((campo) => (
-                  <div key={campo.id}>
-                    <Label>
-                      {campo.label}
-                      {campo.required && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    {campo.type === "select" ? (
-                      <Select
-                        value={camposValues[campo.id] || ""}
-                        onValueChange={(v) => handleCampoChange(campo.id, v)}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {campo.options?.map((opt) => (
-                            <SelectItem key={opt} value={opt}>
-                              {opt}
-                            </SelectItem>
+              {/* Add campo button */}
+              {availableCampos.length > 0 && (
+                <Popover open={openAddCampoPopover} onOpenChange={setOpenAddCampoPopover}>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Agregar campo
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-[300px]" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar campo..." className="h-9" />
+                      <CommandList>
+                        <CommandEmpty>No hay campos disponibles</CommandEmpty>
+                        <CommandGroup heading="Campos disponibles">
+                          {availableCampos.map((campo) => (
+                            <CommandItem
+                              key={campo.id}
+                              onSelect={() => handleAddCampo(campo.id)}
+                              className="cursor-pointer"
+                            >
+                              {campo.label}
+                              {campo.required && <span className="text-destructive ml-1">*</span>}
+                            </CommandItem>
                           ))}
-                        </SelectContent>
-                      </Select>
-                    ) : campo.type === "textarea" ? (
-                      <Textarea
-                        value={camposValues[campo.id] || ""}
-                        onChange={(e) => handleCampoChange(campo.id, e.target.value)}
-                        className="mt-1"
-                        rows={2}
-                      />
-                    ) : (
-                      <Input
-                        type={campo.type}
-                        value={camposValues[campo.id] || ""}
-                        onChange={(e) => handleCampoChange(campo.id, e.target.value)}
-                        className="mt-1"
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              {/* Campos table */}
+              {activeCampoObjects.length > 0 && (
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full">
+                    <tbody className="divide-y divide-border">
+                      {activeCampoObjects.map((campo) => (
+                        <tr key={campo.id} className="hover:bg-muted/50">
+                          <td className="px-3 py-2 w-1/3">
+                            <Label className="text-sm font-medium">
+                              {campo.label}
+                              {campo.required && <span className="text-destructive ml-1">*</span>}
+                            </Label>
+                          </td>
+                          <td className="px-3 py-2">
+                            {campo.type === "select" ? (
+                              <Select
+                                value={camposValues[campo.id] || ""}
+                                onValueChange={(v) => handleCampoChange(campo.id, v)}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue placeholder="Seleccionar..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {campo.options?.map((opt) => (
+                                    <SelectItem key={opt} value={opt}>
+                                      {opt}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : campo.type === "textarea" ? (
+                              <Textarea
+                                value={camposValues[campo.id] || ""}
+                                onChange={(e) => handleCampoChange(campo.id, e.target.value)}
+                                className="min-h-[32px] resize-none"
+                                rows={1}
+                              />
+                            ) : (
+                              <Input
+                                type={campo.type}
+                                value={camposValues[campo.id] || ""}
+                                onChange={(e) => handleCampoChange(campo.id, e.target.value)}
+                                className="h-8"
+                              />
+                            )}
+                          </td>
+                          <td className="px-2 py-2 w-10">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleRemoveCampo(campo.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {activeCampoObjects.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No hay campos activos. Use el botón "Agregar campo" para añadir campos.
+                </p>
+              )}
             </div>
           )}
 
