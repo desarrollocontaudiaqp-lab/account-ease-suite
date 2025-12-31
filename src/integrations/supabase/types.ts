@@ -335,6 +335,174 @@ export type Database = {
         }
         Relationships: []
       }
+      contrato_plantilla_anexos: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          es_obligatorio: boolean | null
+          id: string
+          nombre: string
+          orden: number
+          plantilla_id: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          es_obligatorio?: boolean | null
+          id?: string
+          nombre: string
+          orden?: number
+          plantilla_id: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          es_obligatorio?: boolean | null
+          id?: string
+          nombre?: string
+          orden?: number
+          plantilla_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_plantilla_anexos_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "contrato_plantillas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrato_plantilla_clausulas: {
+        Row: {
+          contenido: string
+          created_at: string
+          es_editable: boolean | null
+          es_obligatoria: boolean | null
+          id: string
+          numero: number
+          orden: number
+          plantilla_id: string
+          titulo: string
+          updated_at: string
+          variantes: Json | null
+        }
+        Insert: {
+          contenido: string
+          created_at?: string
+          es_editable?: boolean | null
+          es_obligatoria?: boolean | null
+          id?: string
+          numero: number
+          orden?: number
+          plantilla_id: string
+          titulo: string
+          updated_at?: string
+          variantes?: Json | null
+        }
+        Update: {
+          contenido?: string
+          created_at?: string
+          es_editable?: boolean | null
+          es_obligatoria?: boolean | null
+          id?: string
+          numero?: number
+          orden?: number
+          plantilla_id?: string
+          titulo?: string
+          updated_at?: string
+          variantes?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_plantilla_clausulas_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "contrato_plantillas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrato_plantilla_partes: {
+        Row: {
+          campos: Json
+          created_at: string
+          denominacion: string
+          es_obligatoria: boolean | null
+          id: string
+          orden: number
+          plantilla_id: string
+          tipo_persona: string
+        }
+        Insert: {
+          campos?: Json
+          created_at?: string
+          denominacion?: string
+          es_obligatoria?: boolean | null
+          id?: string
+          orden?: number
+          plantilla_id: string
+          tipo_persona?: string
+        }
+        Update: {
+          campos?: Json
+          created_at?: string
+          denominacion?: string
+          es_obligatoria?: boolean | null
+          id?: string
+          orden?: number
+          plantilla_id?: string
+          tipo_persona?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_plantilla_partes_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "contrato_plantillas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrato_plantillas: {
+        Row: {
+          activa: boolean | null
+          created_at: string
+          created_by: string | null
+          descripcion: string | null
+          id: string
+          jurisdiccion: string | null
+          lenguaje_formal: boolean | null
+          nombre: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          jurisdiccion?: string | null
+          lenguaje_formal?: boolean | null
+          nombre: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          jurisdiccion?: string | null
+          lenguaje_formal?: boolean | null
+          nombre?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contratos: {
         Row: {
           cliente_id: string

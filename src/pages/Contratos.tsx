@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2 } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,8 +29,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ContratoDesigner } from "@/components/contratos/ContratoDesigner";
 
 interface Contract {
   id: string;
@@ -280,11 +282,27 @@ const Contratos = () => {
             Gestión de contratos de servicios activos
           </p>
         </div>
-        <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Nuevo Contrato
-        </Button>
       </div>
+
+      <Tabs defaultValue="contratos" className="w-full">
+        <TabsList>
+          <TabsTrigger value="contratos" className="gap-2">
+            <FileCheck className="h-4 w-4" />
+            Contratos
+          </TabsTrigger>
+          <TabsTrigger value="plantillas" className="gap-2">
+            <Settings2 className="h-4 w-4" />
+            Diseñador de Plantillas
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="contratos" className="space-y-6 mt-4">
+          <div className="flex justify-end">
+            <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Nuevo Contrato
+            </Button>
+          </div>
 
       {/* Stats Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -702,6 +720,12 @@ const Contratos = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        <TabsContent value="plantillas" className="mt-4">
+          <ContratoDesigner />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
