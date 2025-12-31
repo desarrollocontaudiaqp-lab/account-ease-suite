@@ -50,7 +50,7 @@ interface Proforma {
   subtotal: number;
   igv: number;
   total: number;
-  status: "borrador" | "enviada" | "aprobada" | "rechazada" | "facturada";
+  status: string;
   fecha_emision: string;
   fecha_vencimiento: string;
   notas: string | null;
@@ -76,7 +76,7 @@ export function EditProformaDialog({
   const [items, setItems] = useState<ProformaItem[]>([]);
   const [notas, setNotas] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState("");
-  const [status, setStatus] = useState<Proforma["status"]>("borrador");
+  const [status, setStatus] = useState<string>("borrador");
   const [openServiceIndex, setOpenServiceIndex] = useState<number | null>(null);
   const [serviceSearches, setServiceSearches] = useState<{ [key: number]: string }>({});
 
@@ -89,6 +89,20 @@ export function EditProformaDialog({
         .select("*")
         .eq("activo", true)
         .order("servicio");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch dynamic statuses
+  const { data: estados = [] } = useQuery({
+    queryKey: ["proforma-estados-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proforma_estados")
+        .select("*")
+        .eq("activo", true)
+        .order("orden");
       if (error) throw error;
       return data;
     },
@@ -189,7 +203,7 @@ export function EditProformaDialog({
           igv,
           total,
           notas,
-          status,
+          status: status as "borrador" | "enviada" | "aprobada" | "rechazada" | "facturada",
           updated_at: new Date().toISOString(),
         })
         .eq("id", proforma.id);
@@ -243,16 +257,22 @@ export function EditProformaDialog({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Estado</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as Proforma["status"])}>
+              <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="borrador">Borrador</SelectItem>
-                  <SelectItem value="enviada">Enviada</SelectItem>
-                  <SelectItem value="aprobada">Aprobada</SelectItem>
-                  <SelectItem value="rechazada">Rechazada</SelectItem>
-                  <SelectItem value="facturada">Facturada</SelectItem>
+                  {estados.map((estado) => (
+                    <SelectItem key={estado.id} value={estado.nombre}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: estado.color }}
+                        />
+                        {estado.nombre_display}
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

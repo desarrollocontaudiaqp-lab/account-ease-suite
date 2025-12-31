@@ -493,6 +493,42 @@ export type Database = {
         }
         Relationships: []
       }
+      proforma_estados: {
+        Row: {
+          activo: boolean
+          color: string
+          created_at: string
+          es_sistema: boolean
+          id: string
+          nombre: string
+          nombre_display: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          color?: string
+          created_at?: string
+          es_sistema?: boolean
+          id?: string
+          nombre: string
+          nombre_display: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          color?: string
+          created_at?: string
+          es_sistema?: boolean
+          id?: string
+          nombre?: string
+          nombre_display?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       proforma_items: {
         Row: {
           cantidad: number
