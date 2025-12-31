@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2 } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -33,6 +34,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ContratoDesigner } from "@/components/contratos/ContratoDesigner";
+import { ContractActions, type ContractStatus } from "@/components/contratos/ContractActions";
+import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
+import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 
 interface Contract {
   id: string;
@@ -49,8 +53,9 @@ interface Contract {
   monto_mensual: number | null;
   monto_total: number | null;
   moneda: string;
-  status: "activo" | "pausado" | "finalizado" | "cancelado";
+  status: ContractStatus;
   notas: string | null;
+  proforma_id: string | null;
 }
 
 interface ProformaState {
@@ -63,14 +68,22 @@ interface ProformaState {
   moneda: string;
 }
 
-const statusStyles: Record<string, string> = {
+const statusStyles: Record<ContractStatus, string> = {
+  borrador: "bg-slate-100 text-slate-800 border-slate-200",
+  en_gestion: "bg-blue-100 text-blue-800 border-blue-200",
+  aprobado: "bg-green-100 text-green-800 border-green-200",
+  anulado: "bg-red-100 text-red-800 border-red-200",
   activo: "bg-green-100 text-green-800 border-green-200",
   pausado: "bg-yellow-100 text-yellow-800 border-yellow-200",
   finalizado: "bg-blue-100 text-blue-800 border-blue-200",
   cancelado: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
-const statusLabels: Record<string, string> = {
+const statusLabels: Record<ContractStatus, string> = {
+  borrador: "Borrador",
+  en_gestion: "En Gestión",
+  aprobado: "Aprobado",
+  anulado: "Anulado",
   activo: "Vigente",
   pausado: "Pausado",
   finalizado: "Finalizado",
@@ -92,6 +105,14 @@ const Contratos = () => {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [proformaData, setProformaData] = useState<ProformaState | null>(null);
+  
+  // Detail modal state
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editContractId, setEditContractId] = useState<string | null>(null);
   
   // Form state for new contract
   const [newContract, setNewContract] = useState({
@@ -145,6 +166,7 @@ const Contratos = () => {
         moneda,
         status,
         notas,
+        proforma_id,
         cliente:clientes(id, razon_social, codigo)
       `)
       .order("created_at", { ascending: false });
@@ -155,7 +177,7 @@ const Contratos = () => {
     } else {
       const parsed = (data || []).map((c) => ({
         ...c,
-        status: c.status as Contract["status"],
+        status: c.status as ContractStatus,
         cliente: c.cliente as Contract["cliente"],
       }));
       setContracts(parsed);
@@ -194,6 +216,7 @@ const Contratos = () => {
       return;
     }
 
+    // Create contract in BORRADOR status (from proforma flow)
     const { error } = await supabase.from("contratos").insert({
       numero,
       descripcion: newContract.descripcion,
@@ -205,22 +228,23 @@ const Contratos = () => {
       moneda: newContract.moneda,
       notas: newContract.notas || null,
       cliente_id: clienteId,
-      status: "activo",
+      status: proformaData ? "borrador" : "borrador", // Always start in borrador
+      proforma_id: proformaData?.proformaId || null,
     });
 
     if (error) {
       console.error("Error creating contract:", error);
       toast.error("Error al crear el contrato");
     } else {
-      // If created from proforma, update proforma status to "facturada"
+      // If created from proforma, update proforma status to "aprobada"
       if (proformaData?.proformaId) {
         await supabase
           .from("proformas")
-          .update({ status: "facturada" })
+          .update({ status: "aprobada" })
           .eq("id", proformaData.proformaId);
       }
       
-      toast.success("Contrato creado exitosamente");
+      toast.success("Contrato creado en estado Borrador");
       setCreateDialogOpen(false);
       setProformaData(null);
       resetForm();
@@ -244,6 +268,16 @@ const Contratos = () => {
     });
   };
 
+  const handleViewDetail = (contractId: string) => {
+    setSelectedContractId(contractId);
+    setDetailModalOpen(true);
+  };
+
+  const handleEdit = (contractId: string) => {
+    setEditContractId(contractId);
+    setEditDialogOpen(true);
+  };
+
   const filteredContracts = contracts.filter(
     (contract) =>
       contract.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -251,11 +285,12 @@ const Contratos = () => {
   );
 
   const stats = {
-    vigentes: contracts.filter((c) => c.status === "activo").length,
-    pausados: contracts.filter((c) => c.status === "pausado").length,
+    borradores: contracts.filter((c) => c.status === "borrador").length,
+    enGestion: contracts.filter((c) => c.status === "en_gestion").length,
+    aprobados: contracts.filter((c) => c.status === "aprobado").length,
     total: contracts.length,
     ingresosMensuales: contracts
-      .filter((c) => c.status === "activo")
+      .filter((c) => c.status === "aprobado" || c.status === "activo")
       .reduce((acc, c) => acc + (Number(c.monto_mensual) || 0), 0),
   };
 
@@ -305,23 +340,32 @@ const Contratos = () => {
           </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-green-100">
-            <FileCheck className="h-5 w-5 text-green-700" />
+          <div className="p-3 rounded-lg bg-slate-100">
+            <FileText className="h-5 w-5 text-slate-700" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground">{stats.vigentes}</p>
-            <p className="text-sm text-muted-foreground">Vigentes</p>
+            <p className="text-2xl font-bold text-foreground">{stats.borradores}</p>
+            <p className="text-sm text-muted-foreground">Borradores</p>
           </div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-yellow-100">
-            <Calendar className="h-5 w-5 text-yellow-700" />
+          <div className="p-3 rounded-lg bg-blue-100">
+            <ArrowRight className="h-5 w-5 text-blue-700" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground">{stats.pausados}</p>
-            <p className="text-sm text-muted-foreground">Pausados</p>
+            <p className="text-2xl font-bold text-foreground">{stats.enGestion}</p>
+            <p className="text-sm text-muted-foreground">En Gestión</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
+          <div className="p-3 rounded-lg bg-green-100">
+            <CheckCircle className="h-5 w-5 text-green-700" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">{stats.aprobados}</p>
+            <p className="text-sm text-muted-foreground">Aprobados</p>
           </div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
@@ -397,27 +441,14 @@ const Contratos = () => {
                           </p>
                         </div>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Ver detalle
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Cancelar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <ContractActions
+                        contractId={contract.id}
+                        contractNumero={contract.numero}
+                        currentStatus={contract.status}
+                        onStatusChange={fetchContracts}
+                        onViewDetail={() => handleViewDetail(contract.id)}
+                        onEdit={() => handleEdit(contract.id)}
+                      />
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-4">
@@ -554,33 +585,33 @@ const Contratos = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver detalle">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8" 
+                                title="Ver detalle"
+                                onClick={() => handleViewDetail(contract.id)}
+                              >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8" 
+                                title="Editar"
+                                onClick={() => handleEdit(contract.id)}
+                                disabled={contract.status === "aprobado" || contract.status === "anulado"}
+                              >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Ver detalle
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive">
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Cancelar
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <ContractActions
+                                contractId={contract.id}
+                                contractNumero={contract.numero}
+                                currentStatus={contract.status}
+                                onStatusChange={fetchContracts}
+                                onViewDetail={() => handleViewDetail(contract.id)}
+                                onEdit={() => handleEdit(contract.id)}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -609,8 +640,8 @@ const Contratos = () => {
             </DialogTitle>
             <DialogDescription>
               {proformaData 
-                ? `Creando contrato desde la proforma ${proformaData.proformaNumero} para ${proformaData.clienteNombre}`
-                : "Completa los datos para crear un nuevo contrato"
+                ? `Creando contrato desde la proforma ${proformaData.proformaNumero} para ${proformaData.clienteNombre}. El contrato iniciará en estado Borrador.`
+                : "Completa los datos para crear un nuevo contrato en estado Borrador"
               }
             </DialogDescription>
           </DialogHeader>
@@ -715,11 +746,26 @@ const Contratos = () => {
               Cancelar
             </Button>
             <Button onClick={handleCreateContract}>
-              {proformaData ? "Confirmar Contrato" : "Crear Contrato"}
+              {proformaData ? "Crear Contrato (Borrador)" : "Crear Contrato"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Contract Detail Modal */}
+      <ContractDetailModal
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        contractId={selectedContractId}
+      />
+
+      {/* Edit Contract Dialog */}
+      <EditContractDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        contractId={editContractId}
+        onSuccess={fetchContracts}
+      />
         </TabsContent>
 
         <TabsContent value="plantillas" className="mt-4">

@@ -508,6 +508,7 @@ export type Database = {
           cliente_id: string
           created_at: string
           created_by: string | null
+          datos_plantilla: Json | null
           descripcion: string
           fecha_fin: string | null
           fecha_inicio: string
@@ -517,6 +518,8 @@ export type Database = {
           monto_total: number | null
           notas: string | null
           numero: string
+          plantilla_id: string | null
+          proforma_id: string | null
           responsable_id: string | null
           status: Database["public"]["Enums"]["contract_status"]
           tipo_servicio: string
@@ -526,6 +529,7 @@ export type Database = {
           cliente_id: string
           created_at?: string
           created_by?: string | null
+          datos_plantilla?: Json | null
           descripcion: string
           fecha_fin?: string | null
           fecha_inicio: string
@@ -535,6 +539,8 @@ export type Database = {
           monto_total?: number | null
           notas?: string | null
           numero: string
+          plantilla_id?: string | null
+          proforma_id?: string | null
           responsable_id?: string | null
           status?: Database["public"]["Enums"]["contract_status"]
           tipo_servicio: string
@@ -544,6 +550,7 @@ export type Database = {
           cliente_id?: string
           created_at?: string
           created_by?: string | null
+          datos_plantilla?: Json | null
           descripcion?: string
           fecha_fin?: string | null
           fecha_inicio?: string
@@ -553,6 +560,8 @@ export type Database = {
           monto_total?: number | null
           notas?: string | null
           numero?: string
+          plantilla_id?: string | null
+          proforma_id?: string | null
           responsable_id?: string | null
           status?: Database["public"]["Enums"]["contract_status"]
           tipo_servicio?: string
@@ -564,6 +573,20 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "contrato_plantillas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_proforma_id_fkey"
+            columns: ["proforma_id"]
+            isOneToOne: false
+            referencedRelation: "proformas"
             referencedColumns: ["id"]
           },
         ]
@@ -1003,7 +1026,15 @@ export type Database = {
         | "en_progreso"
         | "completada"
         | "cancelada"
-      contract_status: "activo" | "pausado" | "finalizado" | "cancelado"
+      contract_status:
+        | "borrador"
+        | "en_gestion"
+        | "aprobado"
+        | "anulado"
+        | "activo"
+        | "pausado"
+        | "finalizado"
+        | "cancelado"
       payment_status: "pendiente" | "pagado" | "vencido" | "parcial"
       proforma_status:
         | "borrador"
@@ -1156,7 +1187,16 @@ export const Constants = {
         "completada",
         "cancelada",
       ],
-      contract_status: ["activo", "pausado", "finalizado", "cancelado"],
+      contract_status: [
+        "borrador",
+        "en_gestion",
+        "aprobado",
+        "anulado",
+        "activo",
+        "pausado",
+        "finalizado",
+        "cancelado",
+      ],
       payment_status: ["pendiente", "pagado", "vencido", "parcial"],
       proforma_status: [
         "borrador",
