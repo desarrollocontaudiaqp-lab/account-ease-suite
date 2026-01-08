@@ -13,6 +13,7 @@ import {
   Building2,
   UserMinus,
   Eye,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +68,10 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Database } from "@/integrations/supabase/types";
+import { useRolePermisos } from "@/hooks/useRolePermisos";
+
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 interface Cartera {
   id: string;
@@ -94,6 +100,8 @@ interface Profile {
   id: string;
   full_name: string | null;
   email: string;
+  phone?: string | null;
+  role?: AppRole;
 }
 
 interface CarteraStats {
@@ -117,10 +125,12 @@ const rolStyles: Record<string, string> = {
 };
 
 const Carteras = () => {
+  const { roles: availableRoles } = useRolePermisos();
   const [loading, setLoading] = useState(true);
   const [carteras, setCarteras] = useState<Cartera[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("carteras");
   const [stats, setStats] = useState<CarteraStats>({
     total: 0,
     activas: 0,
@@ -134,8 +144,12 @@ const Carteras = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [editMemberDialogOpen, setEditMemberDialogOpen] = useState(false);
+  const [editPersonalDialogOpen, setEditPersonalDialogOpen] = useState(false);
 
   const [selectedCartera, setSelectedCartera] = useState<Cartera | null>(null);
+  const [selectedMember, setSelectedMember] = useState<CarteraMiembro | null>(null);
+  const [selectedPersonal, setSelectedPersonal] = useState<Profile | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Form states
@@ -148,6 +162,12 @@ const Carteras = () => {
   const [memberForm, setMemberForm] = useState({
     user_id: "",
     rol_en_cartera: "miembro",
+  });
+
+  const [personalForm, setPersonalForm] = useState({
+    full_name: "",
+    phone: "",
+    role: "asesor" as AppRole,
   });
 
   useEffect(() => {
@@ -196,13 +216,23 @@ const Carteras = () => {
   };
 
   const fetchProfiles = async () => {
-    const { data } = await supabase
+    // Fetch profiles
+    const { data: profilesData } = await supabase
       .from("profiles")
-      .select("id, full_name, email")
+      .select("id, full_name, email, phone")
       .order("full_name");
 
-    if (data) {
-      setProfiles(data);
+    // Fetch roles
+    const { data: rolesData } = await supabase
+      .from("user_roles")
+      .select("user_id, role");
+
+    if (profilesData) {
+      const profilesWithRoles = profilesData.map(p => ({
+        ...p,
+        role: rolesData?.find(r => r.user_id === p.id)?.role || "asesor" as AppRole,
+      }));
+      setProfiles(profilesWithRoles);
     }
   };
 
@@ -210,6 +240,16 @@ const Carteras = () => {
     cartera.nombre.toLowerCase().includes(search.toLowerCase()) ||
     cartera.descripcion?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const filteredPersonal = profiles.filter((p) =>
+    p.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+    p.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const getRoleLabel = (role: AppRole) => {
+    const roleInfo = availableRoles.find(r => r.role === role);
+    return roleInfo?.nombre_display || role;
+  };
 
   const handleCreateCartera = async () => {
     if (!formData.nombre.trim()) {
@@ -336,6 +376,64 @@ const Carteras = () => {
     }
   };
 
+  const handleEditMemberRole = async () => {
+    if (!selectedMember) return;
+
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("cartera_miembros")
+      .update({ rol_en_cartera: memberForm.rol_en_cartera })
+      .eq("id", selectedMember.id);
+
+    if (error) {
+      console.error("Error updating member role:", error);
+      toast.error("Error al actualizar rol");
+    } else {
+      toast.success("Rol actualizado");
+      setEditMemberDialogOpen(false);
+      fetchCarteras();
+    }
+
+    setSaving(false);
+  };
+
+  const handleEditPersonal = async () => {
+    if (!selectedPersonal) return;
+
+    setSaving(true);
+
+    try {
+      // Update profile
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          full_name: personalForm.full_name,
+          phone: personalForm.phone,
+        })
+        .eq("id", selectedPersonal.id);
+
+      if (profileError) throw profileError;
+
+      // Update role
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .update({ role: personalForm.role })
+        .eq("user_id", selectedPersonal.id);
+
+      if (roleError) throw roleError;
+
+      toast.success("Personal actualizado");
+      setEditPersonalDialogOpen(false);
+      fetchProfiles();
+    } catch (error) {
+      console.error("Error updating personal:", error);
+      toast.error("Error al actualizar personal");
+    }
+
+    setSaving(false);
+  };
+
   const resetForm = () => {
     setFormData({
       nombre: "",
@@ -366,6 +464,23 @@ const Carteras = () => {
     setDetailDialogOpen(true);
   };
 
+  const openEditMemberDialog = (cartera: Cartera, member: CarteraMiembro) => {
+    setSelectedCartera(cartera);
+    setSelectedMember(member);
+    setMemberForm({ user_id: member.user_id, rol_en_cartera: member.rol_en_cartera });
+    setEditMemberDialogOpen(true);
+  };
+
+  const openEditPersonalDialog = (personal: Profile) => {
+    setSelectedPersonal(personal);
+    setPersonalForm({
+      full_name: personal.full_name || "",
+      phone: personal.phone || "",
+      role: personal.role || "asesor",
+    });
+    setEditPersonalDialogOpen(true);
+  };
+
   const getInitials = (name: string | null, email: string) => {
     if (name) {
       return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -391,15 +506,11 @@ const Carteras = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Carteras</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Carteras y Personal</h1>
           <p className="text-muted-foreground mt-1">
-            Gestión de las carteras operativas del estudio
+            Gestión de las carteras operativas y asignación de personal
           </p>
         </div>
-        <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Nueva Cartera
-        </Button>
       </div>
 
       {/* Summary Stats */}
@@ -450,41 +561,64 @@ const Carteras = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Clientes</p>
-                <p className="text-2xl font-bold">{stats.totalClientes}</p>
+                <p className="text-sm text-muted-foreground">Personal Total</p>
+                <p className="text-2xl font-bold">{profiles.length}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-                <Building2 className="h-6 w-6 text-amber-600" />
+                <Settings className="h-6 w-6 text-amber-600" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar carteras..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <TabsList>
+            <TabsTrigger value="carteras" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              Carteras
+            </TabsTrigger>
+            <TabsTrigger value="personal" className="gap-2">
+              <Users className="h-4 w-4" />
+              Personal
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Portfolios Grid */}
-      {filteredCarteras.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <p className="text-muted-foreground">No hay carteras registradas</p>
-            <Button className="mt-4" onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear primera cartera
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
+          <div className="flex gap-2">
+            <div className="relative max-w-xs">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={activeTab === "carteras" ? "Buscar carteras..." : "Buscar personal..."}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {activeTab === "carteras" && (
+              <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Nueva Cartera
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Tab: Carteras */}
+        <TabsContent value="carteras" className="mt-6">
+          {filteredCarteras.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <p className="text-muted-foreground">No hay carteras registradas</p>
+                <Button className="mt-4" onClick={() => setCreateDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear primera cartera
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredCarteras.map((cartera) => (
             <Card key={cartera.id} className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -600,10 +734,95 @@ const Carteras = () => {
               )}
             </Card>
           ))}
-        </div>
-      )}
+          </div>
+        )}
+        </TabsContent>
 
-      {/* Create Dialog */}
+        {/* Tab: Personal */}
+        <TabsContent value="personal" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Lista del Personal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {filteredPersonal.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground">No hay personal registrado</p>
+                </div>
+              ) : (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Teléfono</TableHead>
+                        <TableHead>Rol Sistema</TableHead>
+                        <TableHead>Carteras Asignadas</TableHead>
+                        <TableHead className="w-[80px]">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPersonal.map((person) => {
+                        const carterasAsignadas = carteras.filter((c) =>
+                          c.miembros?.some((m) => m.user_id === person.id)
+                        );
+                        return (
+                          <TableRow key={person.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                    {getInitials(person.full_name, person.email)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium">{person.full_name || "Sin nombre"}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{person.email}</TableCell>
+                            <TableCell className="text-muted-foreground">{person.phone || "-"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={rolStyles[person.role || "miembro"] || "bg-gray-100 text-gray-800"}>
+                                {getRoleLabel(person.role || "asesor")}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {carterasAsignadas.length > 0 ? (
+                                  carterasAsignadas.map((c) => {
+                                    const miembro = c.miembros?.find((m) => m.user_id === person.id);
+                                    return (
+                                      <Badge key={c.id} variant="secondary" className="text-xs">
+                                        {c.nombre} ({miembro?.rol_en_cartera})
+                                      </Badge>
+                                    );
+                                  })
+                                ) : (
+                                  <span className="text-muted-foreground text-sm italic">Sin asignar</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditPersonalDialog(person)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -863,20 +1082,30 @@ const Carteras = () => {
                             <TableCell>
                               <Badge
                                 variant="outline"
-                                className={rolStyles[member.rol_en_cartera] || rolStyles.miembro}
+                                className={`${rolStyles[member.rol_en_cartera] || rolStyles.miembro} cursor-pointer hover:opacity-80`}
+                                onClick={() => openEditMemberDialog(selectedCartera, member)}
                               >
                                 {member.rol_en_cartera}
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleRemoveMember(member.id)}
-                              >
-                                <UserMinus className="h-4 w-4" />
-                              </Button>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditMemberDialog(selectedCartera, member)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleRemoveMember(member.id)}
+                                >
+                                  <UserMinus className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -947,6 +1176,109 @@ const Carteras = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Member Role Dialog */}
+      <Dialog open={editMemberDialogOpen} onOpenChange={setEditMemberDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Rol en Cartera</DialogTitle>
+            <DialogDescription>
+              Modifica el rol de {selectedMember?.profile?.full_name || selectedMember?.profile?.email} en {selectedCartera?.nombre}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Rol en la Cartera</Label>
+              <Select
+                value={memberForm.rol_en_cartera}
+                onValueChange={(value) => setMemberForm((prev) => ({ ...prev, rol_en_cartera: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="responsable">Responsable</SelectItem>
+                  <SelectItem value="asesor">Asesor</SelectItem>
+                  <SelectItem value="auxiliar">Auxiliar</SelectItem>
+                  <SelectItem value="miembro">Miembro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditMemberDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditMemberRole} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Personal Dialog */}
+      <Dialog open={editPersonalDialogOpen} onOpenChange={setEditPersonalDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Personal</DialogTitle>
+            <DialogDescription>
+              Modifica los datos de {selectedPersonal?.full_name || selectedPersonal?.email}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nombre Completo</Label>
+              <Input
+                value={personalForm.full_name}
+                onChange={(e) => setPersonalForm((prev) => ({ ...prev, full_name: e.target.value }))}
+                placeholder="Nombre completo"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Teléfono</Label>
+              <Input
+                value={personalForm.phone}
+                onChange={(e) => setPersonalForm((prev) => ({ ...prev, phone: e.target.value }))}
+                placeholder="Número de teléfono"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Rol del Sistema</Label>
+              <Select
+                value={personalForm.role}
+                onValueChange={(value) => setPersonalForm((prev) => ({ ...prev, role: value as AppRole }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.filter(r => r.activo).map((r) => (
+                    <SelectItem key={r.role} value={r.role}>
+                      {r.nombre_display}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPersonalDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditPersonal} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
