@@ -31,24 +31,24 @@ export function ServiceFilterDropdown({
   const fetchServices = async () => {
     const { data, error } = await supabase
       .from("servicios")
-      .select("servicio, categoria, producto, variante")
+      .select("servicio, grupo_servicio, regimen_tributario, entidad, tramite")
       .eq("activo", true)
-      .order("categoria")
+      .order("grupo_servicio")
       .order("servicio");
 
     if (data && !error) {
       // Create unique service descriptions
       const serviceDescriptions = data.map((s) => {
         let label = s.servicio;
-        if (s.producto) label += ` - ${s.producto}`;
-        if (s.variante) label += ` (${s.variante})`;
+        if (s.regimen_tributario) label += ` - ${s.regimen_tributario}`;
+        if (s.entidad) label += ` (${s.entidad})`;
         return label;
       });
       
-      // Also add categories for broader filtering
-      const categories = [...new Set(data.map((s) => s.categoria))];
+      // Also add grupos for broader filtering
+      const grupos = [...new Set(data.map((s) => s.grupo_servicio).filter(Boolean))];
       
-      setAllServices([...categories, ...serviceDescriptions]);
+      setAllServices([...grupos, ...serviceDescriptions]);
     }
   };
 

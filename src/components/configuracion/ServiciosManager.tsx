@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, FileText, Package } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,17 +22,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 interface Servicio {
   id: string;
   tipo: string;
-  categoria: string;
+  grupo_servicio: string | null;
+  regimen_tributario: string | null;
+  compras_ventas_mensual_soles: string | null;
+  compras_ventas_anual_soles: string | null;
+  valoracion: string | null;
+  entidad: string | null;
+  tramite: string | null;
   servicio: string;
-  producto: string | null;
-  variante: string | null;
-  precio: number;
+  base_imponible: number;
+  igv_monto: number;
+  precio_servicio: number;
   activo: boolean;
 }
 
@@ -51,11 +58,17 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
   
   // Form state
   const [formData, setFormData] = useState({
-    categoria: "",
+    grupo_servicio: "",
+    regimen_tributario: "",
+    compras_ventas_mensual_soles: "",
+    compras_ventas_anual_soles: "",
+    valoracion: "",
+    entidad: "",
+    tramite: "",
     servicio: "",
-    producto: "",
-    variante: "",
-    precio: "",
+    base_imponible: "",
+    igv_monto: "",
+    precio_servicio: "",
   });
 
   useEffect(() => {
@@ -68,7 +81,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
       .from("servicios")
       .select("*")
       .eq("tipo", tipo)
-      .order("categoria", { ascending: true })
+      .order("grupo_servicio", { ascending: true })
       .order("servicio", { ascending: true });
 
     if (error) {
@@ -85,11 +98,17 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
 
   const resetForm = () => {
     setFormData({
-      categoria: "",
+      grupo_servicio: "",
+      regimen_tributario: "",
+      compras_ventas_mensual_soles: "",
+      compras_ventas_anual_soles: "",
+      valoracion: "",
+      entidad: "",
+      tramite: "",
       servicio: "",
-      producto: "",
-      variante: "",
-      precio: "",
+      base_imponible: "",
+      igv_monto: "",
+      precio_servicio: "",
     });
     setEditingServicio(null);
   };
@@ -98,11 +117,17 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
     if (servicio) {
       setEditingServicio(servicio);
       setFormData({
-        categoria: servicio.categoria,
+        grupo_servicio: servicio.grupo_servicio || "",
+        regimen_tributario: servicio.regimen_tributario || "",
+        compras_ventas_mensual_soles: servicio.compras_ventas_mensual_soles || "",
+        compras_ventas_anual_soles: servicio.compras_ventas_anual_soles || "",
+        valoracion: servicio.valoracion || "",
+        entidad: servicio.entidad || "",
+        tramite: servicio.tramite || "",
         servicio: servicio.servicio,
-        producto: servicio.producto || "",
-        variante: servicio.variante || "",
-        precio: servicio.precio.toString(),
+        base_imponible: servicio.base_imponible?.toString() || "0",
+        igv_monto: servicio.igv_monto?.toString() || "0",
+        precio_servicio: servicio.precio_servicio?.toString() || "0",
       });
     } else {
       resetForm();
@@ -116,28 +141,38 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.categoria.trim() || !formData.servicio.trim()) {
+    if (!formData.servicio.trim()) {
       toast({
         title: "Error",
-        description: "La categoría y el servicio son obligatorios",
+        description: "La descripción del servicio es obligatoria",
         variant: "destructive",
       });
       return;
     }
 
-    const precio = parseFloat(formData.precio) || 0;
+    const base_imponible = parseFloat(formData.base_imponible) || 0;
+    const igv_monto = parseFloat(formData.igv_monto) || 0;
+    const precio_servicio = parseFloat(formData.precio_servicio) || 0;
+
+    const dataToSave = {
+      grupo_servicio: formData.grupo_servicio.trim() || null,
+      regimen_tributario: formData.regimen_tributario.trim() || null,
+      compras_ventas_mensual_soles: formData.compras_ventas_mensual_soles.trim() || null,
+      compras_ventas_anual_soles: formData.compras_ventas_anual_soles.trim() || null,
+      valoracion: formData.valoracion.trim() || null,
+      entidad: formData.entidad.trim() || null,
+      tramite: formData.tramite.trim() || null,
+      servicio: formData.servicio.trim(),
+      base_imponible,
+      igv_monto,
+      precio_servicio,
+    };
 
     if (editingServicio) {
       // Update existing
       const { error } = await supabase
         .from("servicios")
-        .update({
-          categoria: formData.categoria.trim(),
-          servicio: formData.servicio.trim(),
-          producto: formData.producto.trim() || null,
-          variante: formData.variante.trim() || null,
-          precio,
-        })
+        .update(dataToSave)
         .eq("id", editingServicio.id);
 
       if (error) {
@@ -156,11 +191,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
       // Create new
       const { error } = await supabase.from("servicios").insert({
         tipo,
-        categoria: formData.categoria.trim(),
-        servicio: formData.servicio.trim(),
-        producto: formData.producto.trim() || null,
-        variante: formData.variante.trim() || null,
-        precio,
+        ...dataToSave,
       });
 
       if (error) {
@@ -224,12 +255,13 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
     fetchServicios();
   };
 
-  // Group by category
-  const serviciosByCategoria = servicios.reduce((acc, srv) => {
-    if (!acc[srv.categoria]) {
-      acc[srv.categoria] = [];
+  // Group by grupo_servicio
+  const serviciosByGrupo = servicios.reduce((acc, srv) => {
+    const grupo = srv.grupo_servicio || "Sin grupo";
+    if (!acc[grupo]) {
+      acc[grupo] = [];
     }
-    acc[srv.categoria].push(srv);
+    acc[grupo].push(srv);
     return acc;
   }, {} as Record<string, Servicio[]>);
 
@@ -255,10 +287,10 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
         </div>
       ) : (
         <div className="space-y-4 max-h-[400px] overflow-y-auto">
-          {Object.entries(serviciosByCategoria).map(([categoria, items]) => (
-            <div key={categoria}>
+          {Object.entries(serviciosByGrupo).map(([grupo, items]) => (
+            <div key={grupo}>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                {categoria}
+                {grupo}
               </p>
               <div className="space-y-2">
                 {items.map((srv) => (
@@ -275,24 +307,27 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
                           {srv.servicio}
                         </span>
                       </div>
-                      {(srv.producto || srv.variante) && (
-                        <div className="flex items-center gap-2 mt-1 ml-6">
-                          {srv.producto && (
-                            <span className="text-xs text-muted-foreground">
-                              {srv.producto}
-                            </span>
-                          )}
-                          {srv.variante && (
-                            <span className="text-xs text-primary">
-                              {srv.variante}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex flex-wrap gap-2 mt-1 ml-6">
+                        {srv.regimen_tributario && (
+                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {srv.regimen_tributario}
+                          </span>
+                        )}
+                        {srv.entidad && (
+                          <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                            {srv.entidad}
+                          </span>
+                        )}
+                        {srv.tramite && (
+                          <span className="text-xs text-muted-foreground">
+                            {srv.tramite}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <span className="text-sm font-semibold text-foreground">
-                        S/ {srv.precio.toFixed(2)}
+                        S/ {(srv.precio_servicio || 0).toFixed(2)}
                       </span>
                       <Switch
                         checked={srv.activo}
@@ -328,7 +363,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>
               {editingServicio ? "Editar Servicio" : "Nuevo Servicio"}
@@ -340,74 +375,160 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="categoria">
-                Categoría <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="categoria"
-                placeholder="Ej: AUDITORÍAS FINANCIERAS"
-                value={formData.categoria}
-                onChange={(e) =>
-                  setFormData({ ...formData, categoria: e.target.value })
-                }
-              />
-            </div>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="grupo_servicio">Grupo de Servicio</Label>
+                  <Input
+                    id="grupo_servicio"
+                    placeholder="Ej: AUDITORÍAS"
+                    value={formData.grupo_servicio}
+                    onChange={(e) =>
+                      setFormData({ ...formData, grupo_servicio: e.target.value })
+                    }
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="servicio">
-                Servicio <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="servicio"
-                placeholder="Ej: AUDITORIAS TRIBUTARIAS"
-                value={formData.servicio}
-                onChange={(e) =>
-                  setFormData({ ...formData, servicio: e.target.value })
-                }
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="regimen_tributario">Régimen Tributario</Label>
+                  <Input
+                    id="regimen_tributario"
+                    placeholder="Ej: RER, RMT, RG"
+                    value={formData.regimen_tributario}
+                    onChange={(e) =>
+                      setFormData({ ...formData, regimen_tributario: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="producto">Producto</Label>
-              <Input
-                id="producto"
-                placeholder="Ej: DECLARACION ANUAL DE RENTA"
-                value={formData.producto}
-                onChange={(e) =>
-                  setFormData({ ...formData, producto: e.target.value })
-                }
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="compras_ventas_mensual_soles">Compras/Ventas Mensual (S/)</Label>
+                  <Input
+                    id="compras_ventas_mensual_soles"
+                    placeholder="Ej: 10,000 - 50,000"
+                    value={formData.compras_ventas_mensual_soles}
+                    onChange={(e) =>
+                      setFormData({ ...formData, compras_ventas_mensual_soles: e.target.value })
+                    }
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="variante">Variante</Label>
-              <Input
-                id="variante"
-                placeholder="Ej: DE 10,000 A 120,000 SOLES"
-                value={formData.variante}
-                onChange={(e) =>
-                  setFormData({ ...formData, variante: e.target.value })
-                }
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="compras_ventas_anual_soles">Compras/Ventas Anual (S/)</Label>
+                  <Input
+                    id="compras_ventas_anual_soles"
+                    placeholder="Ej: 120,000 - 600,000"
+                    value={formData.compras_ventas_anual_soles}
+                    onChange={(e) =>
+                      setFormData({ ...formData, compras_ventas_anual_soles: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="precio">Precio (S/)</Label>
-              <Input
-                id="precio"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.precio}
-                onChange={(e) =>
-                  setFormData({ ...formData, precio: e.target.value })
-                }
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="valoracion">Valoración</Label>
+                  <Input
+                    id="valoracion"
+                    placeholder="Ej: Alta, Media, Baja"
+                    value={formData.valoracion}
+                    onChange={(e) =>
+                      setFormData({ ...formData, valoracion: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="entidad">Entidad</Label>
+                  <Input
+                    id="entidad"
+                    placeholder="Ej: SUNAT, SUNARP"
+                    value={formData.entidad}
+                    onChange={(e) =>
+                      setFormData({ ...formData, entidad: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tramite">Trámite</Label>
+                <Input
+                  id="tramite"
+                  placeholder="Ej: Constitución de empresa"
+                  value={formData.tramite}
+                  onChange={(e) =>
+                    setFormData({ ...formData, tramite: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="servicio">
+                  Descripción del Servicio <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="servicio"
+                  placeholder="Ej: Declaración mensual de impuestos"
+                  value={formData.servicio}
+                  onChange={(e) =>
+                    setFormData({ ...formData, servicio: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="base_imponible">Base Imponible (S/)</Label>
+                  <Input
+                    id="base_imponible"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.base_imponible}
+                    onChange={(e) =>
+                      setFormData({ ...formData, base_imponible: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="igv_monto">IGV (S/)</Label>
+                  <Input
+                    id="igv_monto"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.igv_monto}
+                    onChange={(e) =>
+                      setFormData({ ...formData, igv_monto: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="precio_servicio">Precio del Servicio (S/)</Label>
+                  <Input
+                    id="precio_servicio"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.precio_servicio}
+                    onChange={(e) =>
+                      setFormData({ ...formData, precio_servicio: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          </ScrollArea>
 
           <DialogFooter>
             <Button variant="outline" onClick={handleCloseDialog}>

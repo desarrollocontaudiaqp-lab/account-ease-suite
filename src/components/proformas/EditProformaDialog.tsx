@@ -124,9 +124,9 @@ export function EditProformaDialog({
     const searchLower = search.toLowerCase();
     return servicios.filter((s) => 
       s.servicio.toLowerCase().includes(searchLower) ||
-      s.categoria?.toLowerCase().includes(searchLower) ||
-      s.producto?.toLowerCase().includes(searchLower) ||
-      s.variante?.toLowerCase().includes(searchLower)
+      s.grupo_servicio?.toLowerCase().includes(searchLower) ||
+      s.regimen_tributario?.toLowerCase().includes(searchLower) ||
+      s.entidad?.toLowerCase().includes(searchLower)
     );
   };
 
@@ -135,8 +135,8 @@ export function EditProformaDialog({
     newItems[index] = {
       ...newItems[index],
       descripcion: servicio.servicio,
-      precio_unitario: servicio.precio,
-      subtotal: Number(newItems[index].cantidad) * servicio.precio,
+      precio_unitario: servicio.precio_servicio,
+      subtotal: Number(newItems[index].cantidad) * servicio.precio_servicio,
     };
     setItems(newItems);
     setOpenServiceIndex(null);
@@ -336,7 +336,7 @@ export function EditProformaDialog({
                                   <div className="flex flex-col">
                                     <span className="font-medium">{servicio.servicio}</span>
                                     <span className="text-xs text-muted-foreground">
-                                      {servicio.categoria} {servicio.producto && `• ${servicio.producto}`} • S/ {servicio.precio.toFixed(2)}
+                                      {servicio.grupo_servicio} {servicio.regimen_tributario && `• ${servicio.regimen_tributario}`} • S/ {servicio.precio_servicio.toFixed(2)}
                                     </span>
                                   </div>
                                 </CommandItem>
