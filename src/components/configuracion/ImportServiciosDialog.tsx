@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 interface ParsedServicio {
   grupo_servicio: string | null;
@@ -39,6 +40,12 @@ interface ParsedServicio {
   igv_monto: number | null;
   precio_servicio: number | null;
   activo: boolean;
+}
+
+interface ImportResult {
+  servicio: string;
+  success: boolean;
+  error?: string;
 }
 
 const COLUMN_HEADERS = [
@@ -62,7 +69,9 @@ export function ImportServiciosDialog() {
   const [parsedData, setParsedData] = useState<ParsedServicio[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<"paste" | "preview">("paste");
+  const [step, setStep] = useState<"paste" | "preview" | "importing" | "results">("paste");
+  const [progress, setProgress] = useState(0);
+  const [importResults, setImportResults] = useState<ImportResult[]>([]);
   const queryClient = useQueryClient();
 
   const parseNumber = (value: string): number | null => {
@@ -147,19 +156,86 @@ export function ImportServiciosDialog() {
     if (parsedData.length === 0) return;
 
     setIsLoading(true);
-    try {
-      const { error } = await supabase.from("servicios").insert(parsedData);
+    setStep("importing");
+    setProgress(0);
+    const results: ImportResult[] = [];
+    
+    // Import in batches of 10 for better UX
+    const batchSize = 10;
+    const totalBatches = Math.ceil(parsedData.length / batchSize);
 
-      if (error) throw error;
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const start = batchIndex * batchSize;
+      const end = Math.min(start + batchSize, parsedData.length);
+      const batch = parsedData.slice(start, end);
 
-      toast.success(`${parsedData.length} servicios importados correctamente`);
-      queryClient.invalidateQueries({ queryKey: ["servicios"] });
-      handleClose();
-    } catch (error: any) {
-      console.error("Error importing services:", error);
-      toast.error(`Error al importar: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+      try {
+        const { data, error } = await supabase.from("servicios").insert(batch).select();
+
+        if (error) {
+          // If batch fails, try one by one
+          for (const item of batch) {
+            try {
+              const { error: singleError } = await supabase.from("servicios").insert(item);
+              if (singleError) {
+                results.push({
+                  servicio: item.servicio,
+                  success: false,
+                  error: singleError.message,
+                });
+              } else {
+                results.push({
+                  servicio: item.servicio,
+                  success: true,
+                });
+              }
+            } catch (e: any) {
+              results.push({
+                servicio: item.servicio,
+                success: false,
+                error: e.message,
+              });
+            }
+          }
+        } else {
+          // Batch success
+          batch.forEach((item) => {
+            results.push({
+              servicio: item.servicio,
+              success: true,
+            });
+          });
+        }
+      } catch (e: any) {
+        // Batch failed completely
+        batch.forEach((item) => {
+          results.push({
+            servicio: item.servicio,
+            success: false,
+            error: e.message,
+          });
+        });
+      }
+
+      // Update progress
+      const newProgress = Math.round(((batchIndex + 1) / totalBatches) * 100);
+      setProgress(newProgress);
+    }
+
+    setImportResults(results);
+    setStep("results");
+    setIsLoading(false);
+    queryClient.invalidateQueries({ queryKey: ["servicios"] });
+
+    const successCount = results.filter((r) => r.success).length;
+    const failCount = results.filter((r) => !r.success).length;
+
+    if (failCount === 0) {
+      toast.success(`${successCount} servicios importados correctamente`);
+    } else if (successCount === 0) {
+      toast.error(`No se pudo importar ningún servicio`);
+    } else {
+      toast.warning(`${successCount} importados, ${failCount} con errores`);
     }
   };
 
@@ -169,6 +245,8 @@ export function ImportServiciosDialog() {
     setParsedData([]);
     setErrors([]);
     setStep("paste");
+    setProgress(0);
+    setImportResults([]);
   };
 
   const getTipoBadgeColor = (tipo: string) => {
@@ -183,6 +261,9 @@ export function ImportServiciosDialog() {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  const successCount = importResults.filter((r) => r.success).length;
+  const failCount = importResults.filter((r) => !r.success).length;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => (isOpen ? setOpen(true) : handleClose())}>
@@ -203,7 +284,7 @@ export function ImportServiciosDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        {step === "paste" ? (
+        {step === "paste" && (
           <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
             <Alert>
               <AlertCircle className="h-4 w-4" />
@@ -249,7 +330,9 @@ export function ImportServiciosDialog() {
               </Button>
             </div>
           </div>
-        ) : (
+        )}
+
+        {step === "preview" && (
           <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
             <Alert className="bg-green-50 border-green-200">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -312,6 +395,96 @@ export function ImportServiciosDialog() {
                   {isLoading ? "Importando..." : `Importar ${parsedData.length} Servicios`}
                 </Button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {step === "importing" && (
+          <div className="space-y-6 py-8">
+            <div className="text-center">
+              <FileSpreadsheet className="h-12 w-12 mx-auto text-primary animate-pulse" />
+              <h3 className="mt-4 text-lg font-semibold">Importando servicios...</h3>
+              <p className="text-muted-foreground">Por favor, no cierre esta ventana</p>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progreso</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-3" />
+              <p className="text-center text-sm text-muted-foreground">
+                Procesando {Math.round((progress / 100) * parsedData.length)} de {parsedData.length} servicios
+              </p>
+            </div>
+          </div>
+        )}
+
+        {step === "results" && (
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Summary */}
+            <div className="grid grid-cols-2 gap-4">
+              <Alert className="bg-green-50 border-green-200">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  <strong>{successCount}</strong> servicios importados correctamente
+                </AlertDescription>
+              </Alert>
+              
+              {failCount > 0 && (
+                <Alert variant="destructive">
+                  <XCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>{failCount}</strong> servicios con errores
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+
+            {/* Results Table */}
+            <ScrollArea className="flex-1 border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">#</TableHead>
+                    <TableHead>Servicio</TableHead>
+                    <TableHead className="w-[100px]">Estado</TableHead>
+                    <TableHead>Detalle</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {importResults.map((result, index) => (
+                    <TableRow key={index} className={result.success ? "" : "bg-red-50"}>
+                      <TableCell className="font-medium">{index + 1}</TableCell>
+                      <TableCell className="max-w-[250px] truncate">
+                        {result.servicio}
+                      </TableCell>
+                      <TableCell>
+                        {result.success ? (
+                          <Badge className="bg-green-100 text-green-800">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            OK
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Error
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                        {result.success ? "Importado correctamente" : result.error}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+
+            <div className="flex justify-end">
+              <Button onClick={handleClose}>
+                Cerrar
+              </Button>
             </div>
           </div>
         )}
