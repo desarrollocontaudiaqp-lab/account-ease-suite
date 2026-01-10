@@ -44,7 +44,7 @@ interface Servicio {
 }
 
 interface ServiciosManagerProps {
-  tipo: "contabilidad" | "tramites";
+  tipo: "contabilidad" | "tramites" | "auditoria";
   titulo: string;
 }
 
@@ -371,7 +371,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
             <DialogDescription>
               {editingServicio
                 ? "Modifica los datos del servicio"
-                : `Agrega un nuevo servicio de ${tipo === "contabilidad" ? "contabilidad" : "trámites"}`}
+                : `Agrega un nuevo servicio de ${tipo === "contabilidad" ? "contabilidad" : tipo === "tramites" ? "trámites" : "auditoría y control interno"}`}
             </DialogDescription>
           </DialogHeader>
 

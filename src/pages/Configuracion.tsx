@@ -137,10 +137,25 @@ const Configuracion = () => {
 
         {/* Servicios Tab */}
         <TabsContent value="servicios">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ServiciosManager tipo="contabilidad" titulo="Servicios de Contabilidad" />
-            <ServiciosManager tipo="tramites" titulo="Servicios de Trámites" />
-          </div>
+          <Tabs defaultValue="contabilidad" className="space-y-4">
+            <TabsList className="bg-muted/50">
+              <TabsTrigger value="contabilidad">Contabilidad</TabsTrigger>
+              <TabsTrigger value="tramites">Trámites</TabsTrigger>
+              <TabsTrigger value="auditoria">Auditoría y Control Interno</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="contabilidad">
+              <ServiciosManager tipo="contabilidad" titulo="Servicios de Contabilidad" />
+            </TabsContent>
+            
+            <TabsContent value="tramites">
+              <ServiciosManager tipo="tramites" titulo="Servicios de Trámites" />
+            </TabsContent>
+            
+            <TabsContent value="auditoria">
+              <ServiciosManager tipo="auditoria" titulo="Servicios de Auditoría y Control Interno" />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         {/* Notificaciones Tab */}
