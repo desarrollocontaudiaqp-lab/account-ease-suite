@@ -976,39 +976,57 @@ export type Database = {
       servicios: {
         Row: {
           activo: boolean
-          categoria: string
+          base_imponible: number | null
+          compras_ventas_anual_soles: string | null
+          compras_ventas_mensual_soles: string | null
           created_at: string
+          entidad: string | null
+          grupo_servicio: string | null
           id: string
-          precio: number
-          producto: string | null
+          igv_monto: number | null
+          precio_servicio: number | null
+          regimen_tributario: string | null
           servicio: string
           tipo: string
+          tramite: string | null
           updated_at: string
-          variante: string | null
+          valoracion: string | null
         }
         Insert: {
           activo?: boolean
-          categoria: string
+          base_imponible?: number | null
+          compras_ventas_anual_soles?: string | null
+          compras_ventas_mensual_soles?: string | null
           created_at?: string
+          entidad?: string | null
+          grupo_servicio?: string | null
           id?: string
-          precio?: number
-          producto?: string | null
+          igv_monto?: number | null
+          precio_servicio?: number | null
+          regimen_tributario?: string | null
           servicio: string
           tipo: string
+          tramite?: string | null
           updated_at?: string
-          variante?: string | null
+          valoracion?: string | null
         }
         Update: {
           activo?: boolean
-          categoria?: string
+          base_imponible?: number | null
+          compras_ventas_anual_soles?: string | null
+          compras_ventas_mensual_soles?: string | null
           created_at?: string
+          entidad?: string | null
+          grupo_servicio?: string | null
           id?: string
-          precio?: number
-          producto?: string | null
+          igv_monto?: number | null
+          precio_servicio?: number | null
+          regimen_tributario?: string | null
           servicio?: string
           tipo?: string
+          tramite?: string | null
           updated_at?: string
-          variante?: string | null
+          valoracion?: string | null
         }
         Relationships: []
       }
