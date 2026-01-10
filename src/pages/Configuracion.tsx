@@ -9,6 +9,7 @@ import { OpcionesManager } from "@/components/configuracion/OpcionesManager";
 import { RolesManager } from "@/components/configuracion/RolesManager";
 import { ServiciosManager } from "@/components/configuracion/ServiciosManager";
 import { ProformaEstadosManager } from "@/components/configuracion/ProformaEstadosManager";
+import { ImportServiciosDialog } from "@/components/configuracion/ImportServiciosDialog";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 
 const Configuracion = () => {
@@ -137,25 +138,32 @@ const Configuracion = () => {
 
         {/* Servicios Tab */}
         <TabsContent value="servicios">
-          <Tabs defaultValue="contabilidad" className="space-y-4">
-            <TabsList className="bg-muted/50">
-              <TabsTrigger value="contabilidad">Contabilidad</TabsTrigger>
-              <TabsTrigger value="tramites">Trámites</TabsTrigger>
-              <TabsTrigger value="auditoria">Auditoría y Control Interno</TabsTrigger>
-            </TabsList>
+          <div className="space-y-4">
+            {/* Import Button */}
+            <div className="flex justify-end">
+              <ImportServiciosDialog />
+            </div>
             
-            <TabsContent value="contabilidad">
-              <ServiciosManager tipo="contabilidad" titulo="Servicios de Contabilidad" />
-            </TabsContent>
-            
-            <TabsContent value="tramites">
-              <ServiciosManager tipo="tramites" titulo="Servicios de Trámites" />
-            </TabsContent>
-            
-            <TabsContent value="auditoria">
-              <ServiciosManager tipo="auditoria" titulo="Servicios de Auditoría y Control Interno" />
-            </TabsContent>
-          </Tabs>
+            <Tabs defaultValue="contabilidad" className="space-y-4">
+              <TabsList className="bg-muted/50">
+                <TabsTrigger value="contabilidad">Contabilidad</TabsTrigger>
+                <TabsTrigger value="tramites">Trámites</TabsTrigger>
+                <TabsTrigger value="auditoria">Auditoría y Control Interno</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="contabilidad">
+                <ServiciosManager tipo="contabilidad" titulo="Servicios de Contabilidad" />
+              </TabsContent>
+              
+              <TabsContent value="tramites">
+                <ServiciosManager tipo="tramites" titulo="Servicios de Trámites" />
+              </TabsContent>
+              
+              <TabsContent value="auditoria">
+                <ServiciosManager tipo="auditoria" titulo="Servicios de Auditoría y Control Interno" />
+              </TabsContent>
+            </Tabs>
+          </div>
         </TabsContent>
 
         {/* Notificaciones Tab */}
