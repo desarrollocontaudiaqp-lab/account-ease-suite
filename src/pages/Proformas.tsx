@@ -86,6 +86,21 @@ const Proformas = () => {
   const [designerOpen, setDesignerOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createDialogType, setCreateDialogType] = useState<"contabilidad" | "tramites">("contabilidad");
+  const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
+  
+  // Fetch plantillas for the dropdown
+  const { data: plantillas = [] } = useQuery({
+    queryKey: ["proforma-plantillas-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proforma_plantillas")
+        .select("id, nombre, tipo")
+        .eq("activa", true)
+        .order("nombre");
+      if (error) throw error;
+      return data as { id: string; nombre: string; tipo: "contabilidad" | "tramites" }[];
+    },
+  });
   
   // Detail modal state
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -286,7 +301,8 @@ const Proformas = () => {
     toast.info(`Creando contrato desde proforma ${proforma.numero}`);
   };
 
-  const handleOpenCreateDialog = (tipo: "contabilidad" | "tramites") => {
+  const handleOpenCreateDialog = (plantillaId: string, tipo: "contabilidad" | "tramites") => {
+    setSelectedPlantillaId(plantillaId);
     setCreateDialogType(tipo);
     setCreateDialogOpen(true);
   };
@@ -352,15 +368,28 @@ const Proformas = () => {
                 Nueva Proforma
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleOpenCreateDialog("contabilidad")}>
-                <Calculator className="h-4 w-4 mr-2" />
-                Contabilidad
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleOpenCreateDialog("tramites")}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Trámites
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56">
+              {plantillas.length === 0 ? (
+                <div className="px-2 py-3 text-sm text-muted-foreground text-center">
+                  No hay plantillas creadas.
+                  <br />
+                  <span className="text-xs">Usa el Diseñador para crear plantillas.</span>
+                </div>
+              ) : (
+                plantillas.map((plantilla) => (
+                  <DropdownMenuItem 
+                    key={plantilla.id}
+                    onClick={() => handleOpenCreateDialog(plantilla.id, plantilla.tipo)}
+                  >
+                    {plantilla.tipo === "contabilidad" ? (
+                      <Calculator className="h-4 w-4 mr-2" />
+                    ) : (
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    )}
+                    {plantilla.nombre}
+                  </DropdownMenuItem>
+                ))
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -712,9 +741,13 @@ const Proformas = () => {
       <ProformaDesigner open={designerOpen} onOpenChange={setDesignerOpen} />
       <CreateProformaDialog
         open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (!open) setSelectedPlantillaId(null);
+        }}
         onSuccess={fetchProformas}
         tipo={createDialogType}
+        plantillaId={selectedPlantillaId}
       />
       <ProformaDetailModal
         open={detailModalOpen}
