@@ -31,7 +31,7 @@ interface Proforma {
     email: string | null;
     telefono: string | null;
   } | null;
-  tipo: "contabilidad" | "tramites";
+  tipo: string;
   subtotal: number;
   igv: number;
   total: number;
@@ -53,12 +53,18 @@ interface ProformaDetailModalProps {
   downloadingPDF: boolean;
 }
 
-const typeStyles = {
+const typeStyles: Record<string, string> = {
+  "Contabilidad": "bg-primary/10 text-primary",
+  "Trámites": "bg-secondary/20 text-secondary-foreground",
+  "Auditoría y Control Interno": "bg-purple-100 text-purple-700",
   contabilidad: "bg-primary/10 text-primary",
   tramites: "bg-secondary/20 text-secondary-foreground",
 };
 
-const typeLabels = {
+const typeLabels: Record<string, string> = {
+  "Contabilidad": "Contabilidad",
+  "Trámites": "Trámites",
+  "Auditoría y Control Interno": "Auditoría",
   contabilidad: "Contabilidad",
   tramites: "Trámites",
 };

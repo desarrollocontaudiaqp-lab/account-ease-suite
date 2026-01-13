@@ -46,7 +46,7 @@ interface ProformaItem {
 interface Proforma {
   id: string;
   numero: string;
-  tipo: "contabilidad" | "tramites";
+  tipo: string;
   subtotal: number;
   igv: number;
   total: number;

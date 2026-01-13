@@ -51,10 +51,12 @@ interface ServicioPlantilla {
 interface Plantilla {
   id: string;
   nombre: string;
-  tipo: "contabilidad" | "tramites";
+  tipo: string;
   campos: Campo[];
   servicios: ServicioPlantilla[];
 }
+
+type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
 
 interface Cliente {
   id: string;
@@ -87,7 +89,7 @@ interface CreateProformaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  tipo: "contabilidad" | "tramites";
+  tipo: GrupoServicio;
   plantillaId?: string | null;
 }
 
@@ -140,13 +142,13 @@ export function CreateProformaDialog({
     const { data: plantillasData } = await supabase
       .from("proforma_plantillas")
       .select("*")
-      .eq("tipo", tipo)
+      .eq("tipo", tipo as any) // Cast for TypeScript
       .eq("activa", true);
 
     if (plantillasData) {
       const parsed = plantillasData.map((p) => ({
         ...p,
-        tipo: p.tipo as "contabilidad" | "tramites",
+        tipo: p.tipo as string,
         campos: (Array.isArray(p.campos) ? p.campos : []) as unknown as Campo[],
         servicios: (Array.isArray(p.servicios) ? p.servicios : []) as unknown as ServicioPlantilla[],
       }));
@@ -259,7 +261,9 @@ export function CreateProformaDialog({
   };
 
   const generateProformaNumber = () => {
-    const prefix = tipo === "contabilidad" ? "PC" : "PT";
+    let prefix = "PC";
+    if (tipo === "Trámites") prefix = "PT";
+    else if (tipo === "Auditoría y Control Interno") prefix = "PA";
     const date = new Date();
     const year = date.getFullYear();
     const random = Math.floor(Math.random() * 1000)
@@ -302,7 +306,7 @@ export function CreateProformaDialog({
       .insert({
         numero: generateProformaNumber(),
         cliente_id: selectedCliente,
-        tipo: tipo,
+        tipo: tipo as any, // Cast for TypeScript, DB accepts all 3 groups
         fecha_vencimiento: fechaVencimiento,
         subtotal,
         igv,
@@ -396,7 +400,7 @@ export function CreateProformaDialog({
       <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
-            Nueva Proforma de {tipo === "contabilidad" ? "Contabilidad" : "Trámites"}
+            Nueva Proforma de {tipo}
           </DialogTitle>
         </DialogHeader>
 
