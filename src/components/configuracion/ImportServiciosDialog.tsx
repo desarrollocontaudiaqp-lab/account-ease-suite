@@ -131,6 +131,10 @@ export function ImportServiciosDialog() {
         continue;
       }
 
+      // Debug: log the precio column value
+      const precioRaw = columns[11]?.trim();
+      const precioValue = parseNumber(precioRaw || "");
+      
       parsed.push({
         grupo_servicio: grupoServicio,
         tipo_servicio: columns[1]?.trim() || null,
@@ -143,7 +147,7 @@ export function ImportServiciosDialog() {
         servicio: descripcionServicio,
         base_imponible: parseNumber(columns[9] || ""),
         igv_monto: parseNumber(columns[10] || ""),
-        precio_servicio: parseNumber(columns[11] || ""),
+        precio_servicio: precioValue,
         activo: true,
       });
     }
@@ -277,7 +281,7 @@ export function ImportServiciosDialog() {
           Importar Servicios desde Excel
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[95vw] max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
