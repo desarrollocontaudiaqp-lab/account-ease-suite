@@ -88,6 +88,7 @@ interface CreateProformaDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   tipo: "contabilidad" | "tramites";
+  plantillaId?: string | null;
 }
 
 export function CreateProformaDialog({
@@ -95,6 +96,7 @@ export function CreateProformaDialog({
   onOpenChange,
   onSuccess,
   tipo,
+  plantillaId,
 }: CreateProformaDialogProps) {
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -124,7 +126,7 @@ export function CreateProformaDialog({
     if (open) {
       fetchData();
     }
-  }, [open, tipo]);
+  }, [open, tipo, plantillaId]);
 
   const fetchData = async () => {
     const { data: clientesData } = await supabase
@@ -149,9 +151,15 @@ export function CreateProformaDialog({
         servicios: (Array.isArray(p.servicios) ? p.servicios : []) as unknown as ServicioPlantilla[],
       }));
       setPlantillas(parsed);
-      if (parsed.length > 0) {
-        setSelectedPlantilla(parsed[0]);
-        setActiveCampos(parsed[0].campos.map((c) => c.id));
+      
+      // If plantillaId is provided, use that; otherwise use first available
+      const targetPlantilla = plantillaId 
+        ? parsed.find(p => p.id === plantillaId) 
+        : parsed[0];
+      
+      if (targetPlantilla) {
+        setSelectedPlantilla(targetPlantilla);
+        setActiveCampos(targetPlantilla.campos.map((c) => c.id));
       }
     }
   };
@@ -597,22 +605,14 @@ export function CreateProformaDialog({
           {selectedPlantilla && (
             <div className="border rounded-lg p-4 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Campos Específicos</h3>
-                <Select
-                  value={selectedPlantilla.id}
-                  onValueChange={handlePlantillaChange}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {plantillas.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <h3 className="font-semibold">
+                  Campos Específicos
+                  {selectedPlantilla && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      — {selectedPlantilla.nombre}
+                    </span>
+                  )}
+                </h3>
               </div>
 
               {availableCampos.length > 0 && (
