@@ -32,7 +32,7 @@ interface ProformaItem {
 
 interface ProformaData {
   numero: string;
-  tipo: "contabilidad" | "tramites";
+  tipo: string;
   fecha_emision: string;
   fecha_vencimiento: string;
   cliente: {
@@ -214,11 +214,11 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   doc.setFont("helvetica", "bold");
   doc.text("PROFORMA", rightTextX, 12, { align: "right" });
   
-  // Type label (CONTABILIDAD or TRÁMITES) in white
+  // Type label in white
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.text(data.tipo === "contabilidad" ? "CONTABILIDAD" : "TRÁMITES", rightTextX, 20, { align: "right" });
+  doc.text(data.tipo.toUpperCase(), rightTextX, 20, { align: "right" });
   
   // Proforma number in gold/yellow
   doc.setTextColor(...COLORS.lightGold);

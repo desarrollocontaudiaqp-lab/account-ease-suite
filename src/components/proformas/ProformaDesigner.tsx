@@ -63,12 +63,14 @@ interface ServicioPlantilla {
 interface Plantilla {
   id: string;
   nombre: string;
-  tipo: "contabilidad" | "tramites";
+  tipo: "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
   descripcion: string | null;
   campos: Campo[];
   servicios: ServicioPlantilla[];
   activa: boolean;
 }
+
+type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
 
 interface ProformaDesignerProps {
   open: boolean;
@@ -103,7 +105,7 @@ interface ServiceCategory {
 export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) {
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [selectedPlantilla, setSelectedPlantilla] = useState<Plantilla | null>(null);
-  const [activeType, setActiveType] = useState<"contabilidad" | "tramites">("contabilidad");
+  const [activeType, setActiveType] = useState<GrupoServicio>("Contabilidad");
   const [loading, setLoading] = useState(false);
   const [showCustomFieldForm, setShowCustomFieldForm] = useState(false);
   const [newFieldLabel, setNewFieldLabel] = useState("");
@@ -113,7 +115,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
   const [serviciosDB, setServiciosDB] = useState<ServiceCategory[]>([]);
   const [showNewPlantillaForm, setShowNewPlantillaForm] = useState(false);
   const [newPlantillaNombre, setNewPlantillaNombre] = useState("");
-  const [newPlantillaTipo, setNewPlantillaTipo] = useState<"contabilidad" | "tramites">("contabilidad");
+  const [newPlantillaTipo, setNewPlantillaTipo] = useState<GrupoServicio>("Contabilidad");
   const [newPlantillaDescripcion, setNewPlantillaDescripcion] = useState("");
   const [activeTab, setActiveTab] = useState<"campos" | "servicios">("campos");
   const [servicioSearch, setServicioSearch] = useState("");
@@ -139,10 +141,12 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     }
 
     // Group services by tipo_servicio within the active grupo_servicio
-    const groupedContabilidad: Record<string, { id: string; label: string; precio: number }[]> = {};
-    const groupedTramites: Record<string, { id: string; label: string; precio: number }[]> = {};
+    const grouped: Record<string, { id: string; label: string; precio: number }[]> = {};
 
     (data || []).forEach((s: ServicioFromDB) => {
+      // Only include services that match the current activeType (grupo_servicio)
+      if (s.grupo_servicio !== activeType) return;
+      
       let label = s.servicio;
       if (s.regimen_tributario) {
         label += ` - ${s.regimen_tributario}`;
@@ -154,31 +158,18 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       const tipoServicio = s.tipo_servicio || "Sin tipo";
       const serviceItem = { id: s.id, label, precio: s.precio_servicio || 0 };
 
-      // Use grupo_servicio to determine which category
-      if (s.grupo_servicio === "Contabilidad") {
-        if (!groupedContabilidad[tipoServicio]) {
-          groupedContabilidad[tipoServicio] = [];
-        }
-        groupedContabilidad[tipoServicio].push(serviceItem);
-      } else if (s.grupo_servicio === "Trámites") {
-        if (!groupedTramites[tipoServicio]) {
-          groupedTramites[tipoServicio] = [];
-        }
-        groupedTramites[tipoServicio].push(serviceItem);
+      if (!grouped[tipoServicio]) {
+        grouped[tipoServicio] = [];
       }
+      grouped[tipoServicio].push(serviceItem);
     });
 
-    const contabilidadArray: ServiceCategory[] = Object.entries(groupedContabilidad).map(([category, services]) => ({
+    const serviciosArray: ServiceCategory[] = Object.entries(grouped).map(([category, services]) => ({
       category,
       services,
     }));
 
-    const tramitesArray: ServiceCategory[] = Object.entries(groupedTramites).map(([category, services]) => ({
-      category,
-      services,
-    }));
-
-    setServiciosDB(activeType === "contabilidad" ? contabilidadArray : tramitesArray);
+    setServiciosDB(serviciosArray);
   };
 
   useEffect(() => {
@@ -200,7 +191,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
     } else {
       const parsed = (data || []).map((p) => ({
         ...p,
-        tipo: p.tipo as "contabilidad" | "tramites",
+        tipo: p.tipo as GrupoServicio,
         campos: (Array.isArray(p.campos) ? p.campos : []) as unknown as Campo[],
         servicios: (Array.isArray(p.servicios) ? p.servicios : []) as unknown as ServicioPlantilla[],
       }));
@@ -349,12 +340,12 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       .from("proforma_plantillas")
       .insert({
         nombre: newPlantillaNombre.trim(),
-        tipo: newPlantillaTipo,
+        tipo: newPlantillaTipo as "contabilidad" | "tramites", // Cast for TypeScript, DB accepts all 3 groups
         descripcion: newPlantillaDescripcion.trim() || null,
         campos: JSON.parse(JSON.stringify(defaultCampos)),
         servicios: [],
         activa: true,
-      })
+      } as any)
       .select()
       .single();
 
@@ -370,7 +361,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       if (data) {
         const newPlantilla: Plantilla = {
           ...data,
-          tipo: data.tipo as "contabilidad" | "tramites",
+          tipo: data.tipo as GrupoServicio,
           campos: defaultCampos,
           servicios: [] as ServicioPlantilla[],
         };
@@ -455,17 +446,18 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">Tipo</Label>
+                  <Label className="text-xs">Grupo</Label>
                   <Select
                     value={newPlantillaTipo}
-                    onValueChange={(v) => setNewPlantillaTipo(v as "contabilidad" | "tramites")}
+                    onValueChange={(v) => setNewPlantillaTipo(v as GrupoServicio)}
                   >
                     <SelectTrigger className="mt-1 h-8">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="contabilidad">Contabilidad</SelectItem>
-                      <SelectItem value="tramites">Trámites</SelectItem>
+                      <SelectItem value="Contabilidad">Contabilidad</SelectItem>
+                      <SelectItem value="Trámites">Trámites</SelectItem>
+                      <SelectItem value="Auditoría y Control Interno">Auditoría y Control Interno</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -517,10 +509,12 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      {plantilla.tipo === "contabilidad" ? (
+                      {plantilla.tipo === "Contabilidad" ? (
                         <FileText className="h-4 w-4 text-blue-500" />
-                      ) : (
+                      ) : plantilla.tipo === "Trámites" ? (
                         <Briefcase className="h-4 w-4 text-emerald-500" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-purple-500" />
                       )}
                       <span className="font-medium text-sm truncate">{plantilla.nombre}</span>
                     </div>
@@ -528,12 +522,14 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                       <Badge 
                         variant="secondary" 
                         className={`text-xs ${
-                          plantilla.tipo === "contabilidad" 
+                          plantilla.tipo === "Contabilidad" 
                             ? "bg-blue-100 text-blue-700" 
-                            : "bg-emerald-100 text-emerald-700"
+                            : plantilla.tipo === "Trámites"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-purple-100 text-purple-700"
                         }`}
                       >
-                        {plantilla.tipo === "contabilidad" ? "Contabilidad" : "Trámites"}
+                        {plantilla.tipo}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {plantilla.campos.length} campos, {plantilla.servicios.length} servicios

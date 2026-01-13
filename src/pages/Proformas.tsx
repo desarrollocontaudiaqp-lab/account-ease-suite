@@ -23,6 +23,8 @@ import { ServiceFilterDropdown } from "@/components/proformas/ServiceFilterDropd
 import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
 import { toast } from "sonner";
 
+type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
+
 interface Proforma {
   id: string;
   numero: string;
@@ -33,7 +35,7 @@ interface Proforma {
     email: string | null;
     telefono: string | null;
   } | null;
-  tipo: "contabilidad" | "tramites";
+  tipo: string;
   subtotal: number;
   igv: number;
   total: number;
@@ -65,12 +67,20 @@ interface ProformaEstado {
   activo: boolean;
 }
 
-const typeStyles = {
+const typeStyles: Record<string, string> = {
+  "Contabilidad": "bg-primary/10 text-primary",
+  "Trámites": "bg-secondary/20 text-secondary-foreground",
+  "Auditoría y Control Interno": "bg-purple-100 text-purple-700",
+  // Legacy support
   contabilidad: "bg-primary/10 text-primary",
   tramites: "bg-secondary/20 text-secondary-foreground",
 };
 
-const typeLabels = {
+const typeLabels: Record<string, string> = {
+  "Contabilidad": "Contabilidad",
+  "Trámites": "Trámites",
+  "Auditoría y Control Interno": "Auditoría",
+  // Legacy support
   contabilidad: "Contabilidad",
   tramites: "Trámites",
 };
@@ -85,7 +95,7 @@ const Proformas = () => {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [designerOpen, setDesignerOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createDialogType, setCreateDialogType] = useState<"contabilidad" | "tramites">("contabilidad");
+  const [createDialogType, setCreateDialogType] = useState<GrupoServicio>("Contabilidad");
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
   
   // Fetch plantillas for the dropdown
@@ -98,7 +108,7 @@ const Proformas = () => {
         .eq("activa", true)
         .order("nombre");
       if (error) throw error;
-      return data as { id: string; nombre: string; tipo: "contabilidad" | "tramites" }[];
+      return data as { id: string; nombre: string; tipo: string }[];
     },
   });
   
@@ -194,7 +204,7 @@ const Proformas = () => {
       
       const parsed = (data || []).map((p) => ({
         ...p,
-        tipo: p.tipo as "contabilidad" | "tramites",
+        tipo: p.tipo as string,
         status: p.status as Proforma["status"],
         cliente: p.cliente as Proforma["cliente"],
         items: itemsByProforma[p.id] || [],
@@ -301,9 +311,9 @@ const Proformas = () => {
     toast.info(`Creando contrato desde proforma ${proforma.numero}`);
   };
 
-  const handleOpenCreateDialog = (plantillaId: string, tipo: "contabilidad" | "tramites") => {
+  const handleOpenCreateDialog = (plantillaId: string, tipo: string) => {
     setSelectedPlantillaId(plantillaId);
-    setCreateDialogType(tipo);
+    setCreateDialogType(tipo as GrupoServicio);
     setCreateDialogOpen(true);
   };
 
@@ -381,8 +391,10 @@ const Proformas = () => {
                     key={plantilla.id}
                     onClick={() => handleOpenCreateDialog(plantilla.id, plantilla.tipo)}
                   >
-                    {plantilla.tipo === "contabilidad" ? (
+                    {plantilla.tipo === "Contabilidad" || plantilla.tipo === "contabilidad" ? (
                       <Calculator className="h-4 w-4 mr-2" />
+                    ) : plantilla.tipo === "Auditoría y Control Interno" ? (
+                      <FileText className="h-4 w-4 mr-2" />
                     ) : (
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
                     )}
