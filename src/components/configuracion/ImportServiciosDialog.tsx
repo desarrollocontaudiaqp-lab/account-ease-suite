@@ -27,8 +27,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
 interface ParsedServicio {
-  grupo_servicio: string | null;
-  tipo: string;
+  grupo_servicio: "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
+  tipo_servicio: string | null;
   regimen_tributario: string | null;
   compras_ventas_mensual_soles: string | null;
   compras_ventas_anual_soles: string | null;
@@ -63,6 +63,8 @@ const COLUMN_HEADERS = [
   "PRECIO DEL SERVICIO",
 ];
 
+const VALID_GRUPOS = ["Contabilidad", "Trámites", "Auditoría y Control Interno"] as const;
+
 export function ImportServiciosDialog() {
   const [open, setOpen] = useState(false);
   const [pastedData, setPastedData] = useState("");
@@ -81,12 +83,12 @@ export function ImportServiciosDialog() {
     return isNaN(num) ? null : num;
   };
 
-  const normalizeTipo = (value: string): string => {
+  const normalizeGrupoServicio = (value: string): "Contabilidad" | "Trámites" | "Auditoría y Control Interno" | null => {
     const lower = value.toLowerCase().trim();
-    if (lower.includes("contab")) return "contabilidad";
-    if (lower.includes("tramit") || lower.includes("trámit")) return "tramites";
-    if (lower.includes("audit") || lower.includes("control")) return "auditoria";
-    return "contabilidad"; // default
+    if (lower.includes("contab")) return "Contabilidad";
+    if (lower.includes("tramit") || lower.includes("trámit")) return "Trámites";
+    if (lower.includes("audit") || lower.includes("control")) return "Auditoría y Control Interno";
+    return null;
   };
 
   const parseExcelData = () => {
@@ -115,21 +117,23 @@ export function ImportServiciosDialog() {
         continue;
       }
 
+      const grupoServicioRaw = columns[0]?.trim();
+      const grupoServicio = normalizeGrupoServicio(grupoServicioRaw || "");
+      
+      if (!grupoServicio) {
+        newErrors.push(`Fila ${i + 1}: Grupo de servicio inválido "${grupoServicioRaw}". Debe ser Contabilidad, Trámites o Auditoría y Control Interno`);
+        continue;
+      }
+
       const descripcionServicio = columns[8]?.trim();
       if (!descripcionServicio) {
         newErrors.push(`Fila ${i + 1}: La descripción del servicio es obligatoria`);
         continue;
       }
 
-      const tipoServicio = columns[1]?.trim();
-      if (!tipoServicio) {
-        newErrors.push(`Fila ${i + 1}: El tipo de servicio es obligatorio`);
-        continue;
-      }
-
       parsed.push({
-        grupo_servicio: columns[0]?.trim() || null,
-        tipo: normalizeTipo(tipoServicio),
+        grupo_servicio: grupoServicio,
+        tipo_servicio: columns[1]?.trim() || null,
         regimen_tributario: columns[2]?.trim() || null,
         compras_ventas_mensual_soles: columns[3]?.trim() || null,
         compras_ventas_anual_soles: columns[4]?.trim() || null,
@@ -249,13 +253,13 @@ export function ImportServiciosDialog() {
     setImportResults([]);
   };
 
-  const getTipoBadgeColor = (tipo: string) => {
-    switch (tipo) {
-      case "contabilidad":
+  const getGrupoBadgeColor = (grupo: string) => {
+    switch (grupo) {
+      case "Contabilidad":
         return "bg-blue-100 text-blue-800";
-      case "tramites":
+      case "Trámites":
         return "bg-green-100 text-green-800";
-      case "auditoria":
+      case "Auditoría y Control Interno":
         return "bg-purple-100 text-purple-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -296,6 +300,9 @@ export function ImportServiciosDialog() {
                       {index + 1}. {header}
                     </Badge>
                   ))}
+                </div>
+                <div className="mt-2 text-xs">
+                  <strong>Grupos válidos:</strong> {VALID_GRUPOS.join(", ")}
                 </div>
               </AlertDescription>
             </Alert>
@@ -348,8 +355,8 @@ export function ImportServiciosDialog() {
                   <TableRow>
                     <TableHead className="w-[50px]">#</TableHead>
                     <TableHead>Descripción</TableHead>
-                    <TableHead>Tipo</TableHead>
                     <TableHead>Grupo</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Régimen</TableHead>
                     <TableHead className="text-right">Precio</TableHead>
                   </TableRow>
@@ -362,12 +369,12 @@ export function ImportServiciosDialog() {
                         {servicio.servicio}
                       </TableCell>
                       <TableCell>
-                        <Badge className={getTipoBadgeColor(servicio.tipo)}>
-                          {servicio.tipo}
+                        <Badge className={getGrupoBadgeColor(servicio.grupo_servicio)}>
+                          {servicio.grupo_servicio}
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[150px] truncate">
-                        {servicio.grupo_servicio || "-"}
+                        {servicio.tipo_servicio || "-"}
                       </TableCell>
                       <TableCell className="max-w-[150px] truncate">
                         {servicio.regimen_tributario || "-"}

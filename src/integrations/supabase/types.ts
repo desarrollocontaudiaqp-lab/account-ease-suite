@@ -987,7 +987,7 @@ export type Database = {
           precio_servicio: number | null
           regimen_tributario: string | null
           servicio: string
-          tipo: string
+          tipo_servicio: string
           tramite: string | null
           updated_at: string
           valoracion: string | null
@@ -1005,7 +1005,7 @@ export type Database = {
           precio_servicio?: number | null
           regimen_tributario?: string | null
           servicio: string
-          tipo: string
+          tipo_servicio: string
           tramite?: string | null
           updated_at?: string
           valoracion?: string | null
@@ -1023,7 +1023,7 @@ export type Database = {
           precio_servicio?: number | null
           regimen_tributario?: string | null
           servicio?: string
-          tipo?: string
+          tipo_servicio?: string
           tramite?: string | null
           updated_at?: string
           valoracion?: string | null

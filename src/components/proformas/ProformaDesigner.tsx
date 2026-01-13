@@ -85,7 +85,7 @@ const fieldTypes = [
 
 interface ServicioFromDB {
   id: string;
-  tipo: string;
+  tipo_servicio: string | null;
   grupo_servicio: string | null;
   servicio: string;
   regimen_tributario: string | null;
@@ -138,7 +138,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
       return;
     }
 
-    // Group services by grupo_servicio for the active type
+    // Group services by tipo_servicio within the active grupo_servicio
     const groupedContabilidad: Record<string, { id: string; label: string; precio: number }[]> = {};
     const groupedTramites: Record<string, { id: string; label: string; precio: number }[]> = {};
 
@@ -151,19 +151,20 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
         label += ` (${s.entidad})`;
       }
 
-      const grupo = s.grupo_servicio || "Sin grupo";
+      const tipoServicio = s.tipo_servicio || "Sin tipo";
       const serviceItem = { id: s.id, label, precio: s.precio_servicio || 0 };
 
-      if (s.tipo === "contabilidad") {
-        if (!groupedContabilidad[grupo]) {
-          groupedContabilidad[grupo] = [];
+      // Use grupo_servicio to determine which category
+      if (s.grupo_servicio === "Contabilidad") {
+        if (!groupedContabilidad[tipoServicio]) {
+          groupedContabilidad[tipoServicio] = [];
         }
-        groupedContabilidad[grupo].push(serviceItem);
-      } else if (s.tipo === "tramites") {
-        if (!groupedTramites[grupo]) {
-          groupedTramites[grupo] = [];
+        groupedContabilidad[tipoServicio].push(serviceItem);
+      } else if (s.grupo_servicio === "Trámites") {
+        if (!groupedTramites[tipoServicio]) {
+          groupedTramites[tipoServicio] = [];
         }
-        groupedTramites[grupo].push(serviceItem);
+        groupedTramites[tipoServicio].push(serviceItem);
       }
     });
 
