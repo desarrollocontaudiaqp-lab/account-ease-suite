@@ -809,7 +809,7 @@ export type Database = {
           id: string
           nombre: string
           servicios: Json
-          tipo: Database["public"]["Enums"]["proforma_tipo"]
+          tipo: string
           updated_at: string
         }
         Insert: {
@@ -821,7 +821,7 @@ export type Database = {
           id?: string
           nombre: string
           servicios?: Json
-          tipo: Database["public"]["Enums"]["proforma_tipo"]
+          tipo?: string
           updated_at?: string
         }
         Update: {
@@ -833,7 +833,7 @@ export type Database = {
           id?: string
           nombre?: string
           servicios?: Json
-          tipo?: Database["public"]["Enums"]["proforma_tipo"]
+          tipo?: string
           updated_at?: string
         }
         Relationships: []
@@ -881,7 +881,7 @@ export type Database = {
           numero: string
           status: Database["public"]["Enums"]["proforma_status"]
           subtotal: number
-          tipo: Database["public"]["Enums"]["proforma_tipo"]
+          tipo: string
           total: number
           updated_at: string
         }
@@ -900,7 +900,7 @@ export type Database = {
           numero: string
           status?: Database["public"]["Enums"]["proforma_status"]
           subtotal?: number
-          tipo?: Database["public"]["Enums"]["proforma_tipo"]
+          tipo?: string
           total?: number
           updated_at?: string
         }
@@ -919,7 +919,7 @@ export type Database = {
           numero?: string
           status?: Database["public"]["Enums"]["proforma_status"]
           subtotal?: number
-          tipo?: Database["public"]["Enums"]["proforma_tipo"]
+          tipo?: string
           total?: number
           updated_at?: string
         }
