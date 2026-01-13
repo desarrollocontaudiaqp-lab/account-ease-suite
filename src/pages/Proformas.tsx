@@ -88,7 +88,7 @@ const typeLabels: Record<string, string> = {
 const Proformas = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("todas");
+  const [activeTab, setActiveTab] = useState<"todas" | GrupoServicio>("todas");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [proformas, setProformas] = useState<ProformaWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -329,11 +329,13 @@ const Proformas = () => {
           item.descripcion.toLowerCase().includes(searchLower)
         );
       
-      // Tab filter
+      // Tab filter by grupo_servicio
       const matchesTab = 
         activeTab === "todas" ||
-        (activeTab === "contabilidad" && proforma.tipo === "contabilidad") ||
-        (activeTab === "tramites" && proforma.tipo === "tramites");
+        proforma.tipo === activeTab ||
+        // Legacy support for old lowercase values
+        (activeTab === "Contabilidad" && proforma.tipo === "contabilidad") ||
+        (activeTab === "Trámites" && proforma.tipo === "tramites");
       
       // Service filter - check if any selected service matches any item description
       const matchesService = selectedServices.length === 0 ||
@@ -346,6 +348,15 @@ const Proformas = () => {
       return matchesSearch && matchesTab && matchesService;
     });
   }, [proformas, searchTerm, activeTab, selectedServices]);
+  
+  // Count proformas by group
+  const countByGroup = useMemo(() => {
+    return {
+      contabilidad: proformas.filter(p => p.tipo === "Contabilidad" || p.tipo === "contabilidad").length,
+      tramites: proformas.filter(p => p.tipo === "Trámites" || p.tipo === "tramites").length,
+      auditoria: proformas.filter(p => p.tipo === "Auditoría y Control Interno").length,
+    };
+  }, [proformas]);
 
   const stats = {
     total: proformas.length,
@@ -430,12 +441,36 @@ const Proformas = () => {
       </div>
 
       {/* Tabs & Filters */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "todas" | GrupoServicio)}>
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-          <TabsList>
-            <TabsTrigger value="todas">Todas</TabsTrigger>
-            <TabsTrigger value="contabilidad">Contabilidad</TabsTrigger>
-            <TabsTrigger value="tramites">Trámites</TabsTrigger>
+          <TabsList className="h-auto flex-wrap">
+            <TabsTrigger value="todas" className="gap-2">
+              Todas
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {proformas.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="Contabilidad" className="gap-2">
+              <Calculator className="h-4 w-4" />
+              Contabilidad
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {countByGroup.contabilidad}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="Trámites" className="gap-2">
+              <FileSpreadsheet className="h-4 w-4" />
+              Trámites
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {countByGroup.tramites}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="Auditoría y Control Interno" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Auditoría
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {countByGroup.auditoria}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
           
           <div className="flex gap-2">
