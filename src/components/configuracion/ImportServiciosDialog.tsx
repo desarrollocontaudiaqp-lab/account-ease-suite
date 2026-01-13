@@ -34,7 +34,6 @@ interface ParsedServicio {
   compras_ventas_anual_soles: string | null;
   valoracion: string | null;
   entidad: string | null;
-  tramite: string | null;
   servicio: string;
   base_imponible: number | null;
   igv_monto: number | null;
@@ -56,8 +55,7 @@ const COLUMN_HEADERS = [
   "COMPRAS/VENTAS ANUAL SOLES",
   "VALORACION",
   "ENTIDAD",
-  "TRAMITE",
-  "DESCRIPCION_SERVICIO",
+  "SERVICIO",
   "BASE IMPONIBLE",
   "IGV",
   "PRECIO DEL SERVICIO",
@@ -112,8 +110,8 @@ export function ImportServiciosDialog() {
       // Split by tab (Excel default) or multiple spaces
       const columns = line.split(/\t/);
 
-      if (columns.length < 9) {
-        newErrors.push(`Fila ${i + 1}: Número insuficiente de columnas (${columns.length} de 12 requeridas)`);
+      if (columns.length < 11) {
+        newErrors.push(`Fila ${i + 1}: Número insuficiente de columnas (${columns.length} de 11 requeridas)`);
         continue;
       }
 
@@ -125,16 +123,12 @@ export function ImportServiciosDialog() {
         continue;
       }
 
-      const descripcionServicio = columns[8]?.trim();
+      const descripcionServicio = columns[7]?.trim();
       if (!descripcionServicio) {
         newErrors.push(`Fila ${i + 1}: La descripción del servicio es obligatoria`);
         continue;
       }
 
-      // Debug: log the precio column value
-      const precioRaw = columns[11]?.trim();
-      const precioValue = parseNumber(precioRaw || "");
-      
       parsed.push({
         grupo_servicio: grupoServicio,
         tipo_servicio: columns[1]?.trim() || null,
@@ -143,11 +137,10 @@ export function ImportServiciosDialog() {
         compras_ventas_anual_soles: columns[4]?.trim() || null,
         valoracion: columns[5]?.trim() || null,
         entidad: columns[6]?.trim() || null,
-        tramite: columns[7]?.trim() || null,
         servicio: descripcionServicio,
-        base_imponible: parseNumber(columns[9] || ""),
-        igv_monto: parseNumber(columns[10] || ""),
-        precio_servicio: precioValue,
+        base_imponible: parseNumber(columns[8] || ""),
+        igv_monto: parseNumber(columns[9] || ""),
+        precio_servicio: parseNumber(columns[10] || ""),
         activo: true,
       });
     }
