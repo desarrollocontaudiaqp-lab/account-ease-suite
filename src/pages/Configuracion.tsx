@@ -152,15 +152,15 @@ const Configuracion = () => {
               </TabsList>
               
               <TabsContent value="contabilidad">
-                <ServiciosManager tipo="contabilidad" titulo="Servicios de Contabilidad" />
+                <ServiciosManager grupoServicio="Contabilidad" titulo="Servicios de Contabilidad" />
               </TabsContent>
               
               <TabsContent value="tramites">
-                <ServiciosManager tipo="tramites" titulo="Servicios de Trámites" />
+                <ServiciosManager grupoServicio="Trámites" titulo="Servicios de Trámites" />
               </TabsContent>
               
               <TabsContent value="auditoria">
-                <ServiciosManager tipo="auditoria" titulo="Servicios de Auditoría y Control Interno" />
+                <ServiciosManager grupoServicio="Auditoría y Control Interno" titulo="Servicios de Auditoría y Control Interno" />
               </TabsContent>
             </Tabs>
           </div>

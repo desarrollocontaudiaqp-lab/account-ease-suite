@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,14 +22,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 interface Servicio {
   id: string;
-  tipo: string;
   grupo_servicio: string | null;
+  tipo_servicio: string | null;
   regimen_tributario: string | null;
   compras_ventas_mensual_soles: string | null;
   compras_ventas_anual_soles: string | null;
@@ -37,18 +45,18 @@ interface Servicio {
   entidad: string | null;
   tramite: string | null;
   servicio: string;
-  base_imponible: number;
-  igv_monto: number;
-  precio_servicio: number;
+  base_imponible: number | null;
+  igv_monto: number | null;
+  precio_servicio: number | null;
   activo: boolean;
 }
 
 interface ServiciosManagerProps {
-  tipo: "contabilidad" | "tramites" | "auditoria";
+  grupoServicio: "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
   titulo: string;
 }
 
-export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
+export const ServiciosManager = ({ grupoServicio, titulo }: ServiciosManagerProps) => {
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -58,7 +66,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
   
   // Form state
   const [formData, setFormData] = useState({
-    grupo_servicio: "",
+    tipo_servicio: "",
     regimen_tributario: "",
     compras_ventas_mensual_soles: "",
     compras_ventas_anual_soles: "",
@@ -73,15 +81,15 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
 
   useEffect(() => {
     fetchServicios();
-  }, [tipo]);
+  }, [grupoServicio]);
 
   const fetchServicios = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("servicios")
       .select("*")
-      .eq("tipo", tipo)
-      .order("grupo_servicio", { ascending: true })
+      .eq("grupo_servicio", grupoServicio)
+      .order("tipo_servicio", { ascending: true })
       .order("servicio", { ascending: true });
 
     if (error) {
@@ -98,7 +106,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
 
   const resetForm = () => {
     setFormData({
-      grupo_servicio: "",
+      tipo_servicio: "",
       regimen_tributario: "",
       compras_ventas_mensual_soles: "",
       compras_ventas_anual_soles: "",
@@ -117,7 +125,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
     if (servicio) {
       setEditingServicio(servicio);
       setFormData({
-        grupo_servicio: servicio.grupo_servicio || "",
+        tipo_servicio: servicio.tipo_servicio || "",
         regimen_tributario: servicio.regimen_tributario || "",
         compras_ventas_mensual_soles: servicio.compras_ventas_mensual_soles || "",
         compras_ventas_anual_soles: servicio.compras_ventas_anual_soles || "",
@@ -155,7 +163,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
     const precio_servicio = parseFloat(formData.precio_servicio) || 0;
 
     const dataToSave = {
-      grupo_servicio: formData.grupo_servicio.trim() || null,
+      tipo_servicio: formData.tipo_servicio.trim() || null,
       regimen_tributario: formData.regimen_tributario.trim() || null,
       compras_ventas_mensual_soles: formData.compras_ventas_mensual_soles.trim() || null,
       compras_ventas_anual_soles: formData.compras_ventas_anual_soles.trim() || null,
@@ -190,7 +198,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
     } else {
       // Create new
       const { error } = await supabase.from("servicios").insert({
-        tipo,
+        grupo_servicio: grupoServicio,
         ...dataToSave,
       });
 
@@ -255,27 +263,22 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
     fetchServicios();
   };
 
-  // Group by grupo_servicio
-  const serviciosByGrupo = servicios.reduce((acc, srv) => {
-    const grupo = srv.grupo_servicio || "Sin grupo";
-    if (!acc[grupo]) {
-      acc[grupo] = [];
-    }
-    acc[grupo].push(srv);
-    return acc;
-  }, {} as Record<string, Servicio[]>);
-
   return (
     <div className="bg-card rounded-xl border border-border p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-foreground">{titulo}</h3>
+        <div>
+          <h3 className="text-lg font-semibold text-foreground">{titulo}</h3>
+          <p className="text-sm text-muted-foreground">
+            {servicios.length} servicio{servicios.length !== 1 ? "s" : ""} registrado{servicios.length !== 1 ? "s" : ""}
+          </p>
+        </div>
         <Button
           onClick={() => handleOpenDialog()}
           className="gap-2"
           size="sm"
         >
           <Plus className="h-4 w-4" />
-          Agregar
+          Agregar Servicio
         </Button>
       </div>
 
@@ -283,56 +286,64 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
         <div className="text-center py-8 text-muted-foreground">Cargando...</div>
       ) : servicios.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          No hay servicios registrados
+          No hay servicios registrados en este grupo
         </div>
       ) : (
-        <div className="space-y-4 max-h-[400px] overflow-y-auto">
-          {Object.entries(serviciosByGrupo).map(([grupo, items]) => (
-            <div key={grupo}>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                {grupo}
-              </p>
-              <div className="space-y-2">
-                {items.map((srv) => (
-                  <div
-                    key={srv.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
-                      srv.activo ? "bg-muted/30 border-border" : "bg-muted/10 border-border/50 opacity-60"
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-sm font-medium text-foreground truncate">
-                          {srv.servicio}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-1 ml-6">
-                        {srv.regimen_tributario && (
-                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                            {srv.regimen_tributario}
-                          </span>
-                        )}
-                        {srv.entidad && (
-                          <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                            {srv.entidad}
-                          </span>
-                        )}
-                        {srv.tramite && (
-                          <span className="text-xs text-muted-foreground">
-                            {srv.tramite}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-sm font-semibold text-foreground">
-                        S/ {(srv.precio_servicio || 0).toFixed(2)}
+        <ScrollArea className="h-[500px]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">Estado</TableHead>
+                <TableHead>Descripción del Servicio</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Régimen</TableHead>
+                <TableHead>Entidad</TableHead>
+                <TableHead className="text-right">Precio</TableHead>
+                <TableHead className="text-right w-[120px]">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {servicios.map((srv) => (
+                <TableRow 
+                  key={srv.id} 
+                  className={!srv.activo ? "opacity-50" : ""}
+                >
+                  <TableCell>
+                    <Switch
+                      checked={srv.activo}
+                      onCheckedChange={() => handleToggleActivo(srv)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium max-w-[250px]">
+                    <span className="line-clamp-2">{srv.servicio}</span>
+                    {srv.tramite && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{srv.tramite}</p>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {srv.tipo_servicio && (
+                      <span className="text-sm">{srv.tipo_servicio}</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {srv.regimen_tributario && (
+                      <span className="text-xs bg-muted px-2 py-1 rounded">
+                        {srv.regimen_tributario}
                       </span>
-                      <Switch
-                        checked={srv.activo}
-                        onCheckedChange={() => handleToggleActivo(srv)}
-                      />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {srv.entidad && (
+                      <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded">
+                        {srv.entidad}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    S/ {(srv.precio_servicio || 0).toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -353,12 +364,12 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </ScrollArea>
       )}
 
       {/* Create/Edit Dialog */}
@@ -371,7 +382,7 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
             <DialogDescription>
               {editingServicio
                 ? "Modifica los datos del servicio"
-                : `Agrega un nuevo servicio de ${tipo === "contabilidad" ? "contabilidad" : tipo === "tramites" ? "trámites" : "auditoría y control interno"}`}
+                : `Agrega un nuevo servicio de ${grupoServicio}`}
             </DialogDescription>
           </DialogHeader>
 
@@ -379,13 +390,13 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="grupo_servicio">Grupo de Servicio</Label>
+                  <Label htmlFor="tipo_servicio">Tipo de Servicio</Label>
                   <Input
-                    id="grupo_servicio"
-                    placeholder="Ej: AUDITORÍAS"
-                    value={formData.grupo_servicio}
+                    id="tipo_servicio"
+                    placeholder="Ej: Mensual, Anual, Único"
+                    value={formData.tipo_servicio}
                     onChange={(e) =>
-                      setFormData({ ...formData, grupo_servicio: e.target.value })
+                      setFormData({ ...formData, tipo_servicio: e.target.value })
                     }
                   />
                 </div>
@@ -547,8 +558,8 @@ export const ServiciosManager = ({ tipo, titulo }: ServiciosManagerProps) => {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar servicio?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el
-              servicio "{deletingServicio?.servicio}".
+              Esta acción no se puede deshacer. Se eliminará permanentemente el servicio
+              "{deletingServicio?.servicio}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
