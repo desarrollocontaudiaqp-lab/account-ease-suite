@@ -115,8 +115,18 @@ const Clientes = () => {
     fetchClients();
   }, []);
 
+  const isPersonaNatural = (tipoCliente: string) => {
+    const normalized = tipoCliente.toLowerCase().replace(/\s+/g, '_');
+    return normalized === "persona_natural";
+  };
+
+  const isEmpresa = (tipoCliente: string) => {
+    const normalized = tipoCliente.toLowerCase();
+    return normalized === "empresa";
+  };
+
   const getClientName = (client: Client) => {
-    if (client.tipo_cliente === "persona_natural") {
+    if (isPersonaNatural(client.tipo_cliente)) {
       return client.nombre_persona_natural || client.razon_social;
     }
     return client.razon_social;
@@ -225,7 +235,18 @@ const Clientes = () => {
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
+          <div className="p-3 rounded-lg bg-slate-100">
+            <Building2 className="h-5 w-5 text-slate-700" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">
+              {clients.length}
+            </p>
+            <p className="text-sm text-muted-foreground">Total</p>
+          </div>
+        </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
           <div className="p-3 rounded-lg bg-green-100">
             <Building2 className="h-5 w-5 text-green-700" />
@@ -234,7 +255,18 @@ const Clientes = () => {
             <p className="text-2xl font-bold text-foreground">
               {clients.filter((c) => c.activo).length}
             </p>
-            <p className="text-sm text-muted-foreground">Clientes Activos</p>
+            <p className="text-sm text-muted-foreground">Activos</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
+          <div className="p-3 rounded-lg bg-gray-100">
+            <Building2 className="h-5 w-5 text-gray-500" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">
+              {clients.filter((c) => !c.activo).length}
+            </p>
+            <p className="text-sm text-muted-foreground">Inactivos</p>
           </div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
@@ -243,7 +275,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => c.tipo_cliente === "empresa").length}
+              {clients.filter((c) => isEmpresa(c.tipo_cliente)).length}
             </p>
             <p className="text-sm text-muted-foreground">Empresas</p>
           </div>
@@ -254,7 +286,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => c.tipo_cliente === "persona_natural").length}
+              {clients.filter((c) => isPersonaNatural(c.tipo_cliente)).length}
             </p>
             <p className="text-sm text-muted-foreground">Personas Naturales</p>
           </div>
@@ -279,12 +311,12 @@ const Clientes = () => {
                 <div className="flex items-center gap-3">
                   <div
                     className={`p-2 rounded-lg ${
-                      client.tipo_cliente === "empresa"
+                      isEmpresa(client.tipo_cliente)
                         ? "bg-primary/10"
                         : "bg-purple-100"
                     }`}
                   >
-                    {client.tipo_cliente === "empresa" ? (
+                    {isEmpresa(client.tipo_cliente) ? (
                       <Building2 className="h-5 w-5 text-primary" />
                     ) : (
                       <User className="h-5 w-5 text-purple-700" />
@@ -293,7 +325,7 @@ const Clientes = () => {
                   <div>
                     <p className="font-semibold text-foreground">{getClientName(client)}</p>
                     <p className="text-sm text-muted-foreground">
-                      {client.tipo_cliente === "empresa" ? "Empresa" : "Persona Natural"}
+                      {isEmpresa(client.tipo_cliente) ? "Empresa" : "Persona Natural"}
                     </p>
                   </div>
                 </div>
@@ -314,7 +346,7 @@ const Clientes = () => {
 
               <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
-                  <p className="text-muted-foreground">{client.tipo_cliente === "empresa" ? "RUC" : "DNI"}</p>
+                  <p className="text-muted-foreground">{isEmpresa(client.tipo_cliente) ? "RUC" : "DNI"}</p>
                   <p className="font-mono text-foreground">{client.codigo}</p>
                 </div>
               </div>
@@ -369,12 +401,12 @@ const Clientes = () => {
                       <div className="flex items-center gap-3">
                         <div
                           className={`p-2 rounded-lg ${
-                            client.tipo_cliente === "empresa"
+                            isEmpresa(client.tipo_cliente)
                               ? "bg-primary/10"
                               : "bg-purple-100"
                           }`}
                         >
-                          {client.tipo_cliente === "empresa" ? (
+                          {isEmpresa(client.tipo_cliente) ? (
                             <Building2 className="h-4 w-4 text-primary" />
                           ) : (
                             <User className="h-4 w-4 text-purple-700" />
@@ -385,7 +417,7 @@ const Clientes = () => {
                             {getClientName(client)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {client.tipo_cliente === "empresa" ? "Empresa" : "Persona Natural"}
+                            {isEmpresa(client.tipo_cliente) ? "Empresa" : "Persona Natural"}
                           </p>
                         </div>
                       </div>
