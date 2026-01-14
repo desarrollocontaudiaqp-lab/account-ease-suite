@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2, Copy, Eye, EyeOff, X, CalendarDays } from "lucide-react";
-import { CalendarProjectionModal } from "./CalendarProjectionModal";
+import { CalendarProjectionModal, ServiceProjection, PaymentScheduleItem } from "./CalendarProjectionModal";
 import {
   Dialog,
   DialogContent,
@@ -119,7 +119,8 @@ export function CreateProformaDialog({
   const [showClaveSol, setShowClaveSol] = useState(false);
   const [openAddCampoPopover, setOpenAddCampoPopover] = useState(false);
   const [showCalendarProjection, setShowCalendarProjection] = useState(false);
-  const [calendarProjection, setCalendarProjection] = useState<any[]>([]);
+  const [calendarProjection, setCalendarProjection] = useState<ServiceProjection[]>([]);
+  const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>([]);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -361,10 +362,12 @@ export function CreateProformaDialog({
     setNotas("");
     setFechaVencimiento("");
     setCalendarProjection([]);
+    setPaymentSchedule([]);
   };
 
-  const handleSaveCalendarProjection = (projection: any[]) => {
+  const handleSaveCalendarProjection = (projection: ServiceProjection[], schedule: PaymentScheduleItem[]) => {
     setCalendarProjection(projection);
+    setPaymentSchedule(schedule);
   };
 
   const filteredClientes = useMemo(() => {
