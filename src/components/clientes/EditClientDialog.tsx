@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
@@ -30,7 +35,6 @@ const clientSchema = z.object({
   tipo_cliente: z.string(),
   codigo: z.string().min(8, "El RUC/DNI debe tener al menos 8 caracteres"),
   razon_social: z.string().min(2, "La razón social es requerida"),
-  nombre_comercial: z.string().optional(),
   nombre_persona_natural: z.string().optional(),
   direccion: z.string().optional(),
   telefono: z.string().optional(),
@@ -57,7 +61,6 @@ interface Client {
   tipo_cliente: string;
   codigo: string;
   razon_social: string;
-  nombre_comercial: string | null;
   nombre_persona_natural: string | null;
   direccion: string | null;
   telefono: string | null;
@@ -91,6 +94,10 @@ export function EditClientDialog({
   onSuccess,
 }: EditClientDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [datosClienteOpen, setDatosClienteOpen] = useState(true);
+  const [contactoOpen, setContactoOpen] = useState(true);
+  const [tributarioOpen, setTributarioOpen] = useState(true);
+  
   const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
   const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
 
@@ -113,7 +120,6 @@ export function EditClientDialog({
         tipo_cliente: client.tipo_cliente,
         codigo: client.codigo,
         razon_social: client.razon_social,
-        nombre_comercial: client.nombre_comercial || "",
         nombre_persona_natural: client.nombre_persona_natural || "",
         direccion: client.direccion || "",
         telefono: client.telefono || "",
@@ -142,7 +148,6 @@ export function EditClientDialog({
     try {
       const updateData = {
         ...data,
-        nombre_comercial: data.nombre_comercial || null,
         nombre_persona_natural: data.nombre_persona_natural || null,
         direccion: data.direccion || null,
         telefono: data.telefono || null,
@@ -179,6 +184,28 @@ export function EditClientDialog({
     }
   };
 
+  const SectionHeader = ({ 
+    title, 
+    isOpen, 
+    onToggle 
+  }: { 
+    title: string; 
+    isOpen: boolean; 
+    onToggle: () => void;
+  }) => (
+    <CollapsibleTrigger 
+      onClick={onToggle}
+      className="flex items-center justify-between w-full p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+    >
+      <span className="font-medium text-sm">{title}</span>
+      {isOpen ? (
+        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+      ) : (
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      )}
+    </CollapsibleTrigger>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -189,7 +216,7 @@ export function EditClientDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Tipo de Cliente */}
           <div className="space-y-2">
             <Label>Tipo de Cliente</Label>
@@ -207,75 +234,142 @@ export function EditClientDialog({
             </Select>
           </div>
 
-          {/* Datos Principales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigo">
-                {tipoCliente === "empresa" ? "RUC" : "DNI"} *
-              </Label>
-              <Input
-                id="codigo"
-                {...register("codigo")}
-                maxLength={tipoCliente === "empresa" ? 11 : 8}
-              />
-              {errors.codigo && (
-                <p className="text-sm text-destructive">{errors.codigo.message}</p>
-              )}
-            </div>
+          {/* Sección: Datos del Cliente */}
+          <Collapsible open={datosClienteOpen} onOpenChange={setDatosClienteOpen}>
+            <SectionHeader 
+              title="Datos del Cliente" 
+              isOpen={datosClienteOpen} 
+              onToggle={() => setDatosClienteOpen(!datosClienteOpen)} 
+            />
+            <CollapsibleContent className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="codigo">
+                    {tipoCliente === "empresa" ? "RUC" : "DNI"} *
+                  </Label>
+                  <Input
+                    id="codigo"
+                    {...register("codigo")}
+                    maxLength={tipoCliente === "empresa" ? 11 : 8}
+                  />
+                  {errors.codigo && (
+                    <p className="text-sm text-destructive">{errors.codigo.message}</p>
+                  )}
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="razon_social">
-                {tipoCliente === "empresa" ? "Razón Social" : "Nombre Completo"} *
-              </Label>
-              <Input id="razon_social" {...register("razon_social")} />
-              {errors.razon_social && (
-                <p className="text-sm text-destructive">{errors.razon_social.message}</p>
-              )}
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="razon_social">
+                    {tipoCliente === "empresa" ? "Razón Social" : "Nombre Completo"} *
+                  </Label>
+                  <Input id="razon_social" {...register("razon_social")} />
+                  {errors.razon_social && (
+                    <p className="text-sm text-destructive">{errors.razon_social.message}</p>
+                  )}
+                </div>
 
-            {tipoCliente === "empresa" && (
-              <div className="space-y-2">
-                <Label htmlFor="nombre_comercial">Nombre Comercial</Label>
-                <Input id="nombre_comercial" {...register("nombre_comercial")} />
+                {tipoCliente === "persona_natural" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="nombre_persona_natural">Nombre de Persona Natural</Label>
+                    <Input id="nombre_persona_natural" {...register("nombre_persona_natural")} />
+                  </div>
+                )}
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="direccion">Dirección</Label>
+                  <Input id="direccion" {...register("direccion")} />
+                </div>
               </div>
-            )}
+            </CollapsibleContent>
+          </Collapsible>
 
-            {tipoCliente === "persona_natural" && (
-              <div className="space-y-2">
-                <Label htmlFor="nombre_persona_natural">Nombre de Persona Natural</Label>
-                <Input id="nombre_persona_natural" {...register("nombre_persona_natural")} />
+          {/* Sección: Contacto */}
+          <Collapsible open={contactoOpen} onOpenChange={setContactoOpen}>
+            <SectionHeader 
+              title="Contacto" 
+              isOpen={contactoOpen} 
+              onToggle={() => setContactoOpen(!contactoOpen)} 
+            />
+            <CollapsibleContent className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Input id="telefono" {...register("telefono")} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" {...register("email")} />
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email.message}</p>
+                  )}
+                </div>
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="direccion">Dirección</Label>
-              <Input id="direccion" {...register("direccion")} />
-            </div>
+              {tipoCliente === "empresa" && (
+                <>
+                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
+                    <Label className="text-sm font-medium">Persona de Contacto 1</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="contacto_nombre">Nombre</Label>
+                        <Input id="contacto_nombre" {...register("contacto_nombre")} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="contacto_telefono">Teléfono</Label>
+                        <Input id="contacto_telefono" {...register("contacto_telefono")} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="contacto_email">Email</Label>
+                        <Input id="contacto_email" type="email" {...register("contacto_email")} />
+                        {errors.contacto_email && (
+                          <p className="text-sm text-destructive">{errors.contacto_email.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="telefono">Teléfono</Label>
-              <Input id="telefono" {...register("telefono")} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" {...register("email")} />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
+                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
+                    <Label className="text-sm font-medium">Persona de Contacto 2</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="contacto_nombre2">Nombre</Label>
+                        <Input id="contacto_nombre2" {...register("contacto_nombre2")} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="contacto_telefono2">Teléfono</Label>
+                        <Input id="contacto_telefono2" {...register("contacto_telefono2")} />
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
-            </div>
+            </CollapsibleContent>
+          </Collapsible>
 
-            <div className="space-y-2">
-              <Label htmlFor="sector">Sector</Label>
-              <Input id="sector" {...register("sector")} />
-            </div>
-          </div>
-
-          {/* Datos Tributarios (solo empresa) */}
+          {/* Sección: Información Tributaria y Legal (solo empresa) */}
           {tipoCliente === "empresa" && (
-            <>
-              <div className="border-t pt-4">
-                <h3 className="font-medium mb-4">Datos Tributarios</h3>
+            <Collapsible open={tributarioOpen} onOpenChange={setTributarioOpen}>
+              <SectionHeader 
+                title="Información Tributaria y Legal" 
+                isOpen={tributarioOpen} 
+                onToggle={() => setTributarioOpen(!tributarioOpen)} 
+              />
+              <CollapsibleContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sector">Sector/Industria</Label>
+                  <Input id="sector" {...register("sector")} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="actividad_economica">Actividad Económica</Label>
+                  <Textarea 
+                    id="actividad_economica" 
+                    {...register("actividad_economica")} 
+                    rows={2}
+                    placeholder="Descripción de la actividad económica principal..."
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="regimen_tributario">Régimen Tributario</Label>
@@ -318,10 +412,17 @@ export function EditClientDialog({
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="usuario_sunat">Usuario SUNAT</Label>
+                    <Input id="usuario_sunat" {...register("usuario_sunat")} />
+                  </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="actividad_economica">Actividad Económica</Label>
-                    <Input id="actividad_economica" {...register("actividad_economica")} />
+                    <Label htmlFor="clave_sunat">Clave SUNAT</Label>
+                    <Input id="clave_sunat" type="password" {...register("clave_sunat")} />
                   </div>
 
                   <div className="space-y-2">
@@ -332,50 +433,10 @@ export function EditClientDialog({
                       {...register("nro_trabajadores")}
                     />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="usuario_sunat">Usuario SUNAT</Label>
-                    <Input id="usuario_sunat" {...register("usuario_sunat")} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="clave_sunat">Clave SUNAT</Label>
-                    <Input id="clave_sunat" type="password" {...register("clave_sunat")} />
-                  </div>
                 </div>
-              </div>
-            </>
+              </CollapsibleContent>
+            </Collapsible>
           )}
-
-          {/* Contactos */}
-          <div className="border-t pt-4">
-            <h3 className="font-medium mb-4">Contactos</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="contacto_nombre">Nombre Contacto 1</Label>
-                <Input id="contacto_nombre" {...register("contacto_nombre")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="contacto_telefono">Teléfono Contacto 1</Label>
-                <Input id="contacto_telefono" {...register("contacto_telefono")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="contacto_email">Email Contacto</Label>
-                <Input id="contacto_email" type="email" {...register("contacto_email")} />
-                {errors.contacto_email && (
-                  <p className="text-sm text-destructive">{errors.contacto_email.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="contacto_nombre2">Nombre Contacto 2</Label>
-                <Input id="contacto_nombre2" {...register("contacto_nombre2")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="contacto_telefono2">Teléfono Contacto 2</Label>
-                <Input id="contacto_telefono2" {...register("contacto_telefono2")} />
-              </div>
-            </div>
-          </div>
 
           {/* Notas */}
           <div className="space-y-2">

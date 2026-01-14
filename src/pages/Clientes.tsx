@@ -36,7 +36,6 @@ interface Client {
   tipo_cliente: string;
   codigo: string;
   razon_social: string;
-  nombre_comercial: string | null;
   nombre_persona_natural: string | null;
   direccion: string | null;
   telefono: string | null;
@@ -318,12 +317,6 @@ const Clientes = () => {
                   <p className="text-muted-foreground">{client.tipo_cliente === "empresa" ? "RUC" : "DNI"}</p>
                   <p className="font-mono text-foreground">{client.codigo}</p>
                 </div>
-                {client.nombre_comercial && (
-                  <div>
-                    <p className="text-muted-foreground">Nombre Comercial</p>
-                    <p className="font-medium text-foreground">{client.nombre_comercial}</p>
-                  </div>
-                )}
               </div>
 
               <div className="space-y-2 text-sm">

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Building2, User, Loader2 } from "lucide-react";
+import { Building2, User, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
@@ -38,17 +43,16 @@ const clientSchema = z.object({
   tipo_cliente: z.enum(["empresa", "persona_natural"]),
   codigo: z.string().min(8, "El código debe tener al menos 8 caracteres").max(11, "El código no puede tener más de 11 caracteres"),
   razon_social: z.string().optional(),
-  nombre_comercial: z.string().optional(),
   nombre_persona_natural: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   telefono: z.string().optional(),
   direccion: z.string().optional(),
-  sector: z.string().optional(),
   contacto_nombre: z.string().optional(),
   contacto_email: z.string().email("Email inválido").optional().or(z.literal("")),
   contacto_telefono: z.string().optional(),
   contacto_nombre2: z.string().optional(),
   contacto_telefono2: z.string().optional(),
+  sector: z.string().optional(),
   regimen_tributario: z.string().optional(),
   regimen_laboral: z.string().optional(),
   actividad_economica: z.string().optional(),
@@ -76,6 +80,10 @@ interface CreateClientDialogProps {
 
 export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClientDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [datosClienteOpen, setDatosClienteOpen] = useState(true);
+  const [contactoOpen, setContactoOpen] = useState(true);
+  const [tributarioOpen, setTributarioOpen] = useState(true);
+  
   const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
   const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
 
@@ -85,17 +93,16 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
       tipo_cliente: "empresa",
       codigo: "",
       razon_social: "",
-      nombre_comercial: "",
       nombre_persona_natural: "",
       email: "",
       telefono: "",
       direccion: "",
-      sector: "",
       contacto_nombre: "",
       contacto_email: "",
       contacto_telefono: "",
       contacto_nombre2: "",
       contacto_telefono2: "",
+      sector: "",
       regimen_tributario: "",
       regimen_laboral: "",
       actividad_economica: "",
@@ -115,7 +122,6 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
         tipo_cliente: data.tipo_cliente,
         codigo: data.codigo,
         razon_social: data.tipo_cliente === "empresa" ? data.razon_social! : data.nombre_persona_natural!,
-        nombre_comercial: data.tipo_cliente === "empresa" ? data.nombre_comercial : null,
         nombre_persona_natural: data.tipo_cliente === "persona_natural" ? data.nombre_persona_natural : null,
         email: data.email || null,
         telefono: data.telefono || null,
@@ -155,6 +161,28 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
     onOpenChange(false);
   };
 
+  const SectionHeader = ({ 
+    title, 
+    isOpen, 
+    onToggle 
+  }: { 
+    title: string; 
+    isOpen: boolean; 
+    onToggle: () => void;
+  }) => (
+    <CollapsibleTrigger 
+      onClick={onToggle}
+      className="flex items-center justify-between w-full p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+    >
+      <span className="font-medium text-sm">{title}</span>
+      {isOpen ? (
+        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+      ) : (
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      )}
+    </CollapsibleTrigger>
+  );
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -166,7 +194,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Tipo de Cliente Toggle */}
             <div className="space-y-3">
               <Label>Tipo de Cliente</Label>
@@ -212,299 +240,99 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
               </div>
             </div>
 
-            {/* Código (RUC/DNI) */}
-            <FormField
-              control={form.control}
-              name="codigo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {tipoCliente === "empresa" ? "RUC" : "DNI"} *
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={tipoCliente === "empresa" ? "20123456789" : "12345678"}
-                      maxLength={tipoCliente === "empresa" ? 11 : 8}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Campos condicionales según tipo */}
-            {tipoCliente === "empresa" ? (
-              <>
-                <FormField
-                  control={form.control}
-                  name="razon_social"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Razón Social *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Empresa ABC S.A.C." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="nombre_comercial"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre Comercial</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ABC" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            ) : (
-              <FormField
-                control={form.control}
-                name="nombre_persona_natural"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre Completo *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Juan Pérez García" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            {/* Sección: Datos del Cliente */}
+            <Collapsible open={datosClienteOpen} onOpenChange={setDatosClienteOpen}>
+              <SectionHeader 
+                title="Datos del Cliente" 
+                isOpen={datosClienteOpen} 
+                onToggle={() => setDatosClienteOpen(!datosClienteOpen)} 
               />
-            )}
-
-            {/* Datos de contacto */}
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="cliente@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="telefono"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono</FormLabel>
-                    <FormControl>
-                      <Input placeholder="054-123456" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="direccion"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Dirección</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Av. Principal 123, Arequipa" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="sector"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Sector/Industria</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Comercio, Servicios, etc." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Persona de contacto (solo para empresas) */}
-            {tipoCliente === "empresa" && (
-              <div className="space-y-4 p-4 rounded-lg bg-muted/50 border border-border">
-                <Label className="text-sm font-medium">Persona de Contacto 1</Label>
+              <CollapsibleContent className="space-y-4 pt-4">
+                {/* Código (RUC/DNI) */}
                 <FormField
                   control={form.control}
-                  name="contacto_nombre"
+                  name="codigo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nombre</FormLabel>
+                      <FormLabel>
+                        {tipoCliente === "empresa" ? "RUC" : "DNI"} *
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="María García" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="contacto_email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" placeholder="contacto@empresa.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contacto_telefono"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Teléfono</FormLabel>
-                        <FormControl>
-                          <Input placeholder="951-123456" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Persona de contacto 2 (solo para empresas) */}
-            {tipoCliente === "empresa" && (
-              <div className="space-y-4 p-4 rounded-lg bg-muted/50 border border-border">
-                <Label className="text-sm font-medium">Persona de Contacto 2</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="contacto_nombre2"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Juan Pérez" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="contacto_telefono2"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Teléfono</FormLabel>
-                        <FormControl>
-                          <Input placeholder="951-654321" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Información Tributaria y Laboral (solo para empresas) */}
-            {tipoCliente === "empresa" && (
-              <div className="space-y-4 p-4 rounded-lg bg-muted/50 border border-border">
-                <Label className="text-sm font-medium">Información Tributaria y Laboral</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="regimen_tributario"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Régimen Tributario</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar régimen" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {regimenesTributarios
-                              .filter((r) => r.activo)
-                              .map((regimen) => (
-                                <SelectItem key={regimen.id} value={regimen.nombre}>
-                                  {regimen.nombre}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="regimen_laboral"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Régimen Laboral</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar régimen" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {regimenesLaborales
-                              .filter((r) => r.activo)
-                              .map((regimen) => (
-                                <SelectItem key={regimen.id} value={regimen.nombre}>
-                                  {regimen.nombre}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="actividad_economica"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Actividad Económica</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Descripción de la actividad económica principal..."
-                          className="resize-none"
-                          rows={2}
-                          {...field} 
+                        <Input
+                          placeholder={tipoCliente === "empresa" ? "20123456789" : "12345678"}
+                          maxLength={tipoCliente === "empresa" ? 11 : 8}
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-3 gap-4">
+
+                {/* Campos condicionales según tipo */}
+                {tipoCliente === "empresa" ? (
                   <FormField
                     control={form.control}
-                    name="usuario_sunat"
+                    name="razon_social"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Usuario SUNAT</FormLabel>
+                        <FormLabel>Razón Social *</FormLabel>
                         <FormControl>
-                          <Input placeholder="USUARIO123" {...field} />
+                          <Input placeholder="Empresa ABC S.A.C." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="nombre_persona_natural"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre Completo *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Juan Pérez García" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="direccion"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dirección</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Av. Principal 123, Arequipa" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Sección: Contacto */}
+            <Collapsible open={contactoOpen} onOpenChange={setContactoOpen}>
+              <SectionHeader 
+                title="Contacto" 
+                isOpen={contactoOpen} 
+                onToggle={() => setContactoOpen(!contactoOpen)} 
+              />
+              <CollapsibleContent className="space-y-4 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="cliente@email.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -512,37 +340,249 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                   />
                   <FormField
                     control={form.control}
-                    name="clave_sunat"
+                    name="telefono"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Clave SUNAT</FormLabel>
+                        <FormLabel>Teléfono</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="••••••" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="nro_trabajadores"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nro. Trabajadores</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="10" 
-                            {...field}
-                            value={field.value ?? ""}
-                          />
+                          <Input placeholder="054-123456" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-              </div>
+
+                {/* Persona de contacto 1 (solo para empresas) */}
+                {tipoCliente === "empresa" && (
+                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
+                    <Label className="text-sm font-medium">Persona de Contacto 1</Label>
+                    <FormField
+                      control={form.control}
+                      name="contacto_nombre"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre</FormLabel>
+                          <FormControl>
+                            <Input placeholder="María García" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="contacto_email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input type="email" placeholder="contacto@empresa.com" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="contacto_telefono"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Teléfono</FormLabel>
+                            <FormControl>
+                              <Input placeholder="951-123456" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Persona de contacto 2 (solo para empresas) */}
+                {tipoCliente === "empresa" && (
+                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
+                    <Label className="text-sm font-medium">Persona de Contacto 2</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="contacto_nombre2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nombre</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Juan Pérez" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="contacto_telefono2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Teléfono</FormLabel>
+                            <FormControl>
+                              <Input placeholder="951-654321" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Sección: Información Tributaria y Legal (solo para empresas) */}
+            {tipoCliente === "empresa" && (
+              <Collapsible open={tributarioOpen} onOpenChange={setTributarioOpen}>
+                <SectionHeader 
+                  title="Información Tributaria y Legal" 
+                  isOpen={tributarioOpen} 
+                  onToggle={() => setTributarioOpen(!tributarioOpen)} 
+                />
+                <CollapsibleContent className="space-y-4 pt-4">
+                  <FormField
+                    control={form.control}
+                    name="sector"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sector/Industria</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Comercio, Servicios, etc." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="actividad_economica"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Actividad Económica</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Descripción de la actividad económica principal..."
+                            className="resize-none"
+                            rows={2}
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="regimen_tributario"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Régimen Tributario</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar régimen" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {regimenesTributarios
+                                .filter((r) => r.activo)
+                                .map((regimen) => (
+                                  <SelectItem key={regimen.id} value={regimen.nombre}>
+                                    {regimen.nombre}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="regimen_laboral"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Régimen Laboral</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar régimen" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {regimenesLaborales
+                                .filter((r) => r.activo)
+                                .map((regimen) => (
+                                  <SelectItem key={regimen.id} value={regimen.nombre}>
+                                    {regimen.nombre}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="usuario_sunat"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Usuario SUNAT</FormLabel>
+                          <FormControl>
+                            <Input placeholder="USUARIO123" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="clave_sunat"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Clave SUNAT</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="••••••" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="nro_trabajadores"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nro. Trabajadores</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="10" 
+                              {...field}
+                              value={field.value ?? ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             <FormField
