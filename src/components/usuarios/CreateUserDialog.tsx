@@ -48,7 +48,6 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
   const fetchPersonalWithoutUser = async () => {
     setLoadingPersonal(true);
     try {
-      // Get all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, email, dni, puesto')
@@ -56,7 +55,6 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
 
       if (profilesError) throw profilesError;
 
-      // Get all user_roles to identify which profiles have user accounts
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id');
@@ -64,8 +62,6 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
       if (rolesError) throw rolesError;
 
       const userIds = new Set(userRoles?.map(r => r.user_id) || []);
-
-      // Filter profiles that don't have user accounts
       const personalWithoutUser = (profiles || []).filter(p => !userIds.has(p.id));
       setPersonalList(personalWithoutUser);
     } catch (error) {
@@ -91,10 +87,8 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
     setEmailAlreadyRegistered(false);
     setError('');
     
-    // Check if email is already registered in auth
     setCheckingEmail(true);
     try {
-      // We can't directly check auth.users, but we can check user_roles
       const { data: existingUser } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -151,26 +145,31 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
     onOpenChange(open);
   };
 
+  const clearSelection = () => {
+    setSelectedPersonal(null);
+    setEmailAlreadyRegistered(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-w-[95vw]">
+      <DialogContent className="sm:max-w-[425px] max-w-[calc(100vw-2rem)]">
         <DialogHeader>
           <DialogTitle>Nuevo Usuario</DialogTitle>
           <DialogDescription>
             Selecciona un personal existente para crear su cuenta de acceso
           </DialogDescription>
         </DialogHeader>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Personal Search/Selection */}
           {!selectedPersonal ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>Buscar Personal</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar por nombre, email o DNI..."
+                  placeholder="Nombre, email o DNI..."
                   className="pl-9"
                   autoFocus
                 />
@@ -187,59 +186,47 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
                       key={personal.id}
                       type="button"
                       onClick={() => handleSelectPersonal(personal)}
-                      className="w-full px-3 py-2 text-left hover:bg-muted/50 transition-colors flex items-start gap-3 border-b last:border-b-0"
+                      className="w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors border-b last:border-b-0"
                     >
-                      <div className="p-1.5 rounded-full bg-primary/10 mt-0.5 shrink-0">
-                        <User className="h-3.5 w-3.5 text-primary" />
-                      </div>
-                      <div className="min-w-0 flex-1 overflow-hidden">
-                        <p className="font-medium text-sm truncate">
-                          {personal.full_name || 'Sin nombre'}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {personal.email}
-                        </p>
-                        {personal.puesto && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            {personal.puesto}
-                          </p>
-                        )}
-                      </div>
+                      <p className="font-medium text-sm">
+                        {personal.full_name || 'Sin nombre'}
+                      </p>
+                      <p className="text-xs text-muted-foreground break-all">
+                        {personal.email}
+                      </p>
                     </button>
                   ))}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  {searchQuery ? 'No se encontró personal' : 'No hay personal sin cuenta de usuario'}
+                  {searchQuery ? 'No se encontró personal' : 'No hay personal disponible'}
                 </p>
               )}
             </div>
           ) : (
-            <div className="space-y-2">
-              <Label>Personal Seleccionado</Label>
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <div className="p-2 rounded-full bg-primary/10 shrink-0">
-                  <User className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="font-medium truncate">{selectedPersonal.full_name || 'Sin nombre'}</p>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground overflow-hidden">
-                    <Mail className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{selectedPersonal.email}</span>
-                  </div>
-                </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Personal Seleccionado</Label>
                 <Button 
                   type="button" 
-                  variant="ghost" 
+                  variant="link" 
                   size="sm"
-                  onClick={() => {
-                    setSelectedPersonal(null);
-                    setEmailAlreadyRegistered(false);
-                  }}
-                  className="shrink-0"
+                  onClick={clearSelection}
+                  className="h-auto p-0 text-xs"
                 >
                   Cambiar
                 </Button>
+              </div>
+              
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <User className="h-4 w-4 text-primary shrink-0" />
+                  <p className="font-medium text-sm">{selectedPersonal.full_name || 'Sin nombre'}</p>
+                </div>
+                <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <Mail className="h-3 w-3 mt-0.5 shrink-0" />
+                  <span className="break-all leading-relaxed">{selectedPersonal.email}</span>
+                </div>
               </div>
               
               {checkingEmail && (
@@ -250,9 +237,9 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
               )}
               
               {emailAlreadyRegistered && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="py-2">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
+                  <AlertDescription className="text-xs">
                     Este personal ya tiene una cuenta de usuario activa.
                   </AlertDescription>
                 </Alert>
@@ -268,7 +255,6 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Mínimo 6 caracteres"
-              className="input-focus"
               required
               disabled={emailAlreadyRegistered}
             />
@@ -281,7 +267,7 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
               onValueChange={(value) => setRole(value as AppRole)}
               disabled={emailAlreadyRegistered}
             >
-              <SelectTrigger className="input-focus w-full">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -296,13 +282,18 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
           
           {error && <p className="text-sm text-destructive">{error}</p>}
           
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => handleClose(false)}>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 pt-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => handleClose(false)}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
             <Button 
               type="submit" 
-              className="btn-gradient" 
+              className="btn-gradient w-full sm:w-auto" 
               disabled={loading || !selectedPersonal || emailAlreadyRegistered}
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
