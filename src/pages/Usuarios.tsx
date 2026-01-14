@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Shield, Settings, Plus, Loader2, UserPlus, Briefcase } from 'lucide-react';
+import { Users, Shield, Settings, Plus, Loader2, UserPlus, Briefcase, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -17,6 +17,7 @@ import PersonalTable, { PersonalProfile } from '@/components/usuarios/PersonalTa
 import CreatePersonalDialog from '@/components/usuarios/CreatePersonalDialog';
 import EditPersonalDialog from '@/components/usuarios/EditPersonalDialog';
 import DeletePersonalDialog from '@/components/usuarios/DeletePersonalDialog';
+import ImportPersonalDialog from '@/components/usuarios/ImportPersonalDialog';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -67,6 +68,7 @@ const Usuarios = () => {
   const [createPersonalDialogOpen, setCreatePersonalDialogOpen] = useState(false);
   const [editPersonalDialogOpen, setEditPersonalDialogOpen] = useState(false);
   const [deletePersonalDialogOpen, setDeletePersonalDialogOpen] = useState(false);
+  const [importPersonalDialogOpen, setImportPersonalDialogOpen] = useState(false);
   const [selectedPersonal, setSelectedPersonal] = useState<PersonalProfile | null>(null);
 
   const getRoleLabel = (role: AppRole) => {
@@ -409,10 +411,16 @@ const Usuarios = () => {
               Nuevo Usuario
             </Button>
           ) : (
-            <Button className="btn-gradient gap-2" onClick={() => setCreatePersonalDialogOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Nuevo Personal
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="gap-2" onClick={() => setImportPersonalDialogOpen(true)}>
+                <Upload className="h-4 w-4" />
+                Importar Personal
+              </Button>
+              <Button className="btn-gradient gap-2" onClick={() => setCreatePersonalDialogOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Nuevo Personal
+              </Button>
+            </div>
           )}
         </div>
 
@@ -578,6 +586,12 @@ const Usuarios = () => {
         hasUser={selectedPersonal?.has_user || false}
         onConfirm={handleDeletePersonal}
         loading={actionLoading}
+      />
+
+      <ImportPersonalDialog
+        open={importPersonalDialogOpen}
+        onOpenChange={setImportPersonalDialogOpen}
+        onImportComplete={fetchData}
       />
     </div>
   );
