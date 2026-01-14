@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Search, User, Mail } from 'lucide-react';
+import { Loader2, Search, User, Mail, AlertTriangle } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 import { useRolePermisos } from '@/hooks/useRolePermisos';
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -35,6 +36,8 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
   const [role, setRole] = useState<AppRole>('asesor');
   const [error, setError] = useState('');
   const [loadingPersonal, setLoadingPersonal] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [emailAlreadyRegistered, setEmailAlreadyRegistered] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -73,18 +76,39 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
   };
 
   const filteredPersonal = useMemo(() => {
-    if (!searchQuery.trim()) return personalList;
+    if (!searchQuery.trim()) return personalList.slice(0, 10);
     const query = searchQuery.toLowerCase();
     return personalList.filter(p => 
       p.full_name?.toLowerCase().includes(query) ||
       p.email.toLowerCase().includes(query) ||
       p.dni?.toLowerCase().includes(query)
-    );
+    ).slice(0, 10);
   }, [personalList, searchQuery]);
 
-  const handleSelectPersonal = (personal: PersonalWithoutUser) => {
+  const handleSelectPersonal = async (personal: PersonalWithoutUser) => {
     setSelectedPersonal(personal);
     setSearchQuery('');
+    setEmailAlreadyRegistered(false);
+    setError('');
+    
+    // Check if email is already registered in auth
+    setCheckingEmail(true);
+    try {
+      // We can't directly check auth.users, but we can check user_roles
+      const { data: existingUser } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('user_id', personal.id)
+        .maybeSingle();
+
+      if (existingUser) {
+        setEmailAlreadyRegistered(true);
+      }
+    } catch (error) {
+      console.error('Error checking email:', error);
+    } finally {
+      setCheckingEmail(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,6 +117,11 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
 
     if (!selectedPersonal) {
       setError('Debe seleccionar un personal');
+      return;
+    }
+
+    if (emailAlreadyRegistered) {
+      setError('Este personal ya tiene una cuenta de usuario');
       return;
     }
 
@@ -117,13 +146,14 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
       setPassword('');
       setRole('asesor');
       setError('');
+      setEmailAlreadyRegistered(false);
     }
     onOpenChange(open);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-w-[95vw]">
         <DialogHeader>
           <DialogTitle>Nuevo Usuario</DialogTitle>
           <DialogDescription>
@@ -142,6 +172,7 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar por nombre, email o DNI..."
                   className="pl-9"
+                  autoFocus
                 />
               </div>
               
@@ -158,10 +189,10 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
                       onClick={() => handleSelectPersonal(personal)}
                       className="w-full px-3 py-2 text-left hover:bg-muted/50 transition-colors flex items-start gap-3 border-b last:border-b-0"
                     >
-                      <div className="p-1.5 rounded-full bg-primary/10 mt-0.5">
+                      <div className="p-1.5 rounded-full bg-primary/10 mt-0.5 shrink-0">
                         <User className="h-3.5 w-3.5 text-primary" />
                       </div>
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 overflow-hidden">
                         <p className="font-medium text-sm truncate">
                           {personal.full_name || 'Sin nombre'}
                         </p>
@@ -169,7 +200,7 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
                           {personal.email}
                         </p>
                         {personal.puesto && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground truncate">
                             {personal.puesto}
                           </p>
                         )}
@@ -187,13 +218,13 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
             <div className="space-y-2">
               <Label>Personal Seleccionado</Label>
               <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <div className="p-2 rounded-full bg-primary/10">
+                <div className="p-2 rounded-full bg-primary/10 shrink-0">
                   <User className="h-4 w-4 text-primary" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 overflow-hidden">
                   <p className="font-medium truncate">{selectedPersonal.full_name || 'Sin nombre'}</p>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Mail className="h-3 w-3" />
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground overflow-hidden">
+                    <Mail className="h-3 w-3 shrink-0" />
                     <span className="truncate">{selectedPersonal.email}</span>
                   </div>
                 </div>
@@ -201,11 +232,31 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
                   type="button" 
                   variant="ghost" 
                   size="sm"
-                  onClick={() => setSelectedPersonal(null)}
+                  onClick={() => {
+                    setSelectedPersonal(null);
+                    setEmailAlreadyRegistered(false);
+                  }}
+                  className="shrink-0"
                 >
                   Cambiar
                 </Button>
               </div>
+              
+              {checkingEmail && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Verificando...
+                </div>
+              )}
+              
+              {emailAlreadyRegistered && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Este personal ya tiene una cuenta de usuario activa.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
 
@@ -216,16 +267,21 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Mínimo 6 caracteres"
               className="input-focus"
               required
+              disabled={emailAlreadyRegistered}
             />
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="create-role">Rol</Label>
-            <Select value={role} onValueChange={(value) => setRole(value as AppRole)}>
-              <SelectTrigger className="input-focus">
+            <Select 
+              value={role} 
+              onValueChange={(value) => setRole(value as AppRole)}
+              disabled={emailAlreadyRegistered}
+            >
+              <SelectTrigger className="input-focus w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -240,14 +296,14 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
           
           {error && <p className="text-sm text-destructive">{error}</p>}
           
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => handleClose(false)}>
               Cancelar
             </Button>
             <Button 
               type="submit" 
               className="btn-gradient" 
-              disabled={loading || !selectedPersonal}
+              disabled={loading || !selectedPersonal || emailAlreadyRegistered}
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Crear Usuario
