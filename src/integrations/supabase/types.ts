@@ -221,6 +221,13 @@ export type Database = {
             referencedRelation: "carteras"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "cartera_miembros_profile_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       carteras: {
