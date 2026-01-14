@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, differenceInDays, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isWithinInterval, parseISO } from "date-fns";
+import { format, differenceInDays, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, List, Grid3X3, CalendarDays, CalendarRange } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -27,7 +26,15 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ProformaItem {
   descripcion: string;
@@ -36,7 +43,7 @@ interface ProformaItem {
   subtotal: number;
 }
 
-interface ServiceProjection {
+export interface ServiceProjection {
   id: string;
   descripcion: string;
   color: string;
@@ -45,7 +52,7 @@ interface ServiceProjection {
   dias: number;
   meses: number;
   anos: number;
-  fechaPago: number; // Día del mes
+  fechaPago: number;
   cicloPago: "unico" | "mensual" | "anual";
   nroCuotas: number;
   documentoPagoId: string;
@@ -54,11 +61,22 @@ interface ServiceProjection {
   total: number;
 }
 
+export interface PaymentScheduleItem {
+  cuota: number;
+  fecha: Date;
+  servicio: string;
+  servicioId: string;
+  color: string;
+  monto: number;
+  documentoPago: string;
+  metodoPago: string;
+}
+
 interface CalendarProjectionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   items: ProformaItem[];
-  onSave: (projection: ServiceProjection[]) => void;
+  onSave: (projection: ServiceProjection[], schedule: PaymentScheduleItem[]) => void;
   initialProjection?: ServiceProjection[];
 }
 
@@ -87,6 +105,8 @@ const SERVICE_COLORS = [
   "bg-teal-500",
 ];
 
+type CalendarViewType = "month" | "quarter" | "year" | "summary";
+
 export function CalendarProjectionModal({
   open,
   onOpenChange,
@@ -96,6 +116,7 @@ export function CalendarProjectionModal({
 }: CalendarProjectionModalProps) {
   const [projections, setProjections] = useState<ServiceProjection[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarView, setCalendarView] = useState<CalendarViewType>("month");
 
   const { data: documentosPago = [] } = useQuery({
     queryKey: ["documentos_pago_activos"],
@@ -123,7 +144,6 @@ export function CalendarProjectionModal({
     },
   });
 
-  // Initialize projections from items
   useEffect(() => {
     if (open && items.length > 0) {
       if (initialProjection && initialProjection.length > 0) {
@@ -173,7 +193,6 @@ export function CalendarProjectionModal({
       const newProjections = [...prev];
       newProjections[index] = { ...newProjections[index], [field]: value };
 
-      // Recalculate days, months, years
       if (field === "fechaInicio" || field === "fechaTermino") {
         const { dias, meses, anos } = calculateDaysMonthsYears(
           newProjections[index].fechaInicio,
@@ -183,7 +202,6 @@ export function CalendarProjectionModal({
         newProjections[index].meses = meses;
         newProjections[index].anos = anos;
 
-        // Recalculate cuotas based on cycle
         if (newProjections[index].cicloPago === "mensual") {
           newProjections[index].nroCuotas = Math.max(1, Math.ceil(meses));
         } else if (newProjections[index].cicloPago === "anual") {
@@ -192,11 +210,9 @@ export function CalendarProjectionModal({
           newProjections[index].nroCuotas = 1;
         }
 
-        // Recalculate total based on pago and cuotas
         newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
       }
 
-      // Recalculate cuotas when cycle changes
       if (field === "cicloPago") {
         const { meses, anos } = newProjections[index];
         if (value === "mensual") {
@@ -209,7 +225,6 @@ export function CalendarProjectionModal({
         newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
       }
 
-      // Recalculate total when cuotas or pago changes
       if (field === "nroCuotas" || field === "pago") {
         newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
       }
@@ -218,42 +233,43 @@ export function CalendarProjectionModal({
     });
   };
 
-  // Generate payment schedule for calendar
+  // Generate payment schedule with cuota numbers
   const paymentSchedule = useMemo(() => {
-    const schedule: { date: Date; services: { id: string; descripcion: string; color: string; pago: number }[] }[] = [];
+    const schedule: PaymentScheduleItem[] = [];
 
     projections.forEach((proj) => {
       if (!proj.fechaInicio || !proj.fechaTermino) return;
 
+      const docPago = documentosPago.find(d => d.id === proj.documentoPagoId)?.nombre || "";
+      const metPago = metodosPago.find(m => m.id === proj.metodoPagoId)?.nombre || "";
+
       if (proj.cicloPago === "unico") {
-        const existingDate = schedule.find(
-          (s) => format(s.date, "yyyy-MM-dd") === format(proj.fechaInicio!, "yyyy-MM-dd")
-        );
-        if (existingDate) {
-          existingDate.services.push({ id: proj.id, descripcion: proj.descripcion, color: proj.color, pago: proj.pago });
-        } else {
-          schedule.push({
-            date: proj.fechaInicio,
-            services: [{ id: proj.id, descripcion: proj.descripcion, color: proj.color, pago: proj.pago }],
-          });
-        }
+        schedule.push({
+          cuota: 1,
+          fecha: proj.fechaInicio,
+          servicio: proj.descripcion,
+          servicioId: proj.id,
+          color: proj.color,
+          monto: proj.pago,
+          documentoPago: docPago,
+          metodoPago: metPago,
+        });
       } else if (proj.cicloPago === "mensual") {
         let currentDate = new Date(proj.fechaInicio);
         currentDate.setDate(proj.fechaPago);
         for (let i = 0; i < proj.nroCuotas; i++) {
           const paymentDate = addMonths(currentDate, i);
           if (paymentDate <= proj.fechaTermino) {
-            const existingDate = schedule.find(
-              (s) => format(s.date, "yyyy-MM-dd") === format(paymentDate, "yyyy-MM-dd")
-            );
-            if (existingDate) {
-              existingDate.services.push({ id: proj.id, descripcion: proj.descripcion, color: proj.color, pago: proj.pago });
-            } else {
-              schedule.push({
-                date: paymentDate,
-                services: [{ id: proj.id, descripcion: proj.descripcion, color: proj.color, pago: proj.pago }],
-              });
-            }
+            schedule.push({
+              cuota: i + 1,
+              fecha: paymentDate,
+              servicio: proj.descripcion,
+              servicioId: proj.id,
+              color: proj.color,
+              monto: proj.pago,
+              documentoPago: docPago,
+              metodoPago: metPago,
+            });
           }
         }
       } else if (proj.cicloPago === "anual") {
@@ -262,44 +278,174 @@ export function CalendarProjectionModal({
         for (let i = 0; i < proj.nroCuotas; i++) {
           const paymentDate = addMonths(currentDate, i * 12);
           if (paymentDate <= proj.fechaTermino) {
-            const existingDate = schedule.find(
-              (s) => format(s.date, "yyyy-MM-dd") === format(paymentDate, "yyyy-MM-dd")
-            );
-            if (existingDate) {
-              existingDate.services.push({ id: proj.id, descripcion: proj.descripcion, color: proj.color, pago: proj.pago });
-            } else {
-              schedule.push({
-                date: paymentDate,
-                services: [{ id: proj.id, descripcion: proj.descripcion, color: proj.color, pago: proj.pago }],
-              });
-            }
+            schedule.push({
+              cuota: i + 1,
+              fecha: paymentDate,
+              servicio: proj.descripcion,
+              servicioId: proj.id,
+              color: proj.color,
+              monto: proj.pago,
+              documentoPago: docPago,
+              metodoPago: metPago,
+            });
           }
         }
       }
     });
 
-    return schedule.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [projections]);
+    return schedule.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+  }, [projections, documentosPago, metodosPago]);
 
-  // Calendar days for the current month
-  const calendarDays = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
-  }, [currentMonth]);
+  // Group payments by date for calendar
+  const paymentsByDate = useMemo(() => {
+    const grouped: { [key: string]: PaymentScheduleItem[] } = {};
+    paymentSchedule.forEach((item) => {
+      const key = format(item.fecha, "yyyy-MM-dd");
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(item);
+    });
+    return grouped;
+  }, [paymentSchedule]);
 
-  const getPaymentsForDay = (day: Date) => {
-    return paymentSchedule.find(
-      (p) => format(p.date, "yyyy-MM-dd") === format(day, "yyyy-MM-dd")
-    );
+  const getMonthsToDisplay = () => {
+    switch (calendarView) {
+      case "quarter":
+        return [currentMonth, addMonths(currentMonth, 1), addMonths(currentMonth, 2)];
+      case "year":
+        return Array.from({ length: 12 }, (_, i) => addMonths(startOfMonth(new Date(currentMonth.getFullYear(), 0, 1)), i));
+      default:
+        return [currentMonth];
+    }
   };
 
   const handleSave = () => {
-    onSave(projections);
+    onSave(projections, paymentSchedule);
     onOpenChange(false);
   };
 
   const totalGeneral = projections.reduce((sum, p) => sum + p.total, 0);
+
+  const renderMonthCalendar = (month: Date, compact: boolean = false) => {
+    const days = eachDayOfInterval({
+      start: startOfMonth(month),
+      end: endOfMonth(month),
+    });
+
+    return (
+      <div className={cn("border rounded-lg overflow-hidden", compact ? "text-[10px]" : "")}>
+        <div className="bg-muted/30 p-2 text-center font-semibold capitalize border-b">
+          {format(month, "MMMM yyyy", { locale: es })}
+        </div>
+        <div className="p-1">
+          <div className={cn("grid grid-cols-7 gap-0.5 text-center font-medium text-muted-foreground mb-1", compact ? "text-[9px]" : "text-xs")}>
+            <div>D</div>
+            <div>L</div>
+            <div>M</div>
+            <div>M</div>
+            <div>J</div>
+            <div>V</div>
+            <div>S</div>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {Array.from({ length: days[0]?.getDay() || 0 }).map((_, i) => (
+              <div key={`empty-${i}`} className={cn(compact ? "h-6" : "min-h-[60px]")} />
+            ))}
+            {days.map((day) => {
+              const key = format(day, "yyyy-MM-dd");
+              const payments = paymentsByDate[key];
+              const isToday = key === format(new Date(), "yyyy-MM-dd");
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={cn(
+                    "border rounded p-0.5",
+                    compact ? "h-6" : "min-h-[60px]",
+                    isToday && "bg-primary/10 border-primary",
+                    !isSameMonth(day, month) && "opacity-50"
+                  )}
+                >
+                  <div className={cn("font-medium", isToday && "text-primary", compact ? "text-[9px]" : "text-xs")}>
+                    {format(day, "d")}
+                  </div>
+                  {payments && !compact && (
+                    <div className="space-y-0.5 mt-0.5">
+                      {payments.map((p, idx) => (
+                        <div
+                          key={`${p.servicioId}-${idx}`}
+                          className={cn("text-white px-0.5 rounded text-[9px] truncate", p.color)}
+                          title={`${p.servicio} - Cuota ${p.cuota}: S/ ${p.monto.toFixed(2)}`}
+                        >
+                          C{p.cuota}: S/{p.monto.toFixed(0)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {payments && compact && (
+                    <div className="flex gap-0.5 flex-wrap">
+                      {payments.map((p, idx) => (
+                        <div
+                          key={`${p.servicioId}-${idx}`}
+                          className={cn("w-1.5 h-1.5 rounded-full", p.color)}
+                          title={`${p.servicio} - Cuota ${p.cuota}: S/ ${p.monto.toFixed(2)}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSummaryTable = () => (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="overflow-auto max-h-[300px]">
+        <Table>
+          <TableHeader className="sticky top-0 bg-background">
+            <TableRow>
+              <TableHead className="w-[60px]">Cuota</TableHead>
+              <TableHead className="w-[120px]">Fecha Pago</TableHead>
+              <TableHead>Servicio</TableHead>
+              <TableHead className="w-[120px]">Doc. Pago</TableHead>
+              <TableHead className="w-[100px]">Método</TableHead>
+              <TableHead className="w-[100px] text-right">Monto</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paymentSchedule.map((item, idx) => (
+              <TableRow key={`${item.servicioId}-${item.cuota}-${idx}`}>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <div className={cn("w-2.5 h-2.5 rounded-full", item.color)} />
+                    {item.cuota}
+                  </div>
+                </TableCell>
+                <TableCell>{format(item.fecha, "dd/MM/yyyy")}</TableCell>
+                <TableCell className="max-w-[200px] truncate" title={item.servicio}>
+                  {item.servicio}
+                </TableCell>
+                <TableCell>{item.documentoPago}</TableCell>
+                <TableCell>{item.metodoPago}</TableCell>
+                <TableCell className="text-right font-medium">S/ {item.monto.toFixed(2)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="border-t bg-muted/30 p-3 flex justify-between items-center">
+        <span className="text-sm text-muted-foreground">
+          Total de cuotas: {paymentSchedule.length}
+        </span>
+        <span className="font-bold">
+          Total: S/ {paymentSchedule.reduce((sum, p) => sum + p.monto, 0).toFixed(2)}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -314,7 +460,7 @@ export function CalendarProjectionModal({
         <div className="flex-1 overflow-hidden flex flex-col gap-4">
           {/* Services Table */}
           <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto overflow-y-auto max-h-[35vh]">
+            <div className="overflow-x-auto overflow-y-auto max-h-[30vh]">
               <table className="w-full min-w-[1400px] text-sm">
                 <thead className="bg-muted/50 sticky top-0">
                   <tr>
@@ -492,94 +638,88 @@ export function CalendarProjectionModal({
             </div>
           </div>
 
-          {/* Calendar View */}
+          {/* Calendar View with Tabs */}
           <div className="border rounded-lg flex-1 overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-3 border-b bg-muted/30">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setCurrentMonth(addMonths(currentMonth, -1))}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <h3 className="font-semibold capitalize">
-                {format(currentMonth, "MMMM yyyy", { locale: es })}
-              </h3>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {calendarView !== "summary" && calendarView !== "year" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCurrentMonth(addMonths(currentMonth, calendarView === "quarter" ? -3 : -1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="font-semibold capitalize min-w-[150px] text-center">
+                      {format(currentMonth, "MMMM yyyy", { locale: es })}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCurrentMonth(addMonths(currentMonth, calendarView === "quarter" ? 3 : 1))}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+              
+              <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as CalendarViewType)}>
+                <TabsList>
+                  <TabsTrigger value="month" className="gap-1">
+                    <CalendarDays className="h-4 w-4" />
+                    Mes
+                  </TabsTrigger>
+                  <TabsTrigger value="quarter" className="gap-1">
+                    <Grid3X3 className="h-4 w-4" />
+                    3 Meses
+                  </TabsTrigger>
+                  <TabsTrigger value="year" className="gap-1">
+                    <CalendarRange className="h-4 w-4" />
+                    Anual
+                  </TabsTrigger>
+                  <TabsTrigger value="summary" className="gap-1">
+                    <List className="h-4 w-4" />
+                    Resumen
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
 
             <div className="flex-1 overflow-auto p-3">
-              <div className="grid grid-cols-7 gap-1 text-center text-sm font-medium text-muted-foreground mb-2">
-                <div>Dom</div>
-                <div>Lun</div>
-                <div>Mar</div>
-                <div>Mié</div>
-                <div>Jue</div>
-                <div>Vie</div>
-                <div>Sáb</div>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1">
-                {/* Empty cells for days before the first of the month */}
-                {Array.from({ length: calendarDays[0]?.getDay() || 0 }).map((_, i) => (
-                  <div key={`empty-${i}`} className="min-h-[80px]" />
-                ))}
-
-                {calendarDays.map((day) => {
-                  const payments = getPaymentsForDay(day);
-                  const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-
-                  return (
-                    <div
-                      key={day.toISOString()}
-                      className={cn(
-                        "min-h-[80px] border rounded-md p-1 text-xs",
-                        isToday && "bg-primary/10 border-primary",
-                        !isSameMonth(day, currentMonth) && "opacity-50"
-                      )}
-                    >
-                      <div className={cn("font-medium mb-1", isToday && "text-primary")}>
-                        {format(day, "d")}
-                      </div>
-                      {payments && (
-                        <div className="space-y-0.5">
-                          {payments.services.map((service, idx) => (
-                            <div
-                              key={`${service.id}-${idx}`}
-                              className={cn(
-                                "text-white px-1 py-0.5 rounded text-[10px] truncate",
-                                service.color
-                              )}
-                              title={`${service.descripcion}: S/ ${service.pago.toFixed(2)}`}
-                            >
-                              S/ {service.pago.toFixed(0)}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              {calendarView === "summary" ? (
+                renderSummaryTable()
+              ) : calendarView === "year" ? (
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                  {getMonthsToDisplay().map((month, idx) => (
+                    <div key={idx}>{renderMonthCalendar(month, true)}</div>
+                  ))}
+                </div>
+              ) : calendarView === "quarter" ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {getMonthsToDisplay().map((month, idx) => (
+                    <div key={idx}>{renderMonthCalendar(month, false)}</div>
+                  ))}
+                </div>
+              ) : (
+                renderMonthCalendar(currentMonth, false)
+              )}
             </div>
 
             {/* Legend */}
-            <div className="border-t p-3 bg-muted/20">
-              <div className="flex flex-wrap gap-3">
-                {projections.map((proj) => (
-                  <div key={proj.id} className="flex items-center gap-1.5 text-xs">
-                    <div className={cn("w-3 h-3 rounded-full", proj.color)} />
-                    <span className="truncate max-w-[150px]">{proj.descripcion}</span>
-                  </div>
-                ))}
+            {calendarView !== "summary" && (
+              <div className="border-t p-3 bg-muted/20">
+                <div className="flex flex-wrap gap-3">
+                  {projections.map((proj) => (
+                    <div key={proj.id} className="flex items-center gap-1.5 text-xs">
+                      <div className={cn("w-3 h-3 rounded-full", proj.color)} />
+                      <span className="truncate max-w-[150px]">{proj.descripcion}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
