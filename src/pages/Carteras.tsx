@@ -118,10 +118,9 @@ const especialidadStyles: Record<string, string> = {
 };
 
 const rolStyles: Record<string, string> = {
-  responsable: "bg-green-100 text-green-800",
-  asesor: "bg-blue-100 text-blue-800",
-  auxiliar: "bg-orange-100 text-orange-800",
-  miembro: "bg-gray-100 text-gray-800",
+  asistente: "bg-green-100 text-green-800",
+  auxiliar: "bg-blue-100 text-blue-800",
+  practicante: "bg-orange-100 text-orange-800",
 };
 
 const Carteras = () => {
@@ -161,7 +160,7 @@ const Carteras = () => {
 
   const [memberForm, setMemberForm] = useState({
     user_id: "",
-    rol_en_cartera: "miembro",
+    rol_en_cartera: "asistente",
   });
 
   const [personalForm, setPersonalForm] = useState({
@@ -354,7 +353,7 @@ const Carteras = () => {
     } else {
       toast.success("Miembro agregado correctamente");
       setAddMemberDialogOpen(false);
-      setMemberForm({ user_id: "", rol_en_cartera: "miembro" });
+      setMemberForm({ user_id: "", rol_en_cartera: "asistente" });
       fetchCarteras();
     }
 
@@ -455,7 +454,7 @@ const Carteras = () => {
 
   const openAddMemberDialog = (cartera: Cartera) => {
     setSelectedCartera(cartera);
-    setMemberForm({ user_id: "", rol_en_cartera: "miembro" });
+    setMemberForm({ user_id: "", rol_en_cartera: "asistente" });
     setAddMemberDialogOpen(true);
   };
 
@@ -978,10 +977,9 @@ const Carteras = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="responsable">Responsable</SelectItem>
-                  <SelectItem value="asesor">Asesor</SelectItem>
+                  <SelectItem value="asistente">Asistente</SelectItem>
                   <SelectItem value="auxiliar">Auxiliar</SelectItem>
-                  <SelectItem value="miembro">Miembro</SelectItem>
+                  <SelectItem value="practicante">Practicante</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1198,10 +1196,9 @@ const Carteras = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="responsable">Responsable</SelectItem>
-                  <SelectItem value="asesor">Asesor</SelectItem>
+                  <SelectItem value="asistente">Asistente</SelectItem>
                   <SelectItem value="auxiliar">Auxiliar</SelectItem>
-                  <SelectItem value="miembro">Miembro</SelectItem>
+                  <SelectItem value="practicante">Practicante</SelectItem>
                 </SelectContent>
               </Select>
             </div>
