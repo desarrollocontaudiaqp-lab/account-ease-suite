@@ -272,7 +272,6 @@ export type Database = {
           direccion: string | null
           email: string | null
           id: string
-          nombre_comercial: string | null
           nombre_persona_natural: string | null
           notas: string | null
           nro_trabajadores: number | null
@@ -300,7 +299,6 @@ export type Database = {
           direccion?: string | null
           email?: string | null
           id?: string
-          nombre_comercial?: string | null
           nombre_persona_natural?: string | null
           notas?: string | null
           nro_trabajadores?: number | null
@@ -328,7 +326,6 @@ export type Database = {
           direccion?: string | null
           email?: string | null
           id?: string
-          nombre_comercial?: string | null
           nombre_persona_natural?: string | null
           notas?: string | null
           nro_trabajadores?: number | null

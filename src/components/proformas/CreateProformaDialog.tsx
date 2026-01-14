@@ -67,7 +67,6 @@ interface Cliente {
   telefono: string | null;
   tipo_cliente: string;
   nombre_persona_natural: string | null;
-  nombre_comercial: string | null;
   contacto_nombre: string | null;
   contacto_telefono: string | null;
   contacto_email: string | null;
@@ -133,7 +132,7 @@ export function CreateProformaDialog({
   const fetchData = async () => {
     const { data: clientesData } = await supabase
       .from("clientes")
-      .select("id, razon_social, codigo, direccion, email, telefono, tipo_cliente, nombre_persona_natural, nombre_comercial, contacto_nombre, contacto_telefono, contacto_email, actividad_economica, usuario_sunat, clave_sunat, regimen_tributario, regimen_laboral")
+      .select("id, razon_social, codigo, direccion, email, telefono, tipo_cliente, nombre_persona_natural, contacto_nombre, contacto_telefono, contacto_email, actividad_economica, usuario_sunat, clave_sunat, regimen_tributario, regimen_laboral")
       .eq("activo", true)
       .order("razon_social");
 
@@ -369,8 +368,7 @@ export function CreateProformaDialog({
         : cliente.razon_social;
       return (
         nombre.toLowerCase().includes(searchLower) ||
-        cliente.codigo.toLowerCase().includes(searchLower) ||
-        (cliente.nombre_comercial?.toLowerCase().includes(searchLower) ?? false)
+        cliente.codigo.toLowerCase().includes(searchLower)
       );
     });
   }, [clientes, clienteSearch]);
@@ -480,7 +478,6 @@ export function CreateProformaDialog({
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {cliente.codigo}
-                                  {cliente.nombre_comercial && ` • ${cliente.nombre_comercial}`}
                                 </p>
                               </div>
                             </div>
@@ -514,12 +511,6 @@ export function CreateProformaDialog({
                     <Label className="text-muted-foreground text-xs">RUC/DNI</Label>
                     <p className="font-medium">{selectedClienteData.codigo}</p>
                   </div>
-                  {selectedClienteData.nombre_comercial && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Nombre Comercial</Label>
-                      <p className="font-medium">{selectedClienteData.nombre_comercial}</p>
-                    </div>
-                  )}
                   <div>
                     <Label className="text-muted-foreground text-xs">Dirección</Label>
                     <p className="font-medium text-sm">{selectedClienteData.direccion || "-"}</p>
