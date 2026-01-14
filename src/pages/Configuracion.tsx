@@ -1,4 +1,4 @@
-import { Settings, Shield, Briefcase, FileText, Bell, Database, Receipt, Users, ClipboardList } from "lucide-react";
+import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,10 +41,6 @@ const Configuracion = () => {
           <TabsTrigger value="proformas" className="gap-2">
             <ClipboardList className="h-4 w-4" />
             Proformas
-          </TabsTrigger>
-          <TabsTrigger value="carteras" className="gap-2">
-            <Briefcase className="h-4 w-4" />
-            Carteras
           </TabsTrigger>
           <TabsTrigger value="servicios" className="gap-2">
             <FileText className="h-4 w-4" />
@@ -96,44 +92,6 @@ const Configuracion = () => {
         {/* Proformas Tab */}
         <TabsContent value="proformas">
           <ProformaEstadosManager />
-        </TabsContent>
-
-        {/* Carteras Tab */}
-        <TabsContent value="carteras">
-          <div className="bg-card rounded-xl border border-border p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Configuración de Carteras</h3>
-                <p className="text-sm text-muted-foreground">Gestiona las carteras operativas</p>
-              </div>
-              <Button className="btn-gradient gap-2">
-                <Briefcase className="h-4 w-4" />
-                Nueva Cartera
-              </Button>
-            </div>
-
-            <div className="grid gap-4">
-              {[1, 2, 3, 4, 5].map((num) => (
-                <div key={num} className="flex items-center justify-between p-4 rounded-lg border border-border">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-secondary/20">
-                      <Briefcase className="h-4 w-4 text-secondary" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Cartera {num}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {num % 2 === 0 ? "Trámites" : num % 3 === 0 ? "Mixta" : "Contabilidad"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch defaultChecked />
-                    <Button variant="outline" size="sm">Editar</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </TabsContent>
 
         {/* Servicios Tab */}
