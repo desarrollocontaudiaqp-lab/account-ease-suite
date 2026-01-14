@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2, Copy, Eye, EyeOff, X } from "lucide-react";
+import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2, Copy, Eye, EyeOff, X, CalendarDays } from "lucide-react";
+import { CalendarProjectionModal } from "./CalendarProjectionModal";
 import {
   Dialog,
   DialogContent,
@@ -117,6 +118,8 @@ export function CreateProformaDialog({
   const [showClienteDetails, setShowClienteDetails] = useState(true);
   const [showClaveSol, setShowClaveSol] = useState(false);
   const [openAddCampoPopover, setOpenAddCampoPopover] = useState(false);
+  const [showCalendarProjection, setShowCalendarProjection] = useState(false);
+  const [calendarProjection, setCalendarProjection] = useState<any[]>([]);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -357,6 +360,11 @@ export function CreateProformaDialog({
     setItems([{ descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
     setNotas("");
     setFechaVencimiento("");
+    setCalendarProjection([]);
+  };
+
+  const handleSaveCalendarProjection = (projection: any[]) => {
+    setCalendarProjection(projection);
   };
 
   const filteredClientes = useMemo(() => {
@@ -900,15 +908,35 @@ export function CreateProformaDialog({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
+          <div className="flex justify-between gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowCalendarProjection(true)}
+              disabled={items.filter(i => i.descripcion.trim() !== "").length === 0}
+              className="gap-2"
+            >
+              <CalendarDays className="h-4 w-4" />
+              Proyección de Calendario
             </Button>
-            <Button onClick={handleSubmit} disabled={loading}>
-              {loading ? "Creando..." : "Crear Proforma"}
-            </Button>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSubmit} disabled={loading}>
+                {loading ? "Creando..." : "Crear Proforma"}
+              </Button>
+            </div>
           </div>
         </div>
+
+        <CalendarProjectionModal
+          open={showCalendarProjection}
+          onOpenChange={setShowCalendarProjection}
+          items={items}
+          onSave={handleSaveCalendarProjection}
+          initialProjection={calendarProjection}
+        />
       </DialogContent>
     </Dialog>
   );
