@@ -1,4 +1,4 @@
-import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList } from "lucide-react";
+import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,8 @@ import { RolesManager } from "@/components/configuracion/RolesManager";
 import { ServiciosManager } from "@/components/configuracion/ServiciosManager";
 import { ProformaEstadosManager } from "@/components/configuracion/ProformaEstadosManager";
 import { ImportServiciosDialog } from "@/components/configuracion/ImportServiciosDialog";
+import { DocumentosPagoManager } from "@/components/configuracion/DocumentosPagoManager";
+import { MetodosPagoManager } from "@/components/configuracion/MetodosPagoManager";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 
 const Configuracion = () => {
@@ -45,6 +47,10 @@ const Configuracion = () => {
           <TabsTrigger value="servicios" className="gap-2">
             <FileText className="h-4 w-4" />
             Servicios
+          </TabsTrigger>
+          <TabsTrigger value="pagos" className="gap-2">
+            <CreditCard className="h-4 w-4" />
+            Pagos
           </TabsTrigger>
           <TabsTrigger value="notificaciones" className="gap-2">
             <Bell className="h-4 w-4" />
@@ -121,6 +127,14 @@ const Configuracion = () => {
                 <ServiciosManager grupoServicio="Auditoría y Control Interno" titulo="Servicios de Auditoría y Control Interno" />
               </TabsContent>
             </Tabs>
+          </div>
+        </TabsContent>
+
+        {/* Pagos Tab */}
+        <TabsContent value="pagos">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <DocumentosPagoManager />
+            <MetodosPagoManager />
           </div>
         </TabsContent>
 
