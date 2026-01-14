@@ -202,9 +202,10 @@ const Usuarios = () => {
     }
   };
 
-  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole }) => {
+  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string }) => {
     setActionLoading(true);
     try {
+      // Create auth user with the existing profile's ID
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -215,13 +216,32 @@ const Usuarios = () => {
 
       if (authError) throw authError;
 
-      if (authData.user && data.role !== 'asesor') {
+      if (authData.user) {
+        // Update the existing profile to link with the new auth user
+        // First, update the profile ID to match the auth user ID
+        const { error: updateProfileError } = await supabase
+          .from('profiles')
+          .update({ id: authData.user.id })
+          .eq('id', data.profileId);
+
+        if (updateProfileError) {
+          console.error('Error updating profile:', updateProfileError);
+          // If update fails, delete the old profile and the trigger will create a new one
+          await supabase.from('profiles').delete().eq('id', data.profileId);
+        }
+
+        // Create user role
         const { error: roleError } = await supabase
           .from('user_roles')
-          .update({ role: data.role })
-          .eq('user_id', authData.user.id);
+          .insert({ user_id: authData.user.id, role: data.role });
 
-        if (roleError) console.error('Error updating role:', roleError);
+        if (roleError) {
+          // Try update if insert fails (role might already exist from trigger)
+          await supabase
+            .from('user_roles')
+            .update({ role: data.role })
+            .eq('user_id', authData.user.id);
+        }
       }
 
       toast.success('Usuario creado. Se ha enviado un email de verificación.');
