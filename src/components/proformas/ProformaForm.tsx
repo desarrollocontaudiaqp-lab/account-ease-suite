@@ -41,9 +41,10 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { useSystemConfig } from "@/hooks/useSystemConfig";
 
 interface Campo {
   id: string;
@@ -93,6 +94,8 @@ interface ProformaItem {
   id?: string;
   descripcion: string;
   cantidad: number;
+  base_imponible?: number;
+  igv_monto?: number;
   precio_unitario: number;
   subtotal: number;
 }
@@ -134,6 +137,17 @@ export function ProformaForm({
   proforma,
   initialItems = [],
 }: ProformaFormProps) {
+  const { config, calculateIGV, formatCurrency, deduceIGVFromTotal } = useSystemConfig();
+  
+  const createEmptyItem = (): ProformaItem => ({
+    descripcion: "",
+    cantidad: 1,
+    base_imponible: 0,
+    igv_monto: 0,
+    precio_unitario: 0,
+    subtotal: 0,
+  });
+
   const [loading, setLoading] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -142,9 +156,7 @@ export function ProformaForm({
   const [selectedPlantilla, setSelectedPlantilla] = useState<Plantilla | null>(null);
   const [camposValues, setCamposValues] = useState<Record<string, string>>({});
   const [activeCampos, setActiveCampos] = useState<string[]>([]);
-  const [items, setItems] = useState<ProformaItem[]>([
-    { descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 },
-  ]);
+  const [items, setItems] = useState<ProformaItem[]>([createEmptyItem()]);
   const [notas, setNotas] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState("");
   const [openServicePopovers, setOpenServicePopovers] = useState<Record<number, boolean>>({});
@@ -176,9 +188,16 @@ export function ProformaForm({
     toast.success(`${label} copiado al portapapeles`);
   };
 
+  // Set default expiration date on open
   useEffect(() => {
     if (open) {
       fetchData();
+      
+      // Set default expiration date if creating new
+      if (mode === "create" && !fechaVencimiento) {
+        const defaultExpiration = addDays(new Date(), config.proforma_expiration_days);
+        setFechaVencimiento(format(defaultExpiration, "yyyy-MM-dd"));
+      }
       
       // If editing, load proforma data
       if (mode === "edit" && proforma) {
@@ -186,10 +205,18 @@ export function ProformaForm({
         setNotas(proforma.notas || "");
         setFechaVencimiento(proforma.fecha_vencimiento);
         setCamposValues((proforma.campos_personalizados as Record<string, string>) || {});
-        setItems(initialItems.length > 0 ? initialItems : [{ descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
+        // Convert initialItems to include base_imponible and igv_monto
+        const convertedItems = initialItems.length > 0 
+          ? initialItems.map(item => ({
+              ...item,
+              base_imponible: item.base_imponible ?? item.precio_unitario / (1 + config.igv_percentage / 100),
+              igv_monto: item.igv_monto ?? item.precio_unitario - (item.precio_unitario / (1 + config.igv_percentage / 100)),
+            }))
+          : [createEmptyItem()];
+        setItems(convertedItems);
       }
     }
-  }, [open, tipo, plantillaId, mode, proforma, initialItems]);
+  }, [open, tipo, plantillaId, mode, proforma, initialItems, config.proforma_expiration_days]);
 
   const fetchData = async () => {
     const { data: clientesData } = await supabase
@@ -325,7 +352,7 @@ export function ProformaForm({
   };
 
   const addItem = () => {
-    setItems([...items, { descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
+    setItems([...items, createEmptyItem()]);
     // Limpiar proyección cuando se agrega un nuevo item
     setCalendarProjection([]);
     setPaymentSchedule([]);
@@ -505,7 +532,7 @@ export function ProformaForm({
     setClienteSearch("");
     setCamposValues({});
     setActiveCampos([]);
-    setItems([{ descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
+    setItems([createEmptyItem()]);
     setNotas("");
     setFechaVencimiento("");
     setCalendarProjection([]);

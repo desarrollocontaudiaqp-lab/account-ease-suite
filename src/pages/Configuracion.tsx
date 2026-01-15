@@ -1,4 +1,5 @@
-import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard, Percent, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,10 +14,43 @@ import { ImportServiciosDialog } from "@/components/configuracion/ImportServicio
 import { DocumentosPagoManager } from "@/components/configuracion/DocumentosPagoManager";
 import { MetodosPagoManager } from "@/components/configuracion/MetodosPagoManager";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
+import { useSystemConfig } from "@/hooks/useSystemConfig";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 const Configuracion = () => {
   const regimenTributario = useConfiguracionOpciones("regimen_tributario");
   const regimenLaboral = useConfiguracionOpciones("regimen_laboral");
+  const { config, updateConfig, loading: configLoading } = useSystemConfig();
+  
+  // Local state for system config form
+  const [igvPercentage, setIgvPercentage] = useState(config.igv_percentage);
+  const [useThousandsSeparator, setUseThousandsSeparator] = useState(config.use_thousands_separator);
+  const [defaultCurrency, setDefaultCurrency] = useState<"PEN" | "USD">(config.default_currency);
+  const [proformaExpirationDays, setProformaExpirationDays] = useState(config.proforma_expiration_days);
+
+  useEffect(() => {
+    setIgvPercentage(config.igv_percentage);
+    setUseThousandsSeparator(config.use_thousands_separator);
+    setDefaultCurrency(config.default_currency);
+    setProformaExpirationDays(config.proforma_expiration_days);
+  }, [config]);
+
+  const handleSaveSystemConfig = async () => {
+    await updateConfig({
+      igv_percentage: igvPercentage,
+      use_thousands_separator: useThousandsSeparator,
+      default_currency: defaultCurrency,
+      proforma_expiration_days: proformaExpirationDays,
+    });
+    toast.success("Configuración del sistema guardada correctamente");
+  };
 
   return (
     <div className="space-y-6">
@@ -97,7 +131,48 @@ const Configuracion = () => {
 
         {/* Proformas Tab */}
         <TabsContent value="proformas">
-          <ProformaEstadosManager />
+          <div className="space-y-6">
+            {/* Configuración de vencimiento */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" />
+                Configuración de Proformas
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="proforma-expiration" className="flex items-center gap-2">
+                    Tiempo de vencimiento por defecto
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="proforma-expiration"
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={proformaExpirationDays}
+                      onChange={(e) => setProformaExpirationDays(parseInt(e.target.value) || 30)}
+                      className="w-24"
+                    />
+                    <span className="text-sm text-muted-foreground">días</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Este valor se aplicará automáticamente al crear nuevas proformas
+                  </p>
+                </div>
+              </div>
+
+              <Button 
+                className="mt-4 btn-gradient" 
+                onClick={handleSaveSystemConfig}
+              >
+                Guardar configuración
+              </Button>
+            </div>
+
+            {/* Estados de proforma */}
+            <ProformaEstadosManager />
+          </div>
         </TabsContent>
 
         {/* Servicios Tab */}
@@ -181,52 +256,145 @@ const Configuracion = () => {
 
         {/* Sistema Tab */}
         <TabsContent value="sistema">
-          <div className="bg-card rounded-xl border border-border p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-6">Parámetros del Sistema</h3>
-            
-            <div className="grid gap-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nombre del Estudio</Label>
-                  <Input defaultValue="Contadores y Auditores Arequipa" />
-                </div>
-                <div className="space-y-2">
-                  <Label>RUC</Label>
-                  <Input defaultValue="20123456789" />
-                </div>
-              </div>
+          <div className="space-y-6">
+            {/* Configuración Financiera */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
+                <Percent className="h-5 w-5 text-primary" />
+                Configuración Financiera
+              </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <Label>Email de contacto</Label>
-                  <Input type="email" defaultValue="contacto@estudio.com" />
+                  <Label htmlFor="igv-percentage" className="flex items-center gap-2">
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                    IGV (%)
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="igv-percentage"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.1"
+                      value={igvPercentage}
+                      onChange={(e) => setIgvPercentage(parseFloat(e.target.value) || 18)}
+                      className="w-24"
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Porcentaje del IGV aplicado a los servicios
+                  </p>
                 </div>
+                
                 <div className="space-y-2">
-                  <Label>Teléfono</Label>
-                  <Input defaultValue="054-123456" />
+                  <Label htmlFor="default-currency" className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    Moneda por defecto
+                  </Label>
+                  <Select
+                    value={defaultCurrency}
+                    onValueChange={(v) => setDefaultCurrency(v as "PEN" | "USD")}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PEN">
+                        <span className="flex items-center gap-2">
+                          S/. Nuevos Soles (PEN)
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="USD">
+                        <span className="flex items-center gap-2">
+                          $ Dólares Americanos (USD)
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Moneda utilizada en proformas y contratos
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    Formato de números
+                  </Label>
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
+                    <div>
+                      <p className="font-medium text-sm">Usar coma de miles</p>
+                      <p className="text-xs text-muted-foreground">
+                        Ej: {useThousandsSeparator ? "1,234,567.89" : "1234567.89"}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={useThousandsSeparator}
+                      onCheckedChange={setUseThousandsSeparator}
+                    />
+                  </div>
                 </div>
               </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-foreground">Modo mantenimiento</p>
-                  <p className="text-sm text-muted-foreground">Desactivar acceso temporalmente</p>
-                </div>
-                <Switch />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-foreground">Backup automático</p>
-                  <p className="text-sm text-muted-foreground">Respaldo diario de datos</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-
-              <Button className="w-fit btn-gradient">Guardar cambios</Button>
             </div>
+
+            {/* Datos de la Empresa */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-6">Datos de la Empresa</h3>
+              
+              <div className="grid gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nombre del Estudio</Label>
+                    <Input defaultValue="Contadores y Auditores Arequipa" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>RUC</Label>
+                    <Input defaultValue="20123456789" />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Email de contacto</Label>
+                    <Input type="email" defaultValue="contacto@estudio.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Teléfono</Label>
+                    <Input defaultValue="054-123456" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Opciones Avanzadas */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-6">Opciones Avanzadas</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground">Modo mantenimiento</p>
+                    <p className="text-sm text-muted-foreground">Desactivar acceso temporalmente</p>
+                  </div>
+                  <Switch />
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground">Backup automático</p>
+                    <p className="text-sm text-muted-foreground">Respaldo diario de datos</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </div>
+            </div>
+
+            <Button className="w-fit btn-gradient" onClick={handleSaveSystemConfig}>
+              Guardar cambios
+            </Button>
           </div>
         </TabsContent>
       </Tabs>
