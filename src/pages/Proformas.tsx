@@ -51,6 +51,8 @@ interface ProformaItem {
   id: string;
   descripcion: string;
   cantidad: number;
+  base_imponible?: number;
+  igv_monto?: number;
   precio_unitario: number;
   subtotal: number;
 }
