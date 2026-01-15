@@ -15,10 +15,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { ProformaDesigner } from "@/components/proformas/ProformaDesigner";
-import { CreateProformaDialog } from "@/components/proformas/CreateProformaDialog";
+import { ProformaForm } from "@/components/proformas/ProformaForm";
 import { ProformaDetailModal } from "@/components/proformas/ProformaDetailModal";
 import { SendEmailDialog } from "@/components/proformas/SendEmailDialog";
-import { EditProformaDialog } from "@/components/proformas/EditProformaDialog";
 import { ServiceFilterDropdown } from "@/components/proformas/ServiceFilterDropdown";
 import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
 import { toast } from "sonner";
@@ -35,6 +34,7 @@ interface Proforma {
     email: string | null;
     telefono: string | null;
   } | null;
+  cliente_id: string;
   tipo: string;
   subtotal: number;
   igv: number;
@@ -44,6 +44,7 @@ interface Proforma {
   fecha_vencimiento: string;
   notas: string | null;
   moneda: string;
+  campos_personalizados?: Record<string, any> | null;
 }
 
 interface ProformaItem {
@@ -182,6 +183,8 @@ const Proformas = () => {
         fecha_vencimiento,
         notas,
         moneda,
+        cliente_id,
+        campos_personalizados,
         cliente:clientes(razon_social, codigo, direccion, email, telefono)
       `)
       .order("created_at", { ascending: false });
@@ -207,6 +210,8 @@ const Proformas = () => {
         tipo: p.tipo as string,
         status: p.status as Proforma["status"],
         cliente: p.cliente as Proforma["cliente"],
+        cliente_id: p.cliente_id as string,
+        campos_personalizados: p.campos_personalizados as Record<string, any> | null,
         items: itemsByProforma[p.id] || [],
       }));
       setProformas(parsed);
@@ -786,7 +791,7 @@ const Proformas = () => {
 
       {/* Dialogs */}
       <ProformaDesigner open={designerOpen} onOpenChange={setDesignerOpen} />
-      <CreateProformaDialog
+      <ProformaForm
         open={createDialogOpen}
         onOpenChange={(open) => {
           setCreateDialogOpen(open);
@@ -795,6 +800,7 @@ const Proformas = () => {
         onSuccess={fetchProformas}
         tipo={createDialogType}
         plantillaId={selectedPlantillaId}
+        mode="create"
       />
       <ProformaDetailModal
         open={detailModalOpen}
@@ -820,12 +826,14 @@ const Proformas = () => {
         clienteNombre={emailProforma?.cliente?.razon_social || ""}
         onSuccess={fetchProformas}
       />
-      <EditProformaDialog
+      <ProformaForm
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        proforma={editProforma}
-        items={editProformaItems}
         onSuccess={fetchProformas}
+        tipo={(editProforma?.tipo as GrupoServicio) || "Contabilidad"}
+        mode="edit"
+        proforma={editProforma as any}
+        initialItems={editProformaItems}
       />
     </div>
   );
