@@ -32,110 +32,11 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { generateProformaPDF } from "@/lib/generateProformaPDF";
+import { generateProformaPDF, DEFAULT_PDF_CONFIG, PDFStyleConfig } from "@/lib/generateProformaPDF";
 
-// Default PDF styles configuration
-export interface PDFStyleConfig {
-  colors: {
-    primary: string;
-    primaryDark: string;
-    accent: string;
-    textDark: string;
-    textMuted: string;
-    background: string;
-    border: string;
-    headerBackground: string;
-    tableBackground: string;
-    // New header text colors
-    headerTitleText: string;
-    headerSubtitleText: string;
-    headerContactText: string;
-  };
-  typography: {
-    headerTitleSize: number;
-    headerSubtitleSize: number;
-    sectionTitleSize: number;
-    bodyTextSize: number;
-    smallTextSize: number;
-    fontFamily: "helvetica" | "times" | "courier";
-  };
-  layout: {
-    marginHorizontal: number;
-    headerHeight: number;
-    sectionSpacing: number;
-    borderRadius: number;
-    showLogo: boolean;
-    showSlogan: boolean;
-    showBankInfo: boolean;
-    showTerms: boolean;
-    showCalendarProjection: boolean;
-    // Column widths for client section
-    clientColumnWidth: number; // percentage 50-80
-  };
-  company: {
-    name: string;
-    slogan: string;
-    address: string;
-    phone: string;
-    email: string;
-  };
-  bank: {
-    bcp_soles: string;
-    bcp_dolares: string;
-    interbank_soles: string;
-    interbank_dolares: string;
-  };
-}
-
-const DEFAULT_STYLE_CONFIG: PDFStyleConfig = {
-  colors: {
-    primary: "#CA9348",
-    primaryDark: "#B47D32",
-    accent: "#D91A22",
-    textDark: "#323232",
-    textMuted: "#646464",
-    background: "#FFFFFF",
-    border: "#B4B4B4",
-    headerBackground: "#CA9348",
-    tableBackground: "#CA9348",
-    headerTitleText: "#FFFFFF",
-    headerSubtitleText: "#FFFFFF",
-    headerContactText: "#FFFFFF",
-  },
-  typography: {
-    headerTitleSize: 16,
-    headerSubtitleSize: 9,
-    sectionTitleSize: 12,
-    bodyTextSize: 10,
-    smallTextSize: 8,
-    fontFamily: "helvetica",
-  },
-  layout: {
-    marginHorizontal: 15,
-    headerHeight: 35,
-    sectionSpacing: 12,
-    borderRadius: 2,
-    showLogo: true,
-    showSlogan: true,
-    showBankInfo: true,
-    showTerms: true,
-    showCalendarProjection: true,
-    clientColumnWidth: 60,
-  },
-  company: {
-    name: "C&A CONTADORES & AUDITORES",
-    slogan: "Soluciones Contables y Empresariales",
-    address: "Calle Santo Domingo N.º 103, Of. 303 y 304 – Arequipa",
-    phone: "(+51) 982 307 213",
-    email: "rmarquez@contadoresyauditoresarequipa.com",
-  },
-  bank: {
-    bcp_soles: "BCP Cta. Cte. Soles: 305-2345678-0-12",
-    bcp_dolares: "BCP Cta. Cte. Dólares: 305-2345678-1-19",
-    interbank_soles: "Interbank Cta. Cte. Soles: 200-3456789012",
-    interbank_dolares: "Interbank Cta. Cte. Dólares: 200-3456789019",
-  },
-};
+// Re-export for convenience
+export type { PDFStyleConfig } from "@/lib/generateProformaPDF";
+export { DEFAULT_PDF_CONFIG as DEFAULT_STYLE_CONFIG } from "@/lib/generateProformaPDF";
 
 const COLOR_PRESETS = [
   { name: "Dorado Corporativo", primary: "#CA9348", accent: "#D91A22" },
@@ -155,7 +56,7 @@ interface PDFStyleEditorProps {
 }
 
 export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, open, onOpenChange }: PDFStyleEditorProps) {
-  const [config, setConfig] = useState<PDFStyleConfig>(DEFAULT_STYLE_CONFIG);
+  const [config, setConfig] = useState<PDFStyleConfig>(DEFAULT_PDF_CONFIG);
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
@@ -169,20 +70,20 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
 
   const loadConfig = async () => {
     const { data } = await supabase
-      .from("configuracion")
-      .select("valor")
-      .eq("clave", `pdf_style_${plantillaId}`)
+      .from("proforma_plantillas")
+      .select("estilos_pdf")
+      .eq("id", plantillaId)
       .single();
 
-    if (data?.valor && typeof data.valor === "object" && !Array.isArray(data.valor)) {
-      const savedConfig = data.valor as unknown as Partial<PDFStyleConfig>;
+    if (data?.estilos_pdf && typeof data.estilos_pdf === "object" && !Array.isArray(data.estilos_pdf) && Object.keys(data.estilos_pdf).length > 0) {
+      const savedConfig = data.estilos_pdf as unknown as Partial<PDFStyleConfig>;
       setConfig({ 
-        ...DEFAULT_STYLE_CONFIG, 
-        colors: { ...DEFAULT_STYLE_CONFIG.colors, ...savedConfig.colors },
-        typography: { ...DEFAULT_STYLE_CONFIG.typography, ...savedConfig.typography },
-        layout: { ...DEFAULT_STYLE_CONFIG.layout, ...savedConfig.layout },
-        company: { ...DEFAULT_STYLE_CONFIG.company, ...savedConfig.company },
-        bank: { ...DEFAULT_STYLE_CONFIG.bank, ...savedConfig.bank },
+        ...DEFAULT_PDF_CONFIG, 
+        colors: { ...DEFAULT_PDF_CONFIG.colors, ...savedConfig.colors },
+        typography: { ...DEFAULT_PDF_CONFIG.typography, ...savedConfig.typography },
+        layout: { ...DEFAULT_PDF_CONFIG.layout, ...savedConfig.layout },
+        company: { ...DEFAULT_PDF_CONFIG.company, ...savedConfig.company },
+        bank: { ...DEFAULT_PDF_CONFIG.bank, ...savedConfig.bank },
       });
     }
   };
@@ -190,30 +91,14 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
   const saveConfig = async () => {
     setLoading(true);
     
-    const { data: existing } = await supabase
-      .from("configuracion")
-      .select("id")
-      .eq("clave", `pdf_style_${plantillaId}`)
-      .single();
-
-    let error;
-    if (existing) {
-      ({ error } = await supabase
-        .from("configuracion")
-        .update({ valor: JSON.parse(JSON.stringify(config)) })
-        .eq("clave", `pdf_style_${plantillaId}`));
-    } else {
-      ({ error } = await supabase
-        .from("configuracion")
-        .insert([{
-          clave: `pdf_style_${plantillaId}`,
-          valor: JSON.parse(JSON.stringify(config)),
-          descripcion: `Estilo PDF para plantilla: ${plantillaNombre}`,
-        }]));
-    }
+    const { error } = await supabase
+      .from("proforma_plantillas")
+      .update({ estilos_pdf: JSON.parse(JSON.stringify(config)) })
+      .eq("id", plantillaId);
 
     if (error) {
       toast.error("Error al guardar configuración");
+      console.error("Error saving PDF styles:", error);
     } else {
       toast.success("Estilos guardados correctamente");
     }
@@ -221,7 +106,7 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
   };
 
   const resetConfig = () => {
-    setConfig(DEFAULT_STYLE_CONFIG);
+    setConfig(DEFAULT_PDF_CONFIG);
     toast.info("Estilos restaurados a valores por defecto");
   };
 
