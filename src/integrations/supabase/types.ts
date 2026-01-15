@@ -870,6 +870,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           descripcion: string | null
+          estilos_pdf: Json | null
           id: string
           nombre: string
           servicios: Json
@@ -882,6 +883,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           descripcion?: string | null
+          estilos_pdf?: Json | null
           id?: string
           nombre: string
           servicios?: Json
@@ -894,6 +896,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           descripcion?: string | null
+          estilos_pdf?: Json | null
           id?: string
           nombre?: string
           servicios?: Json

@@ -111,8 +111,8 @@ export interface PDFStyleConfig {
   };
 }
 
-// Default configuration
-const DEFAULT_CONFIG: PDFStyleConfig = {
+// Default configuration - exported for use in PDFStyleEditor
+export const DEFAULT_PDF_CONFIG: PDFStyleConfig = {
   colors: {
     primary: "#CA9348",
     primaryDark: "#B47D32",
@@ -161,6 +161,9 @@ const DEFAULT_CONFIG: PDFStyleConfig = {
     interbank_dolares: "Interbank Cta. Cte. Dólares: 200-3456789019",
   },
 };
+
+// Alias for backwards compatibility
+const DEFAULT_CONFIG = DEFAULT_PDF_CONFIG;
 
 // Helper to convert hex to RGB array
 function hexToRgb(hex: string): [number, number, number] {
