@@ -46,6 +46,10 @@ export interface PDFStyleConfig {
     border: string;
     headerBackground: string;
     tableBackground: string;
+    // New header text colors
+    headerTitleText: string;
+    headerSubtitleText: string;
+    headerContactText: string;
   };
   typography: {
     headerTitleSize: number;
@@ -64,6 +68,9 @@ export interface PDFStyleConfig {
     showSlogan: boolean;
     showBankInfo: boolean;
     showTerms: boolean;
+    showCalendarProjection: boolean;
+    // Column widths for client section
+    clientColumnWidth: number; // percentage 50-80
   };
   company: {
     name: string;
@@ -91,6 +98,9 @@ const DEFAULT_STYLE_CONFIG: PDFStyleConfig = {
     border: "#B4B4B4",
     headerBackground: "#CA9348",
     tableBackground: "#CA9348",
+    headerTitleText: "#FFFFFF",
+    headerSubtitleText: "#FFFFFF",
+    headerContactText: "#FFFFFF",
   },
   typography: {
     headerTitleSize: 16,
@@ -109,6 +119,8 @@ const DEFAULT_STYLE_CONFIG: PDFStyleConfig = {
     showSlogan: true,
     showBankInfo: true,
     showTerms: true,
+    showCalendarProjection: true,
+    clientColumnWidth: 60,
   },
   company: {
     name: "C&A CONTADORES & AUDITORES",
@@ -251,6 +263,12 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
         total: 3540,
         notas: "Proforma de ejemplo para vista previa",
         moneda: "PEN",
+        // Sample calendar projection data
+        calendarProjection: [
+          { numero: 1, fecha_pago: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], servicio: "Cont. Mensual", monto: 1180 },
+          { numero: 2, fecha_pago: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], servicio: "Cont. Mensual", monto: 1180 },
+          { numero: 3, fecha_pago: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], servicio: "Cont. Mensual", monto: 1180 },
+        ],
       };
 
       const blob = await generateProformaPDF(sampleData, config);
@@ -385,6 +403,13 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
                         <ColorPicker label="Color de Acento" value={config.colors.accent} onChange={(v) => updateColor("accent", v)} />
                         <ColorPicker label="Fondo del Encabezado" value={config.colors.headerBackground} onChange={(v) => updateColor("headerBackground", v)} />
                         <ColorPicker label="Fondo de Tablas/Totales" value={config.colors.tableBackground} onChange={(v) => updateColor("tableBackground", v)} />
+                        <Separator className="my-2" />
+                        <Label className="text-xs font-medium text-foreground">Textos del Encabezado</Label>
+                        <ColorPicker label="Título de encabezado" value={config.colors.headerTitleText} onChange={(v) => updateColor("headerTitleText", v)} />
+                        <ColorPicker label="Subtítulo de encabezado" value={config.colors.headerSubtitleText} onChange={(v) => updateColor("headerSubtitleText", v)} />
+                        <ColorPicker label="Texto de contacto" value={config.colors.headerContactText} onChange={(v) => updateColor("headerContactText", v)} />
+                        <Separator className="my-2" />
+                        <Label className="text-xs font-medium text-foreground">Textos del Contenido</Label>
                         <ColorPicker label="Texto Principal" value={config.colors.textDark} onChange={(v) => updateColor("textDark", v)} />
                         <ColorPicker label="Texto Secundario" value={config.colors.textMuted} onChange={(v) => updateColor("textMuted", v)} />
                         <ColorPicker label="Color de Borde" value={config.colors.border} onChange={(v) => updateColor("border", v)} />
@@ -435,11 +460,15 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
                       <SizeSlider label="Altura del encabezado" value={config.layout.headerHeight} min={25} max={50} suffix="mm" onChange={(v) => updateLayout("headerHeight", v)} />
                       <SizeSlider label="Espaciado entre secciones" value={config.layout.sectionSpacing} min={6} max={20} suffix="mm" onChange={(v) => updateLayout("sectionSpacing", v)} />
                       <Separator />
+                      <Label className="text-xs font-medium text-foreground">Datos del Cliente</Label>
+                      <SizeSlider label="Ancho columna cliente" value={config.layout.clientColumnWidth} min={50} max={75} suffix="%" onChange={(v) => updateLayout("clientColumnWidth", v)} />
+                      <Separator />
                       <div className="space-y-3">
                         <ToggleOption label="Mostrar logo" checked={config.layout.showLogo} onChange={(v) => updateLayout("showLogo", v)} />
                         <ToggleOption label="Mostrar slogan" checked={config.layout.showSlogan} onChange={(v) => updateLayout("showSlogan", v)} />
                         <ToggleOption label="Mostrar información bancaria" checked={config.layout.showBankInfo} onChange={(v) => updateLayout("showBankInfo", v)} />
                         <ToggleOption label="Mostrar términos y condiciones" checked={config.layout.showTerms} onChange={(v) => updateLayout("showTerms", v)} />
+                        <ToggleOption label="Mostrar proyección de calendario" checked={config.layout.showCalendarProjection} onChange={(v) => updateLayout("showCalendarProjection", v)} />
                       </div>
                     </AccordionContent>
                   </AccordionItem>

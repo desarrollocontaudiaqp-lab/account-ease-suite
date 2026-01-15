@@ -30,6 +30,13 @@ interface ProformaItem {
   subtotal: number;
 }
 
+interface CalendarProjectionItem {
+  numero: number;
+  fecha_pago: string;
+  servicio: string;
+  monto: number;
+}
+
 interface ProformaData {
   numero: string;
   tipo: string;
@@ -50,6 +57,7 @@ interface ProformaData {
   moneda?: string;
   campos_personalizados?: Record<string, any>;
   campos_especificos?: { label: string; value: string }[];
+  calendarProjection?: CalendarProjectionItem[];
 }
 
 // PDF Style Configuration Interface
@@ -64,6 +72,9 @@ export interface PDFStyleConfig {
     border: string;
     headerBackground: string;
     tableBackground: string;
+    headerTitleText: string;
+    headerSubtitleText: string;
+    headerContactText: string;
   };
   typography: {
     headerTitleSize: number;
@@ -82,6 +93,8 @@ export interface PDFStyleConfig {
     showSlogan: boolean;
     showBankInfo: boolean;
     showTerms: boolean;
+    showCalendarProjection: boolean;
+    clientColumnWidth: number;
   };
   company: {
     name: string;
@@ -110,6 +123,9 @@ const DEFAULT_CONFIG: PDFStyleConfig = {
     border: "#B4B4B4",
     headerBackground: "#CA9348",
     tableBackground: "#CA9348",
+    headerTitleText: "#FFFFFF",
+    headerSubtitleText: "#FFFFFF",
+    headerContactText: "#FFFFFF",
   },
   typography: {
     headerTitleSize: 16,
@@ -128,6 +144,8 @@ const DEFAULT_CONFIG: PDFStyleConfig = {
     showSlogan: true,
     showBankInfo: true,
     showTerms: true,
+    showCalendarProjection: true,
+    clientColumnWidth: 60,
   },
   company: {
     name: "C&A CONTADORES & AUDITORES",
@@ -181,6 +199,9 @@ export async function generateProformaPDF(
     border: hexToRgb(config.colors.border),
     headerBackground: hexToRgb(config.colors.headerBackground),
     tableBackground: hexToRgb(config.colors.tableBackground),
+    headerTitleText: hexToRgb(config.colors.headerTitleText),
+    headerSubtitleText: hexToRgb(config.colors.headerSubtitleText),
+    headerContactText: hexToRgb(config.colors.headerContactText),
     white: [255, 255, 255] as [number, number, number],
   };
 
@@ -219,19 +240,21 @@ export async function generateProformaPDF(
   // Company name and info
   const textStartX = config.layout.showLogo ? margin + 33 : margin;
 
-  doc.setTextColor(...COLORS.white);
+  doc.setTextColor(...COLORS.headerTitleText);
   doc.setFontSize(config.typography.headerTitleSize);
   doc.setFont(config.typography.fontFamily, "bold");
   doc.text(config.company.name, textStartX, 12);
 
   // Slogan
   if (config.layout.showSlogan) {
+    doc.setTextColor(...COLORS.headerSubtitleText);
     doc.setFontSize(config.typography.headerSubtitleSize);
     doc.setFont(config.typography.fontFamily, "italic");
     doc.text(config.company.slogan, textStartX, 17);
   }
 
   // Contact info
+  doc.setTextColor(...COLORS.headerContactText);
   doc.setFontSize(7.5);
   doc.setFont(config.typography.fontFamily, "normal");
   doc.text(`Llamanos 24/7: ${config.company.phone} Email:`, textStartX, 23);
@@ -264,13 +287,16 @@ export async function generateProformaPDF(
 
   // ========== CLIENT & DATES SECTION ==========
   const clientSectionHeight = 42;
+  
+  // Calculate column widths based on config
+  const clientColWidth = (pageWidth - margin * 2) * (config.layout.clientColumnWidth / 100);
+  const middleX = margin + clientColWidth;
 
   doc.setDrawColor(...COLORS.border);
   doc.setLineWidth(0.5);
   doc.rect(margin, yPos, pageWidth - margin * 2, clientSectionHeight);
 
   // Vertical divider
-  const middleX = pageWidth / 2 + 15;
   doc.line(middleX, yPos, middleX, yPos + clientSectionHeight);
 
   // Client info badge
@@ -452,6 +478,67 @@ export async function generateProformaPDF(
   });
 
   yPos += 28;
+
+  // ========== CALENDAR PROJECTION TABLE ==========
+  if (config.layout.showCalendarProjection && data.calendarProjection && data.calendarProjection.length > 0) {
+    doc.setFillColor(...COLORS.primary);
+    doc.roundedRect(margin, yPos, 62, 7, 1.5, 1.5, "F");
+    doc.setTextColor(...COLORS.white);
+    doc.setFontSize(8);
+    doc.setFont(config.typography.fontFamily, "bold");
+    doc.text("PROYECCIÓN DE PAGOS", margin + 31, yPos + 5, { align: "center" });
+
+    yPos += 14;
+
+    const calendarData = data.calendarProjection.map((item) => [
+      item.numero.toString(),
+      formatDate(item.fecha_pago),
+      item.servicio.length > 20 ? item.servicio.substring(0, 17) + "..." : item.servicio,
+      formatCurrency(item.monto, data.moneda || "PEN"),
+    ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [["N° Cuota", "Fecha de Pago", "Servicio", "Monto"]],
+      body: calendarData,
+      theme: "plain",
+      headStyles: {
+        fillColor: COLORS.tableBackground,
+        textColor: COLORS.white,
+        fontSize: 8,
+        fontStyle: "bold",
+        halign: "center",
+        valign: "middle",
+        cellPadding: 3,
+      },
+      bodyStyles: {
+        fontSize: 8,
+        cellPadding: 3,
+        textColor: COLORS.textDark,
+        valign: "middle",
+        lineColor: COLORS.border,
+        lineWidth: 0.2,
+      },
+      columnStyles: {
+        0: { halign: "center", cellWidth: 22 },
+        1: { halign: "center", cellWidth: 40 },
+        2: { halign: "left", cellWidth: "auto" },
+        3: { halign: "right", cellWidth: 32 },
+      },
+      margin: { left: margin, right: margin },
+      tableLineColor: COLORS.border,
+      tableLineWidth: 0.2,
+      didDrawCell: (hookData) => {
+        if (hookData.section === "body") {
+          doc.setDrawColor(...COLORS.border);
+          doc.setLineWidth(0.2);
+          doc.rect(hookData.cell.x, hookData.cell.y, hookData.cell.width, hookData.cell.height);
+        }
+      },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + config.layout.sectionSpacing;
+  }
 
   // ========== BANK INFO SECTION ==========
   if (config.layout.showBankInfo) {
