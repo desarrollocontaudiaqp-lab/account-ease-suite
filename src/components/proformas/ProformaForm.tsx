@@ -300,6 +300,12 @@ export function ProformaForm({
     }
     
     setItems(newItems);
+    
+    // Limpiar proyección de calendario cuando cambian los servicios
+    if (field === "descripcion" || field === "precio_unitario" || field === "cantidad") {
+      setCalendarProjection([]);
+      setPaymentSchedule([]);
+    }
   };
 
   const handleSelectService = (index: number, service: ServicioPlantilla) => {
@@ -312,15 +318,25 @@ export function ProformaForm({
     };
     setItems(newItems);
     setOpenServicePopovers((prev) => ({ ...prev, [index]: false }));
+    
+    // Limpiar proyección de calendario cuando cambia el servicio
+    setCalendarProjection([]);
+    setPaymentSchedule([]);
   };
 
   const addItem = () => {
     setItems([...items, { descripcion: "", cantidad: 1, precio_unitario: 0, subtotal: 0 }]);
+    // Limpiar proyección cuando se agrega un nuevo item
+    setCalendarProjection([]);
+    setPaymentSchedule([]);
   };
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
       setItems(items.filter((_, i) => i !== index));
+      // Limpiar proyección cuando se elimina un item
+      setCalendarProjection([]);
+      setPaymentSchedule([]);
     }
   };
 
@@ -751,8 +767,8 @@ export function ProformaForm({
             )}
           </div>
 
-          {/* Plantilla y Campos Específicos */}
-          {selectedPlantilla && (
+          {/* Plantilla y Campos Específicos - Solo mostrar si la plantilla tiene campos */}
+          {selectedPlantilla && selectedPlantilla.campos && selectedPlantilla.campos.length > 0 && (
             <div className={cn("rounded-lg p-4 space-y-4", sectionStyles.campos)}>
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold flex items-center gap-2">
@@ -863,13 +879,7 @@ export function ProformaForm({
                 </div>
               )}
 
-              {activeCampoObjects.length === 0 && selectedPlantilla.campos.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Esta plantilla no tiene campos específicos configurados.
-                </p>
-              )}
-
-              {activeCampoObjects.length === 0 && selectedPlantilla.campos.length > 0 && (
+              {activeCampoObjects.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No hay campos activos. Use el botón "Agregar campo" para añadir campos.
                 </p>

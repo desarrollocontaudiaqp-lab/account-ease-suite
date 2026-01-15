@@ -35,6 +35,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface ProformaItem {
   descripcion: string;
@@ -59,6 +61,7 @@ export interface ServiceProjection {
   metodoPagoId: string;
   pago: number;
   total: number;
+  dividirEnCuotas: boolean; // Toggle: si true divide total/cuotas, si false usa total por cuota
 }
 
 export interface PaymentScheduleItem {
@@ -151,6 +154,7 @@ export function CalendarProjectionModal({
           ...p,
           fechaInicio: p.fechaInicio ? new Date(p.fechaInicio) : undefined,
           fechaTermino: p.fechaTermino ? new Date(p.fechaTermino) : undefined,
+          dividirEnCuotas: p.dividirEnCuotas !== undefined ? p.dividirEnCuotas : true,
         })));
       } else {
         const validItems = items.filter(item => item.descripcion.trim() !== "");
@@ -170,6 +174,7 @@ export function CalendarProjectionModal({
           metodoPagoId: metodosPago[0]?.id || "",
           pago: item.subtotal,
           total: item.subtotal,
+          dividirEnCuotas: true, // Por defecto divide entre cuotas
         }));
         setProjections(newProjections);
       }
@@ -210,7 +215,12 @@ export function CalendarProjectionModal({
           newProjections[index].nroCuotas = 1;
         }
 
-        newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        // Recalcular total basado en dividirEnCuotas
+        if (newProjections[index].dividirEnCuotas) {
+          newProjections[index].total = newProjections[index].pago; // pago es el total del servicio
+        } else {
+          newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        }
       }
 
       if (field === "cicloPago") {
@@ -222,15 +232,43 @@ export function CalendarProjectionModal({
         } else {
           newProjections[index].nroCuotas = 1;
         }
-        newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        // Recalcular total basado en dividirEnCuotas
+        if (newProjections[index].dividirEnCuotas) {
+          newProjections[index].total = newProjections[index].pago;
+        } else {
+          newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        }
       }
 
       if (field === "nroCuotas" || field === "pago") {
-        newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        if (newProjections[index].dividirEnCuotas) {
+          newProjections[index].total = newProjections[index].pago;
+        } else {
+          newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        }
+      }
+
+      if (field === "dividirEnCuotas") {
+        // Cuando cambia el toggle, recalcular el total
+        if (value) {
+          // Si divide entre cuotas, el total es el pago (monto del servicio)
+          newProjections[index].total = newProjections[index].pago;
+        } else {
+          // Si no divide, el total es pago * cuotas
+          newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        }
       }
 
       return newProjections;
     });
+  };
+
+  // Calcular monto por cuota según el toggle
+  const getMontoPerCuota = (proj: ServiceProjection) => {
+    if (proj.dividirEnCuotas) {
+      return proj.pago / proj.nroCuotas; // Divide el total entre cuotas
+    }
+    return proj.pago; // Usa el pago completo por cada cuota
   };
 
   // Generate payment schedule with cuota numbers
@@ -242,6 +280,11 @@ export function CalendarProjectionModal({
 
       const docPago = documentosPago.find(d => d.id === proj.documentoPagoId)?.nombre || "";
       const metPago = metodosPago.find(m => m.id === proj.metodoPagoId)?.nombre || "";
+      
+      // Calcular el monto por cuota según el toggle
+      const montoPorCuota = proj.dividirEnCuotas 
+        ? proj.pago / proj.nroCuotas 
+        : proj.pago;
 
       if (proj.cicloPago === "unico") {
         schedule.push({
@@ -266,7 +309,7 @@ export function CalendarProjectionModal({
               servicio: proj.descripcion,
               servicioId: proj.id,
               color: proj.color,
-              monto: proj.pago,
+              monto: montoPorCuota,
               documentoPago: docPago,
               metodoPago: metPago,
             });
@@ -284,7 +327,7 @@ export function CalendarProjectionModal({
               servicio: proj.descripcion,
               servicioId: proj.id,
               color: proj.color,
-              monto: proj.pago,
+              monto: montoPorCuota,
               documentoPago: docPago,
               metodoPago: metPago,
             });
@@ -461,7 +504,7 @@ export function CalendarProjectionModal({
           {/* Services Table */}
           <div className="border rounded-lg overflow-hidden">
             <div className="overflow-x-auto overflow-y-auto max-h-[30vh]">
-              <table className="w-full min-w-[1400px] text-sm">
+              <table className="w-full min-w-[1500px] text-sm">
                 <thead className="bg-muted/50 sticky top-0">
                   <tr>
                     <th className="text-left p-2 font-medium">Servicio</th>
@@ -472,10 +515,11 @@ export function CalendarProjectionModal({
                     <th className="text-center p-2 font-medium w-[60px]">Años</th>
                     <th className="text-center p-2 font-medium w-[80px]">Día Pago</th>
                     <th className="text-left p-2 font-medium w-[120px]">Ciclo</th>
-                    <th className="text-center p-2 font-medium w-[80px]">Cuotas</th>
+                    <th className="text-center p-2 font-medium w-[80px]">N° Cuotas</th>
+                    <th className="text-center p-2 font-medium w-[80px]" title="Si está activado, divide el total entre las cuotas. Si no, cada cuota paga el monto completo.">Dividir</th>
                     <th className="text-left p-2 font-medium w-[150px]">Doc. Pago</th>
                     <th className="text-left p-2 font-medium w-[130px]">Método Pago</th>
-                    <th className="text-right p-2 font-medium w-[100px]">Pago</th>
+                    <th className="text-right p-2 font-medium w-[100px]">Monto Serv.</th>
                     <th className="text-right p-2 font-medium w-[100px]">Total</th>
                   </tr>
                 </thead>
@@ -579,6 +623,15 @@ export function CalendarProjectionModal({
                         />
                       </td>
                       <td className="p-2">
+                        <div className="flex items-center justify-center">
+                          <Switch
+                            checked={proj.dividirEnCuotas}
+                            onCheckedChange={(checked) => handleProjectionChange(index, "dividirEnCuotas", checked)}
+                            disabled={proj.cicloPago === "unico"}
+                          />
+                        </div>
+                      </td>
+                      <td className="p-2">
                         <Select
                           value={proj.documentoPagoId}
                           onValueChange={(v) => handleProjectionChange(index, "documentoPagoId", v)}
@@ -630,7 +683,7 @@ export function CalendarProjectionModal({
                 </tbody>
                 <tfoot className="bg-muted/50 border-t-2">
                   <tr>
-                    <td colSpan={12} className="p-2 text-right font-semibold">Total General:</td>
+                    <td colSpan={13} className="p-2 text-right font-semibold">Total General:</td>
                     <td className="p-2 text-right font-bold text-lg">S/ {totalGeneral.toFixed(2)}</td>
                   </tr>
                 </tfoot>

@@ -48,7 +48,8 @@ interface ProformaData {
   total: number;
   notas?: string | null;
   moneda?: string;
-  campos_personalizados?: Record<string, string>;
+  campos_personalizados?: Record<string, any>;
+  campos_especificos?: { label: string; value: string }[]; // Campos específicos para mostrar en PDF
 }
 
 // Corporate colors - Red, Gold & Maroon palette
@@ -229,9 +230,14 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   yPos = 42;
 
   // ========== CLIENT & DATES SECTION ==========
+  // Calcular altura dinámica basada en campos específicos
+  const hasCamposEspecificos = data.campos_especificos && data.campos_especificos.length > 0;
+  const camposEspecificosHeight = hasCamposEspecificos ? Math.ceil(data.campos_especificos!.length / 2) * 6 : 0;
+  const clientSectionHeight = 38 + camposEspecificosHeight;
+  
   // Modern card style
   doc.setFillColor(...COLORS.lightBg);
-  doc.roundedRect(margin, yPos, pageWidth - margin * 2, 38, 4, 4, "F");
+  doc.roundedRect(margin, yPos, pageWidth - margin * 2, clientSectionHeight, 4, 4, "F");
   
   // Left column - Client info
   const leftColX = margin + 8;
@@ -264,6 +270,30 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
     doc.text(`Email: ${data.cliente.email}`, leftColX, yPos + 36);
   }
 
+  // Campos específicos - debajo de los datos del cliente
+  if (hasCamposEspecificos && data.campos_especificos) {
+    let campoY = yPos + 42;
+    const camposPerRow = 2;
+    const campoWidth = (pageWidth - margin * 2 - 20) / camposPerRow;
+    
+    data.campos_especificos.forEach((campo, idx) => {
+      const col = idx % camposPerRow;
+      const row = Math.floor(idx / camposPerRow);
+      const campoX = leftColX + (col * campoWidth);
+      const campoYPos = campoY + (row * 6);
+      
+      doc.setTextColor(...COLORS.textMuted);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${campo.label}:`, campoX, campoYPos);
+      
+      doc.setTextColor(...COLORS.textDark);
+      doc.setFont("helvetica", "normal");
+      const labelWidth = doc.getTextWidth(`${campo.label}: `);
+      doc.text(campo.value || "-", campoX + labelWidth, campoYPos);
+    });
+  }
+
   // Right column - Dates
   const rightColX = pageWidth / 2 + 15;
   
@@ -293,7 +323,7 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
   doc.setFont("helvetica", "bold");
   doc.text(formatDate(data.fecha_vencimiento), rightColX, yPos + 37);
 
-  yPos += 46;
+  yPos += clientSectionHeight + 8;
 
   // ========== SERVICES TABLE ==========
   // Section title with modern styling
