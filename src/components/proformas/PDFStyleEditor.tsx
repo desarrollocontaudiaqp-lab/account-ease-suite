@@ -44,6 +44,8 @@ export interface PDFStyleConfig {
     textMuted: string;
     background: string;
     border: string;
+    headerBackground: string;
+    tableBackground: string;
   };
   typography: {
     headerTitleSize: number;
@@ -87,6 +89,8 @@ const DEFAULT_STYLE_CONFIG: PDFStyleConfig = {
     textMuted: "#646464",
     background: "#FFFFFF",
     border: "#B4B4B4",
+    headerBackground: "#CA9348",
+    tableBackground: "#CA9348",
   },
   typography: {
     headerTitleSize: 16,
@@ -379,6 +383,8 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
                         <ColorPicker label="Color Principal" value={config.colors.primary} onChange={(v) => updateColor("primary", v)} />
                         <ColorPicker label="Color Secundario" value={config.colors.primaryDark} onChange={(v) => updateColor("primaryDark", v)} />
                         <ColorPicker label="Color de Acento" value={config.colors.accent} onChange={(v) => updateColor("accent", v)} />
+                        <ColorPicker label="Fondo del Encabezado" value={config.colors.headerBackground} onChange={(v) => updateColor("headerBackground", v)} />
+                        <ColorPicker label="Fondo de Tablas/Totales" value={config.colors.tableBackground} onChange={(v) => updateColor("tableBackground", v)} />
                         <ColorPicker label="Texto Principal" value={config.colors.textDark} onChange={(v) => updateColor("textDark", v)} />
                         <ColorPicker label="Texto Secundario" value={config.colors.textMuted} onChange={(v) => updateColor("textMuted", v)} />
                         <ColorPicker label="Color de Borde" value={config.colors.border} onChange={(v) => updateColor("border", v)} />
