@@ -321,15 +321,35 @@ export function ProformaForm({
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    if (field === "cantidad" || field === "precio_unitario") {
+    // Cuando cambia la base imponible, recalcular IGV y precio
+    if (field === "base_imponible") {
+      const baseImponible = Number(value);
+      const igvMonto = calculateIGV(baseImponible);
+      newItems[index].base_imponible = baseImponible;
+      newItems[index].igv_monto = igvMonto;
+      newItems[index].precio_unitario = baseImponible + igvMonto;
+      newItems[index].subtotal = Number(newItems[index].cantidad) * newItems[index].precio_unitario;
+    }
+    
+    if (field === "cantidad") {
       newItems[index].subtotal =
         Number(newItems[index].cantidad) * Number(newItems[index].precio_unitario);
+    }
+    
+    // Si cambia precio_unitario directamente (no desde base_imponible), deducir IGV
+    if (field === "precio_unitario") {
+      const precioConIGV = Number(value);
+      const { base, igv } = deduceIGVFromTotal(precioConIGV);
+      newItems[index].base_imponible = base;
+      newItems[index].igv_monto = igv;
+      newItems[index].precio_unitario = precioConIGV;
+      newItems[index].subtotal = Number(newItems[index].cantidad) * precioConIGV;
     }
     
     setItems(newItems);
     
     // Limpiar proyección de calendario cuando cambian los servicios
-    if (field === "descripcion" || field === "precio_unitario" || field === "cantidad") {
+    if (field === "descripcion" || field === "precio_unitario" || field === "cantidad" || field === "base_imponible") {
       setCalendarProjection([]);
       setPaymentSchedule([]);
     }
@@ -337,9 +357,13 @@ export function ProformaForm({
 
   const handleSelectService = (index: number, service: ServicioPlantilla) => {
     const newItems = [...items];
+    // Deducir IGV del precio del servicio (asumiendo que viene con IGV incluido)
+    const { base, igv } = deduceIGVFromTotal(service.precio);
     newItems[index] = {
       ...newItems[index],
       descripcion: service.label,
+      base_imponible: base,
+      igv_monto: igv,
       precio_unitario: service.precio,
       subtotal: Number(newItems[index].cantidad) * service.precio,
     };
@@ -368,10 +392,10 @@ export function ProformaForm({
   };
 
   const calculateTotals = () => {
-    const subtotal = items.reduce((acc, item) => acc + item.subtotal, 0);
-    const igv = subtotal * 0.18;
-    const total = subtotal + igv;
-    return { subtotal, igv, total };
+    // El precio ya incluye IGV, así que deducimos para mostrar desglose
+    const totalConIGV = items.reduce((acc, item) => acc + item.subtotal, 0);
+    const { base, igv } = deduceIGVFromTotal(totalConIGV);
+    return { subtotal: base, igv: igv, total: totalConIGV };
   };
 
   const generateProformaNumber = () => {
@@ -934,17 +958,19 @@ export function ProformaForm({
             )}
 
             <div className="space-y-3">
-              <div className="hidden lg:grid lg:grid-cols-12 gap-3 text-xs font-medium text-muted-foreground px-1">
-                <div className="col-span-6">Descripción del servicio</div>
+              <div className="hidden lg:grid lg:grid-cols-16 gap-2 text-xs font-medium text-muted-foreground px-1">
+                <div className="col-span-5">Descripción del servicio</div>
                 <div className="col-span-1 text-center">Cant.</div>
+                <div className="col-span-2 text-center">Base Imp.</div>
+                <div className="col-span-2 text-center">IGV ({config.igv_percentage}%)</div>
                 <div className="col-span-2 text-center">Precio</div>
                 <div className="col-span-2 text-center">Subtotal</div>
                 <div className="col-span-1"></div>
               </div>
 
               {items.map((item, index) => (
-                <div key={index} className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-                  <div className="lg:col-span-6">
+                <div key={index} className="grid grid-cols-1 lg:grid-cols-16 gap-2 items-start">
+                  <div className="lg:col-span-5">
                     <Popover
                       open={openServicePopovers[index] || false}
                       onOpenChange={(isOpen) =>
@@ -955,7 +981,7 @@ export function ProformaForm({
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input
-                            placeholder={plantillaServicios.length > 0 ? "Buscar en servicios de la plantilla..." : "Escribir servicio..."}
+                            placeholder={plantillaServicios.length > 0 ? "Buscar servicio..." : "Escribir servicio..."}
                             value={item.descripcion}
                             onChange={(e) => {
                               handleItemChange(index, "descripcion", e.target.value);
@@ -996,7 +1022,7 @@ export function ProformaForm({
                                       <div className="flex items-center justify-between w-full">
                                         <span>{service.label}</span>
                                         <span className="text-xs text-muted-foreground">
-                                          S/ {service.precio.toLocaleString()}
+                                          {formatCurrency(service.precio)}
                                         </span>
                                       </div>
                                     </CommandItem>
@@ -1021,14 +1047,33 @@ export function ProformaForm({
                   <div className="lg:col-span-2">
                     <Input
                       type="number"
-                      placeholder="Precio"
-                      value={item.precio_unitario}
+                      placeholder="Base Imp."
+                      value={item.base_imponible?.toFixed(2) || "0.00"}
                       onChange={(e) =>
-                        handleItemChange(index, "precio_unitario", Number(e.target.value))
+                        handleItemChange(index, "base_imponible", Number(e.target.value))
                       }
                       min={0}
                       step="0.01"
-                      className="text-center bg-white"
+                      className="text-right bg-white"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <Input
+                      type="number"
+                      value={(item.igv_monto || 0).toFixed(2)}
+                      readOnly
+                      className="text-right bg-muted/50"
+                      title="IGV calculado automáticamente"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <Input
+                      type="number"
+                      placeholder="Precio"
+                      value={item.precio_unitario.toFixed(2)}
+                      readOnly
+                      className="text-right bg-muted/50"
+                      title="Precio = Base Imponible + IGV"
                     />
                   </div>
                   <div className="lg:col-span-2">
@@ -1036,7 +1081,7 @@ export function ProformaForm({
                       type="number"
                       value={item.subtotal.toFixed(2)}
                       readOnly
-                      className="text-center bg-muted/50"
+                      className="text-right bg-muted/50 font-medium"
                     />
                   </div>
                   <div className="lg:col-span-1 flex justify-center">

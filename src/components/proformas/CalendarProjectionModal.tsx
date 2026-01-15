@@ -149,10 +149,11 @@ export function CalendarProjectionModal({
 
   useEffect(() => {
     if (open && items.length > 0) {
+      const today = new Date();
       if (initialProjection && initialProjection.length > 0) {
         setProjections(initialProjection.map(p => ({
           ...p,
-          fechaInicio: p.fechaInicio ? new Date(p.fechaInicio) : undefined,
+          fechaInicio: p.fechaInicio ? new Date(p.fechaInicio) : today,
           fechaTermino: p.fechaTermino ? new Date(p.fechaTermino) : undefined,
           dividirEnCuotas: p.dividirEnCuotas !== undefined ? p.dividirEnCuotas : true,
         })));
@@ -162,12 +163,12 @@ export function CalendarProjectionModal({
           id: `service-${index}`,
           descripcion: item.descripcion,
           color: SERVICE_COLORS[index % SERVICE_COLORS.length],
-          fechaInicio: undefined,
+          fechaInicio: today, // Por defecto fecha de hoy
           fechaTermino: undefined,
           dias: 0,
           meses: 0,
           anos: 0,
-          fechaPago: 1,
+          fechaPago: today.getDate(), // Usar el día de hoy como día de pago
           cicloPago: "mensual" as const,
           nroCuotas: 1,
           documentoPagoId: documentosPago[0]?.id || "",
@@ -217,7 +218,7 @@ export function CalendarProjectionModal({
 
         // Recalcular total basado en dividirEnCuotas
         if (newProjections[index].dividirEnCuotas) {
-          newProjections[index].total = newProjections[index].pago; // pago es el total del servicio
+          newProjections[index].total = newProjections[index].pago;
         } else {
           newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
         }
@@ -240,7 +241,39 @@ export function CalendarProjectionModal({
         }
       }
 
-      if (field === "nroCuotas" || field === "pago") {
+      // Cuando cambia nroCuotas y el ciclo es mensual, calcular fecha término
+      if (field === "nroCuotas") {
+        const cuotas = Number(value);
+        if (newProjections[index].cicloPago === "mensual" && newProjections[index].fechaInicio) {
+          const nuevaFechaTermino = addMonths(newProjections[index].fechaInicio!, cuotas);
+          newProjections[index].fechaTermino = nuevaFechaTermino;
+          const { dias, meses, anos } = calculateDaysMonthsYears(
+            newProjections[index].fechaInicio,
+            nuevaFechaTermino
+          );
+          newProjections[index].dias = dias;
+          newProjections[index].meses = meses;
+          newProjections[index].anos = anos;
+        } else if (newProjections[index].cicloPago === "anual" && newProjections[index].fechaInicio) {
+          const nuevaFechaTermino = addMonths(newProjections[index].fechaInicio!, cuotas * 12);
+          newProjections[index].fechaTermino = nuevaFechaTermino;
+          const { dias, meses, anos } = calculateDaysMonthsYears(
+            newProjections[index].fechaInicio,
+            nuevaFechaTermino
+          );
+          newProjections[index].dias = dias;
+          newProjections[index].meses = meses;
+          newProjections[index].anos = anos;
+        }
+        
+        if (newProjections[index].dividirEnCuotas) {
+          newProjections[index].total = newProjections[index].pago;
+        } else {
+          newProjections[index].total = newProjections[index].pago * cuotas;
+        }
+      }
+      
+      if (field === "pago") {
         if (newProjections[index].dividirEnCuotas) {
           newProjections[index].total = newProjections[index].pago;
         } else {
@@ -249,12 +282,9 @@ export function CalendarProjectionModal({
       }
 
       if (field === "dividirEnCuotas") {
-        // Cuando cambia el toggle, recalcular el total
         if (value) {
-          // Si divide entre cuotas, el total es el pago (monto del servicio)
           newProjections[index].total = newProjections[index].pago;
         } else {
-          // Si no divide, el total es pago * cuotas
           newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
         }
       }
