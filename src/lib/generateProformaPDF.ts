@@ -62,6 +62,8 @@ export interface PDFStyleConfig {
     textMuted: string;
     background: string;
     border: string;
+    headerBackground: string;
+    tableBackground: string;
   };
   typography: {
     headerTitleSize: number;
@@ -106,6 +108,8 @@ const DEFAULT_CONFIG: PDFStyleConfig = {
     textMuted: "#646464",
     background: "#FFFFFF",
     border: "#B4B4B4",
+    headerBackground: "#CA9348",
+    tableBackground: "#CA9348",
   },
   typography: {
     headerTitleSize: 16,
@@ -175,6 +179,8 @@ export async function generateProformaPDF(
     textMuted: hexToRgb(config.colors.textMuted),
     background: hexToRgb(config.colors.background),
     border: hexToRgb(config.colors.border),
+    headerBackground: hexToRgb(config.colors.headerBackground),
+    tableBackground: hexToRgb(config.colors.tableBackground),
     white: [255, 255, 255] as [number, number, number],
   };
 
@@ -193,8 +199,8 @@ export async function generateProformaPDF(
   // ========== HEADER SECTION ==========
   const headerHeight = config.layout.headerHeight;
 
-  // Solid primary header background
-  doc.setFillColor(...COLORS.primary);
+  // Solid header background color
+  doc.setFillColor(...COLORS.headerBackground);
   doc.rect(0, 0, pageWidth, headerHeight, "F");
 
   // Load and add logo
@@ -304,26 +310,35 @@ export async function generateProformaPDF(
   doc.setFont(config.typography.fontFamily, "bold");
   doc.text("FECHAS", rightColX + 14, yPos + 10, { align: "center" });
 
-  // Dates
+  // Dates - stacked vertically
   doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(8);
   doc.setFont(config.typography.fontFamily, "normal");
-  doc.text("Fecha de Emisión:", rightColX, yPos + 22);
+  doc.text("Fecha de Emisión:", rightColX, yPos + 18);
   doc.setTextColor(...COLORS.textDark);
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setFont(config.typography.fontFamily, "bold");
-  doc.text(formatDate(data.fecha_emision), rightColX, yPos + 29);
+  doc.text(formatDate(data.fecha_emision), rightColX + 35, yPos + 18);
 
-  // Valid until with accent color
-  const validX = rightColX + 48;
+  // Valid until - below emission date
   doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(8);
   doc.setFont(config.typography.fontFamily, "normal");
-  doc.text("Válido hasta:", validX, yPos + 22);
+  doc.text("Válido hasta:", rightColX, yPos + 28);
   doc.setTextColor(...COLORS.accent);
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setFont(config.typography.fontFamily, "bold");
-  doc.text(formatDate(data.fecha_vencimiento), validX, yPos + 29);
+  doc.text(formatDate(data.fecha_vencimiento), rightColX + 35, yPos + 28);
+
+  // Contact info if available
+  if (data.cliente.telefono || data.cliente.email) {
+    doc.setTextColor(...COLORS.textMuted);
+    doc.setFontSize(8);
+    doc.setFont(config.typography.fontFamily, "normal");
+    if (data.cliente.telefono) {
+      doc.text(`Tel: ${data.cliente.telefono}`, rightColX, yPos + 38);
+    }
+  }
 
   yPos += clientSectionHeight + config.layout.sectionSpacing;
 
@@ -352,7 +367,7 @@ export async function generateProformaPDF(
     body: tableData,
     theme: "plain",
     headStyles: {
-      fillColor: COLORS.primary,
+      fillColor: COLORS.tableBackground,
       textColor: COLORS.white,
       fontSize: 9,
       fontStyle: "bold",
@@ -422,8 +437,8 @@ export async function generateProformaPDF(
 
   yPos += 12;
 
-  // Total row with primary background
-  doc.setFillColor(...COLORS.primary);
+  // Total row with tableBackground
+  doc.setFillColor(...COLORS.tableBackground);
   doc.rect(totalsX, yPos, totalsWidth, 14, "F");
   doc.setDrawColor(...COLORS.border);
   doc.rect(totalsX, yPos, totalsWidth, 14);
