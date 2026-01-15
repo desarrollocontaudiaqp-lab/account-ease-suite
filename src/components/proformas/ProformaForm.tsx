@@ -957,146 +957,148 @@ export function ProformaForm({
               </p>
             )}
 
-            <div className="space-y-3">
-              <div className="hidden lg:grid lg:grid-cols-16 gap-2 text-xs font-medium text-muted-foreground px-1">
-                <div className="col-span-5">Descripción del servicio</div>
-                <div className="col-span-1 text-center">Cant.</div>
-                <div className="col-span-2 text-center">Base Imp.</div>
-                <div className="col-span-2 text-center">IGV ({config.igv_percentage}%)</div>
-                <div className="col-span-2 text-center">Precio</div>
-                <div className="col-span-2 text-center">Subtotal</div>
-                <div className="col-span-1"></div>
-              </div>
-
-              {items.map((item, index) => (
-                <div key={index} className="grid grid-cols-1 lg:grid-cols-16 gap-2 items-start">
-                  <div className="lg:col-span-5">
-                    <Popover
-                      open={openServicePopovers[index] || false}
-                      onOpenChange={(isOpen) =>
-                        setOpenServicePopovers((prev) => ({ ...prev, [index]: isOpen }))
-                      }
-                    >
-                      <PopoverTrigger asChild>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder={plantillaServicios.length > 0 ? "Buscar servicio..." : "Escribir servicio..."}
-                            value={item.descripcion}
-                            onChange={(e) => {
-                              handleItemChange(index, "descripcion", e.target.value);
-                              if (plantillaServicios.length > 0) {
-                                setOpenServicePopovers((prev) => ({ ...prev, [index]: true }));
-                              }
-                            }}
-                            onFocus={() => {
-                              if (plantillaServicios.length > 0) {
-                                setOpenServicePopovers((prev) => ({ ...prev, [index]: true }));
-                              }
-                            }}
-                            className="pl-9 bg-white"
-                          />
-                        </div>
-                      </PopoverTrigger>
-                      {plantillaServicios.length > 0 && (
-                        <PopoverContent 
-                          className="p-0 w-[var(--radix-popover-trigger-width)]" 
-                          align="start"
-                          onOpenAutoFocus={(e) => e.preventDefault()}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px]">
+                <thead>
+                  <tr className="text-xs font-medium text-muted-foreground border-b">
+                    <th className="text-left px-2 py-2 w-[35%]">Descripción del servicio</th>
+                    <th className="text-center px-2 py-2 w-[60px]">Cant.</th>
+                    <th className="text-right px-2 py-2 w-[100px]">Base Imp.</th>
+                    <th className="text-right px-2 py-2 w-[90px]">IGV ({config.igv_percentage}%)</th>
+                    <th className="text-right px-2 py-2 w-[100px]">Precio</th>
+                    <th className="text-right px-2 py-2 w-[110px]">Subtotal</th>
+                    <th className="w-[40px]"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {items.map((item, index) => (
+                    <tr key={index} className="hover:bg-muted/30">
+                      <td className="px-2 py-2">
+                        <Popover
+                          open={openServicePopovers[index] || false}
+                          onOpenChange={(isOpen) =>
+                            setOpenServicePopovers((prev) => ({ ...prev, [index]: isOpen }))
+                          }
                         >
-                          <Command>
-                            <CommandInput placeholder="Buscar servicio..." className="h-9" />
-                            <CommandList>
-                              <CommandEmpty>No se encontraron servicios</CommandEmpty>
-                              <CommandGroup heading="Servicios de la plantilla">
-                                {plantillaServicios
-                                  .filter((s) =>
-                                    s.label.toLowerCase().includes(item.descripcion.toLowerCase())
-                                  )
-                                  .map((service) => (
-                                    <CommandItem
-                                      key={service.id}
-                                      onSelect={() => handleSelectService(index, service)}
-                                      className="cursor-pointer"
-                                    >
-                                      <div className="flex items-center justify-between w-full">
-                                        <span>{service.label}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                          {formatCurrency(service.precio)}
-                                        </span>
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      )}
-                    </Popover>
-                  </div>
-                  <div className="lg:col-span-1">
-                    <Input
-                      type="number"
-                      placeholder="Cant."
-                      value={item.cantidad}
-                      onChange={(e) => handleItemChange(index, "cantidad", Number(e.target.value))}
-                      min={1}
-                      className="text-center bg-white"
-                    />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <Input
-                      type="number"
-                      placeholder="Base Imp."
-                      value={item.base_imponible?.toFixed(2) || "0.00"}
-                      onChange={(e) =>
-                        handleItemChange(index, "base_imponible", Number(e.target.value))
-                      }
-                      min={0}
-                      step="0.01"
-                      className="text-right bg-white"
-                    />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <Input
-                      type="number"
-                      value={(item.igv_monto || 0).toFixed(2)}
-                      readOnly
-                      className="text-right bg-muted/50"
-                      title="IGV calculado automáticamente"
-                    />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <Input
-                      type="number"
-                      placeholder="Precio"
-                      value={item.precio_unitario.toFixed(2)}
-                      readOnly
-                      className="text-right bg-muted/50"
-                      title="Precio = Base Imponible + IGV"
-                    />
-                  </div>
-                  <div className="lg:col-span-2">
-                    <Input
-                      type="number"
-                      value={item.subtotal.toFixed(2)}
-                      readOnly
-                      className="text-right bg-muted/50 font-medium"
-                    />
-                  </div>
-                  <div className="lg:col-span-1 flex justify-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeItem(index)}
-                      disabled={items.length === 1}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                          <PopoverTrigger asChild>
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder={plantillaServicios.length > 0 ? "Buscar servicio..." : "Escribir servicio..."}
+                                value={item.descripcion}
+                                onChange={(e) => {
+                                  handleItemChange(index, "descripcion", e.target.value);
+                                  if (plantillaServicios.length > 0) {
+                                    setOpenServicePopovers((prev) => ({ ...prev, [index]: true }));
+                                  }
+                                }}
+                                onFocus={() => {
+                                  if (plantillaServicios.length > 0) {
+                                    setOpenServicePopovers((prev) => ({ ...prev, [index]: true }));
+                                  }
+                                }}
+                                className="pl-9 bg-white"
+                              />
+                            </div>
+                          </PopoverTrigger>
+                          {plantillaServicios.length > 0 && (
+                            <PopoverContent 
+                              className="p-0 w-[400px]" 
+                              align="start"
+                              onOpenAutoFocus={(e) => e.preventDefault()}
+                            >
+                              <Command>
+                                <CommandInput placeholder="Buscar servicio..." className="h-9" />
+                                <CommandList>
+                                  <CommandEmpty>No se encontraron servicios</CommandEmpty>
+                                  <CommandGroup heading="Servicios de la plantilla">
+                                    {plantillaServicios
+                                      .filter((s) =>
+                                        s.label.toLowerCase().includes(item.descripcion.toLowerCase())
+                                      )
+                                      .map((service) => (
+                                        <CommandItem
+                                          key={service.id}
+                                          onSelect={() => handleSelectService(index, service)}
+                                          className="cursor-pointer"
+                                        >
+                                          <div className="flex items-center justify-between w-full">
+                                            <span>{service.label}</span>
+                                            <span className="text-xs text-muted-foreground">
+                                              {formatCurrency(service.precio)}
+                                            </span>
+                                          </div>
+                                        </CommandItem>
+                                      ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          )}
+                        </Popover>
+                      </td>
+                      <td className="px-2 py-2">
+                        <Input
+                          type="number"
+                          value={item.cantidad}
+                          onChange={(e) => handleItemChange(index, "cantidad", Number(e.target.value))}
+                          min={1}
+                          className="text-center bg-white w-[60px]"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <Input
+                          type="number"
+                          value={item.base_imponible?.toFixed(2) || "0.00"}
+                          onChange={(e) =>
+                            handleItemChange(index, "base_imponible", Number(e.target.value))
+                          }
+                          min={0}
+                          step="0.01"
+                          className="text-right bg-white w-[100px]"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <Input
+                          type="number"
+                          value={(item.igv_monto || 0).toFixed(2)}
+                          readOnly
+                          className="text-right bg-muted/50 w-[90px]"
+                          title="IGV calculado automáticamente"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <Input
+                          type="number"
+                          value={item.precio_unitario.toFixed(2)}
+                          readOnly
+                          className="text-right bg-muted/50 w-[100px]"
+                          title="Precio = Base Imponible + IGV"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <Input
+                          type="number"
+                          value={item.subtotal.toFixed(2)}
+                          readOnly
+                          className="text-right bg-muted/50 font-medium w-[110px]"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeItem(index)}
+                          disabled={items.length === 1}
+                          className="text-muted-foreground hover:text-destructive h-8 w-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
