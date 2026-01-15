@@ -20,6 +20,7 @@ import { ProformaDetailModal } from "@/components/proformas/ProformaDetailModal"
 import { SendEmailDialog } from "@/components/proformas/SendEmailDialog";
 import { ServiceFilterDropdown } from "@/components/proformas/ServiceFilterDropdown";
 import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
+import { getPDFStylesForType } from "@/hooks/usePDFStyles";
 import { toast } from "sonner";
 
 type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
@@ -266,6 +267,9 @@ const Proformas = () => {
     
     try {
       const items = await fetchProformaItems(proforma.id);
+      
+      // Load PDF styles for this proforma type from database
+      const pdfStyles = await getPDFStylesForType(proforma.tipo);
 
       const pdfBlob = await generateProformaPDF({
         numero: proforma.numero,
@@ -290,7 +294,7 @@ const Proformas = () => {
         total: proforma.total,
         notas: proforma.notas,
         moneda: proforma.moneda,
-      });
+      }, pdfStyles);
 
       downloadPDF(pdfBlob, `Proforma_${proforma.numero}.pdf`);
       toast.success("PDF descargado correctamente");
