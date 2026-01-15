@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Save, ChevronRight, FileText, Briefcase, Check, Settings2, PlusCircle, Search, X } from "lucide-react";
+import { Plus, Trash2, Save, ChevronRight, FileText, Briefcase, Check, Settings2, PlusCircle, Search, X, Palette } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PDFStyleEditor } from "./PDFStyleEditor";
 
 interface Campo {
   id: string;
@@ -117,7 +118,7 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
   const [newPlantillaNombre, setNewPlantillaNombre] = useState("");
   const [newPlantillaTipo, setNewPlantillaTipo] = useState<GrupoServicio>("Contabilidad");
   const [newPlantillaDescripcion, setNewPlantillaDescripcion] = useState("");
-  const [activeTab, setActiveTab] = useState<"campos" | "servicios">("campos");
+  const [activeTab, setActiveTab] = useState<"campos" | "servicios" | "estilos">("campos");
   const [servicioSearch, setServicioSearch] = useState("");
 
   useEffect(() => {
@@ -590,16 +591,20 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
 
               {/* Tabs for Campos and Servicios */}
               <div className="flex-1 overflow-hidden flex flex-col">
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campos" | "servicios")} className="flex-1 flex flex-col overflow-hidden">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campos" | "servicios" | "estilos")} className="flex-1 flex flex-col overflow-hidden">
                   <div className="px-6 pt-4 border-b">
-                    <TabsList className="grid w-full max-w-md grid-cols-2">
+                    <TabsList className="grid w-full max-w-xl grid-cols-3">
                       <TabsTrigger value="campos" className="gap-2">
                         <FileText className="h-4 w-4" />
-                        Campos Específicos ({selectedPlantilla.campos.length})
+                        Campos ({selectedPlantilla.campos.length})
                       </TabsTrigger>
                       <TabsTrigger value="servicios" className="gap-2">
                         <Briefcase className="h-4 w-4" />
                         Servicios ({selectedPlantilla.servicios.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="estilos" className="gap-2">
+                        <Palette className="h-4 w-4" />
+                        Editor PDF
                       </TabsTrigger>
                     </TabsList>
                   </div>
@@ -868,6 +873,15 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                         </ScrollArea>
                       </div>
                     </div>
+                  </TabsContent>
+
+                  {/* Estilos PDF Tab */}
+                  <TabsContent value="estilos" className="flex-1 overflow-hidden m-0 p-0">
+                    <PDFStyleEditor 
+                      plantillaId={selectedPlantilla.id}
+                      plantillaNombre={selectedPlantilla.nombre}
+                      plantillaTipo={selectedPlantilla.tipo}
+                    />
                   </TabsContent>
                 </Tabs>
               </div>

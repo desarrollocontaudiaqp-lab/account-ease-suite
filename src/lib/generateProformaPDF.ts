@@ -52,210 +52,298 @@ interface ProformaData {
   campos_especificos?: { label: string; value: string }[];
 }
 
-// Corporate colors - exactly matching the design
-const COLORS = {
-  // Gold/Mustard for header and accents
-  gold: [202, 147, 72] as [number, number, number], // #CA9348
-  goldLight: [212, 167, 102] as [number, number, number],
-  goldDark: [180, 125, 50] as [number, number, number],
-  // Red for valid until date
-  red: [217, 26, 34] as [number, number, number], // #D91A22
-  // Gray for badges
-  grayBadge: [80, 80, 80] as [number, number, number],
-  grayLight: [245, 245, 245] as [number, number, number],
-  // White
-  white: [255, 255, 255] as [number, number, number],
-  // Text colors
-  textDark: [50, 50, 50] as [number, number, number],
-  textMuted: [100, 100, 100] as [number, number, number],
-  // Border
-  borderGray: [180, 180, 180] as [number, number, number],
-};
+// PDF Style Configuration Interface
+export interface PDFStyleConfig {
+  colors: {
+    primary: string;
+    primaryDark: string;
+    accent: string;
+    textDark: string;
+    textMuted: string;
+    background: string;
+    border: string;
+  };
+  typography: {
+    headerTitleSize: number;
+    headerSubtitleSize: number;
+    sectionTitleSize: number;
+    bodyTextSize: number;
+    smallTextSize: number;
+    fontFamily: "helvetica" | "times" | "courier";
+  };
+  layout: {
+    marginHorizontal: number;
+    headerHeight: number;
+    sectionSpacing: number;
+    borderRadius: number;
+    showLogo: boolean;
+    showSlogan: boolean;
+    showBankInfo: boolean;
+    showTerms: boolean;
+  };
+  company: {
+    name: string;
+    slogan: string;
+    address: string;
+    phone: string;
+    email: string;
+  };
+  bank: {
+    bcp_soles: string;
+    bcp_dolares: string;
+    interbank_soles: string;
+    interbank_dolares: string;
+  };
+}
 
-// Company information
-const COMPANY_INFO = {
-  name: "C&A CONTADORES & AUDITORES",
-  slogan: "Soluciones Contables y Empresariales",
-  address: "Calle Santo Domingo N.º 103, Of. 303 y 304 – Arequipa",
-  phone: "(+51) 982 307 213",
-  email: "rmarquez@contadoresyauditoresarequipa.com",
-};
-
-const BANK_INFO = {
-  bcp: {
-    soles: "BCP Cta. Cte. Soles: 305-2345678-0-12",
-    dolares: "BCP Cta. Cte. Dólares: 305-2345678-1-19"
+// Default configuration
+const DEFAULT_CONFIG: PDFStyleConfig = {
+  colors: {
+    primary: "#CA9348",
+    primaryDark: "#B47D32",
+    accent: "#D91A22",
+    textDark: "#323232",
+    textMuted: "#646464",
+    background: "#FFFFFF",
+    border: "#B4B4B4",
   },
-  interbank: {
-    soles: "Interbank Cta. Cte. Soles: 200-3456789012",
-    dolares: "Interbank Cta. Cte. Dólares: 200-3456789019"
-  }
+  typography: {
+    headerTitleSize: 16,
+    headerSubtitleSize: 9,
+    sectionTitleSize: 12,
+    bodyTextSize: 10,
+    smallTextSize: 8,
+    fontFamily: "helvetica",
+  },
+  layout: {
+    marginHorizontal: 15,
+    headerHeight: 35,
+    sectionSpacing: 12,
+    borderRadius: 2,
+    showLogo: true,
+    showSlogan: true,
+    showBankInfo: true,
+    showTerms: true,
+  },
+  company: {
+    name: "C&A CONTADORES & AUDITORES",
+    slogan: "Soluciones Contables y Empresariales",
+    address: "Calle Santo Domingo N.º 103, Of. 303 y 304 – Arequipa",
+    phone: "(+51) 982 307 213",
+    email: "rmarquez@contadoresyauditoresarequipa.com",
+  },
+  bank: {
+    bcp_soles: "BCP Cta. Cte. Soles: 305-2345678-0-12",
+    bcp_dolares: "BCP Cta. Cte. Dólares: 305-2345678-1-19",
+    interbank_soles: "Interbank Cta. Cte. Soles: 200-3456789012",
+    interbank_dolares: "Interbank Cta. Cte. Dólares: 200-3456789019",
+  },
 };
 
-export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
+// Helper to convert hex to RGB array
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (result) {
+    return [
+      parseInt(result[1], 16),
+      parseInt(result[2], 16),
+      parseInt(result[3], 16),
+    ];
+  }
+  return [0, 0, 0];
+}
+
+export async function generateProformaPDF(
+  data: ProformaData,
+  customConfig?: Partial<PDFStyleConfig>
+): Promise<Blob> {
+  // Merge custom config with defaults
+  const config: PDFStyleConfig = {
+    colors: { ...DEFAULT_CONFIG.colors, ...customConfig?.colors },
+    typography: { ...DEFAULT_CONFIG.typography, ...customConfig?.typography },
+    layout: { ...DEFAULT_CONFIG.layout, ...customConfig?.layout },
+    company: { ...DEFAULT_CONFIG.company, ...customConfig?.company },
+    bank: { ...DEFAULT_CONFIG.bank, ...customConfig?.bank },
+  };
+
+  // Convert colors to RGB
+  const COLORS = {
+    primary: hexToRgb(config.colors.primary),
+    primaryDark: hexToRgb(config.colors.primaryDark),
+    accent: hexToRgb(config.colors.accent),
+    textDark: hexToRgb(config.colors.textDark),
+    textMuted: hexToRgb(config.colors.textMuted),
+    background: hexToRgb(config.colors.background),
+    border: hexToRgb(config.colors.border),
+    white: [255, 255, 255] as [number, number, number],
+  };
+
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
-    format: "a4"
+    format: "a4",
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 15;
+  const margin = config.layout.marginHorizontal;
+  const borderRadius = config.layout.borderRadius;
   let yPos = 0;
 
-  // ========== HEADER SECTION - Gold/Mustard uniform color ==========
-  const headerHeight = 35;
-  
-  // Solid gold header background
-  doc.setFillColor(...COLORS.gold);
+  // ========== HEADER SECTION ==========
+  const headerHeight = config.layout.headerHeight;
+
+  // Solid primary header background
+  doc.setFillColor(...COLORS.primary);
   doc.rect(0, 0, pageWidth, headerHeight, "F");
 
-  // Load and add logo with gold/yellow background effect
-  try {
-    const logoImg = await loadImage("/images/logo-ca.png");
-    const logoSize = 28;
-    doc.addImage(logoImg, "PNG", margin, 4, logoSize, logoSize);
-  } catch (error) {
-    console.error("Error loading logo:", error);
-    // Fallback: draw a placeholder
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(margin, 4, 28, 28, 2, 2, "F");
+  // Load and add logo
+  if (config.layout.showLogo) {
+    try {
+      const logoImg = await loadImage("/images/logo-ca.png");
+      const logoSize = 28;
+      doc.addImage(logoImg, "PNG", margin, 4, logoSize, logoSize);
+    } catch (error) {
+      console.error("Error loading logo:", error);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(margin, 4, 28, 28, borderRadius, borderRadius, "F");
+    }
   }
 
-  // Company name and info - positioned to the right of logo
-  const textStartX = margin + 33;
-  
-  doc.setTextColor(...COLORS.white);
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text(COMPANY_INFO.name, textStartX, 12);
-  
-  // Slogan in italic
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "italic");
-  doc.text(COMPANY_INFO.slogan, textStartX, 17);
-  
-  // Contact info - smaller text
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Llamanos 24/7: ${COMPANY_INFO.phone} Email:`, textStartX, 23);
-  doc.text(`${COMPANY_INFO.email} Ubicación: `, textStartX, 27);
-  doc.text(COMPANY_INFO.address, textStartX, 31);
+  // Company name and info
+  const textStartX = config.layout.showLogo ? margin + 33 : margin;
 
-  // Right side - PROFORMA title and type
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(config.typography.headerTitleSize);
+  doc.setFont(config.typography.fontFamily, "bold");
+  doc.text(config.company.name, textStartX, 12);
+
+  // Slogan
+  if (config.layout.showSlogan) {
+    doc.setFontSize(config.typography.headerSubtitleSize);
+    doc.setFont(config.typography.fontFamily, "italic");
+    doc.text(config.company.slogan, textStartX, 17);
+  }
+
+  // Contact info
+  doc.setFontSize(7.5);
+  doc.setFont(config.typography.fontFamily, "normal");
+  doc.text(`Llamanos 24/7: ${config.company.phone} Email:`, textStartX, 23);
+  doc.text(`${config.company.email} Ubicación: `, textStartX, 27);
+  doc.text(config.company.address, textStartX, 31);
+
+  // Right side - PROFORMA title
   const rightTextX = pageWidth - margin;
-  
+
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(config.typography.fontFamily, "bold");
   doc.text("PROFORMA", rightTextX, 12, { align: "right" });
-  
+
   doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(config.typography.fontFamily, "normal");
   doc.text(data.tipo.toUpperCase(), rightTextX, 18, { align: "right" });
-  
-  // Number badge with gold/dark background
+
+  // Number badge
   const numberText = `N° ${data.numero}`;
   const numberWidth = 52;
-  doc.setFillColor(...COLORS.goldDark);
-  doc.roundedRect(pageWidth - margin - numberWidth, 22, numberWidth, 9, 2, 2, "F");
+  doc.setFillColor(...COLORS.primaryDark);
+  doc.roundedRect(pageWidth - margin - numberWidth, 22, numberWidth, 9, borderRadius, borderRadius, "F");
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(config.typography.fontFamily, "bold");
   doc.text(numberText, pageWidth - margin - numberWidth / 2, 28, { align: "center" });
 
   yPos = headerHeight + 8;
 
   // ========== CLIENT & DATES SECTION ==========
   const clientSectionHeight = 42;
-  
-  // Border around the entire section
-  doc.setDrawColor(...COLORS.borderGray);
+
+  doc.setDrawColor(...COLORS.border);
   doc.setLineWidth(0.5);
   doc.rect(margin, yPos, pageWidth - margin * 2, clientSectionHeight);
-  
-  // Vertical divider line in the middle
+
+  // Vertical divider
   const middleX = pageWidth / 2 + 15;
   doc.line(middleX, yPos, middleX, yPos + clientSectionHeight);
 
-  // Left column - Client info badge
-  doc.setFillColor(...COLORS.gold);
+  // Client info badge
+  doc.setFillColor(...COLORS.primary);
   doc.roundedRect(margin + 8, yPos + 5, 48, 7, 1.5, 1.5, "F");
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(config.typography.fontFamily, "bold");
   doc.text("DATOS DEL CLIENTE", margin + 32, yPos + 10, { align: "center" });
-  
+
   // Client details
   doc.setTextColor(...COLORS.textDark);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
+  doc.setFontSize(config.typography.sectionTitleSize);
+  doc.setFont(config.typography.fontFamily, "bold");
   doc.text(data.cliente.razon_social.toUpperCase(), margin + 8, yPos + 22);
-  
+
   doc.setTextColor(...COLORS.textMuted);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
+  doc.setFontSize(config.typography.bodyTextSize);
+  doc.setFont(config.typography.fontFamily, "normal");
   doc.text(`RUC/DNI: ${data.cliente.codigo}`, margin + 8, yPos + 29);
-  
+
   if (data.cliente.direccion) {
     const maxWidth = middleX - margin - 15;
-    const direccion = data.cliente.direccion.length > 50 
-      ? data.cliente.direccion.substring(0, 47) + "..." 
-      : data.cliente.direccion;
+    const direccion =
+      data.cliente.direccion.length > 50
+        ? data.cliente.direccion.substring(0, 47) + "..."
+        : data.cliente.direccion;
     doc.text(`Dir: ${direccion}`, margin + 8, yPos + 36);
   }
 
-  // Right column - Dates badge
+  // Dates badge
   const rightColX = middleX + 8;
-  doc.setFillColor(...COLORS.gold);
+  doc.setFillColor(...COLORS.primary);
   doc.roundedRect(rightColX, yPos + 5, 28, 7, 1.5, 1.5, "F");
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(config.typography.fontFamily, "bold");
   doc.text("FECHAS", rightColX + 14, yPos + 10, { align: "center" });
-  
-  // Dates - two columns layout
+
+  // Dates
   doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(config.typography.fontFamily, "normal");
   doc.text("Fecha de Emisión:", rightColX, yPos + 22);
   doc.setTextColor(...COLORS.textDark);
   doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(config.typography.fontFamily, "bold");
   doc.text(formatDate(data.fecha_emision), rightColX, yPos + 29);
-  
-  // Valid until - right side with red color
+
+  // Valid until with accent color
   const validX = rightColX + 48;
   doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(config.typography.fontFamily, "normal");
   doc.text("Válido hasta:", validX, yPos + 22);
-  doc.setTextColor(...COLORS.red);
+  doc.setTextColor(...COLORS.accent);
   doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(config.typography.fontFamily, "bold");
   doc.text(formatDate(data.fecha_vencimiento), validX, yPos + 29);
 
-  yPos += clientSectionHeight + 12;
+  yPos += clientSectionHeight + config.layout.sectionSpacing;
 
   // ========== SERVICES TABLE ==========
-  // Section title badge
-  doc.setFillColor(...COLORS.gold);
+  doc.setFillColor(...COLORS.primary);
   doc.roundedRect(margin, yPos, 55, 7, 1.5, 1.5, "F");
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(config.typography.fontFamily, "bold");
   doc.text("DETALLE DE SERVICIOS", margin + 27.5, yPos + 5, { align: "center" });
-  
+
   yPos += 14;
 
-  // Services table with gold header
+  // Services table
   const tableData = data.items.map((item, index) => [
     (index + 1).toString(),
     item.descripcion,
     item.cantidad.toString(),
     formatCurrency(item.precio_unitario, data.moneda || "PEN"),
-    formatCurrency(item.subtotal, data.moneda || "PEN")
+    formatCurrency(item.subtotal, data.moneda || "PEN"),
   ]);
 
   autoTable(doc, {
@@ -264,20 +352,20 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
     body: tableData,
     theme: "plain",
     headStyles: {
-      fillColor: COLORS.gold,
+      fillColor: COLORS.primary,
       textColor: COLORS.white,
       fontSize: 9,
       fontStyle: "bold",
       halign: "center",
       valign: "middle",
-      cellPadding: 4
+      cellPadding: 4,
     },
     bodyStyles: {
       fontSize: 9,
       cellPadding: 4,
       textColor: COLORS.textDark,
       valign: "middle",
-      lineColor: COLORS.borderGray,
+      lineColor: COLORS.border,
       lineWidth: 0.3,
     },
     columnStyles: {
@@ -285,126 +373,127 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
       1: { halign: "left", cellWidth: "auto" },
       2: { halign: "center", cellWidth: 18 },
       3: { halign: "center", cellWidth: 28 },
-      4: { halign: "center", cellWidth: 28 }
+      4: { halign: "center", cellWidth: 28 },
     },
     margin: { left: margin, right: margin },
-    tableLineColor: COLORS.borderGray,
+    tableLineColor: COLORS.border,
     tableLineWidth: 0.3,
     didDrawCell: (hookData) => {
-      // Draw borders for body cells
-      if (hookData.section === 'body') {
-        doc.setDrawColor(...COLORS.borderGray);
+      if (hookData.section === "body") {
+        doc.setDrawColor(...COLORS.border);
         doc.setLineWidth(0.3);
         doc.rect(hookData.cell.x, hookData.cell.y, hookData.cell.width, hookData.cell.height);
       }
-    }
+    },
   });
 
   yPos = (doc as any).lastAutoTable.finalY + 20;
 
-  // ========== TOTALS SECTION - Aligned to right ==========
+  // ========== TOTALS SECTION ==========
   const totalsWidth = 80;
   const totalsX = pageWidth - margin - totalsWidth;
-  
-  // Border for totals section
-  doc.setDrawColor(...COLORS.borderGray);
+
+  doc.setDrawColor(...COLORS.border);
   doc.setLineWidth(0.4);
-  
+
   // Subtotal row
   doc.rect(totalsX, yPos, totalsWidth, 12);
-  // Vertical divider
   doc.line(totalsX + 40, yPos, totalsX + 40, yPos + 12);
   doc.setTextColor(...COLORS.textDark);
   doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(config.typography.fontFamily, "normal");
   doc.text("Subtotal:", totalsX + 8, yPos + 8);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatCurrency(data.subtotal, data.moneda || "PEN"), totalsX + totalsWidth - 8, yPos + 8, { align: "right" });
-  
+  doc.setFont(config.typography.fontFamily, "bold");
+  doc.text(formatCurrency(data.subtotal, data.moneda || "PEN"), totalsX + totalsWidth - 8, yPos + 8, {
+    align: "right",
+  });
+
   yPos += 12;
-  
+
   // IGV row
   doc.rect(totalsX, yPos, totalsWidth, 12);
   doc.line(totalsX + 40, yPos, totalsX + 40, yPos + 12);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(config.typography.fontFamily, "normal");
   doc.text("IGV (18%):", totalsX + 8, yPos + 8);
-  doc.setFont("helvetica", "bold");
-  doc.text(formatCurrency(data.igv, data.moneda || "PEN"), totalsX + totalsWidth - 8, yPos + 8, { align: "right" });
-  
+  doc.setFont(config.typography.fontFamily, "bold");
+  doc.text(formatCurrency(data.igv, data.moneda || "PEN"), totalsX + totalsWidth - 8, yPos + 8, {
+    align: "right",
+  });
+
   yPos += 12;
-  
-  // Total row with gold background
-  doc.setFillColor(...COLORS.gold);
+
+  // Total row with primary background
+  doc.setFillColor(...COLORS.primary);
   doc.rect(totalsX, yPos, totalsWidth, 14, "F");
-  doc.setDrawColor(...COLORS.borderGray);
+  doc.setDrawColor(...COLORS.border);
   doc.rect(totalsX, yPos, totalsWidth, 14);
   doc.line(totalsX + 40, yPos, totalsX + 40, yPos + 14);
   doc.setTextColor(...COLORS.white);
   doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(config.typography.fontFamily, "bold");
   doc.text("TOTAL:", totalsX + 8, yPos + 10);
-  doc.text(formatCurrency(data.total, data.moneda || "PEN"), totalsX + totalsWidth - 8, yPos + 10, { align: "right" });
-  
+  doc.text(formatCurrency(data.total, data.moneda || "PEN"), totalsX + totalsWidth - 8, yPos + 10, {
+    align: "right",
+  });
+
   yPos += 28;
 
   // ========== BANK INFO SECTION ==========
-  // Bank badge
-  doc.setFillColor(...COLORS.gold);
-  doc.roundedRect(margin, yPos, 48, 7, 1.5, 1.5, "F");
-  doc.setTextColor(...COLORS.white);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.text("DATOS BANCARIOS", margin + 24, yPos + 5, { align: "center" });
-  
-  yPos += 12;
-  
-  doc.setTextColor(...COLORS.textDark);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  
-  // Left column - BCP
-  doc.text(BANK_INFO.bcp.soles, margin, yPos);
-  doc.text(BANK_INFO.bcp.dolares, margin, yPos + 5);
-  
-  // Right column - Interbank
-  doc.text(BANK_INFO.interbank.soles, pageWidth / 2, yPos);
-  doc.text(BANK_INFO.interbank.dolares, pageWidth / 2, yPos + 5);
-  
-  yPos += 16;
+  if (config.layout.showBankInfo) {
+    doc.setFillColor(...COLORS.primary);
+    doc.roundedRect(margin, yPos, 48, 7, 1.5, 1.5, "F");
+    doc.setTextColor(...COLORS.white);
+    doc.setFontSize(8);
+    doc.setFont(config.typography.fontFamily, "bold");
+    doc.text("DATOS BANCARIOS", margin + 24, yPos + 5, { align: "center" });
+
+    yPos += 12;
+
+    doc.setTextColor(...COLORS.textDark);
+    doc.setFontSize(9);
+    doc.setFont(config.typography.fontFamily, "normal");
+
+    doc.text(config.bank.bcp_soles, margin, yPos);
+    doc.text(config.bank.bcp_dolares, margin, yPos + 5);
+
+    doc.text(config.bank.interbank_soles, pageWidth / 2, yPos);
+    doc.text(config.bank.interbank_dolares, pageWidth / 2, yPos + 5);
+
+    yPos += 16;
+  }
 
   // ========== TERMS SECTION ==========
-  doc.setTextColor(...COLORS.textDark);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "italic");
-  
-  const terms = [
-    "• Los precios incluyen IGV.",
-    "• Validez de la proforma: 30 días calendarios.",
-    "• Forma de pago: Contado o según acuerdo.",
-    "• Los servicios inician una vez confirmado el pago."
-  ];
-  
-  terms.forEach((term, i) => {
-    doc.text(term, margin, yPos + (i * 5));
-  });
+  if (config.layout.showTerms) {
+    doc.setTextColor(...COLORS.textDark);
+    doc.setFontSize(8);
+    doc.setFont(config.typography.fontFamily, "italic");
 
-  // ========== FOOTER - Exact match to design ==========
+    const terms = [
+      "• Los precios incluyen IGV.",
+      "• Validez de la proforma: 30 días calendarios.",
+      "• Forma de pago: Contado o según acuerdo.",
+      "• Los servicios inician una vez confirmado el pago.",
+    ];
+
+    terms.forEach((term, i) => {
+      doc.text(term, margin, yPos + i * 5);
+    });
+  }
+
+  // ========== FOOTER ==========
   const footerBarY = pageHeight - 22;
-  
-  // Gold bar at bottom
-  doc.setFillColor(...COLORS.gold);
+
+  doc.setFillColor(...COLORS.primary);
   doc.rect(0, footerBarY, pageWidth, 4, "F");
-  
-  // Company name centered
+
   doc.setTextColor(...COLORS.textDark);
   doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text(COMPANY_INFO.name, pageWidth / 2, footerBarY + 11, { align: "center" });
-  
-  // Thank you message
+  doc.setFont(config.typography.fontFamily, "bold");
+  doc.text(config.company.name, pageWidth / 2, footerBarY + 11, { align: "center" });
+
   doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(9);
-  doc.setFont("helvetica", "italic");
+  doc.setFont(config.typography.fontFamily, "italic");
   doc.text("¡Gracias por confiar en nosotros!", pageWidth / 2, footerBarY + 17, { align: "center" });
 
   return doc.output("blob");
@@ -412,10 +501,10 @@ export async function generateProformaPDF(data: ProformaData): Promise<Blob> {
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
-  const options: Intl.DateTimeFormatOptions = { 
-    day: "numeric", 
-    month: "long", 
-    year: "numeric" 
+  const options: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   };
   return date.toLocaleDateString("es-PE", options);
 }
