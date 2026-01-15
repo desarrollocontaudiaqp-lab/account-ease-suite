@@ -118,8 +118,9 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
   const [newPlantillaNombre, setNewPlantillaNombre] = useState("");
   const [newPlantillaTipo, setNewPlantillaTipo] = useState<GrupoServicio>("Contabilidad");
   const [newPlantillaDescripcion, setNewPlantillaDescripcion] = useState("");
-  const [activeTab, setActiveTab] = useState<"campos" | "servicios" | "estilos">("campos");
+  const [activeTab, setActiveTab] = useState<"campos" | "servicios">("campos");
   const [servicioSearch, setServicioSearch] = useState("");
+  const [showPDFEditor, setShowPDFEditor] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -591,9 +592,9 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
 
               {/* Tabs for Campos and Servicios */}
               <div className="flex-1 overflow-hidden flex flex-col">
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campos" | "servicios" | "estilos")} className="flex-1 flex flex-col overflow-hidden">
-                  <div className="px-6 pt-4 border-b">
-                    <TabsList className="grid w-full max-w-xl grid-cols-3">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campos" | "servicios")} className="flex-1 flex flex-col overflow-hidden">
+                  <div className="px-6 pt-4 border-b flex items-center justify-between">
+                    <TabsList className="grid w-full max-w-md grid-cols-2">
                       <TabsTrigger value="campos" className="gap-2">
                         <FileText className="h-4 w-4" />
                         Campos ({selectedPlantilla.campos.length})
@@ -602,11 +603,16 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                         <Briefcase className="h-4 w-4" />
                         Servicios ({selectedPlantilla.servicios.length})
                       </TabsTrigger>
-                      <TabsTrigger value="estilos" className="gap-2">
-                        <Palette className="h-4 w-4" />
-                        Editor PDF
-                      </TabsTrigger>
                     </TabsList>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2" 
+                      onClick={() => setShowPDFEditor(true)}
+                    >
+                      <Palette className="h-4 w-4" />
+                      Editor de Estilos PDF
+                    </Button>
                   </div>
 
                   {/* Campos Tab */}
@@ -875,16 +881,17 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                     </div>
                   </TabsContent>
 
-                  {/* Estilos PDF Tab */}
-                  <TabsContent value="estilos" className="flex-1 overflow-hidden m-0 p-0">
-                    <PDFStyleEditor 
-                      plantillaId={selectedPlantilla.id}
-                      plantillaNombre={selectedPlantilla.nombre}
-                      plantillaTipo={selectedPlantilla.tipo}
-                    />
-                  </TabsContent>
                 </Tabs>
               </div>
+
+              {/* PDF Style Editor Modal */}
+              <PDFStyleEditor 
+                plantillaId={selectedPlantilla.id}
+                plantillaNombre={selectedPlantilla.nombre}
+                plantillaTipo={selectedPlantilla.tipo}
+                open={showPDFEditor}
+                onOpenChange={setShowPDFEditor}
+              />
 
               {/* Footer */}
               <div className="px-6 py-4 border-t bg-background flex justify-end gap-2">

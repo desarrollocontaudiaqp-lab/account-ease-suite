@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
-import { Eye, Palette, Type, Layout, RotateCcw, Save, Download } from "lucide-react";
+import { Eye, Palette, Type, Layout, RotateCcw, Save, Download, ArrowLeft, Building2, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -28,13 +32,12 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
+import { generateProformaPDF } from "@/lib/generateProformaPDF";
 
 // Default PDF styles configuration
 export interface PDFStyleConfig {
-  // Colors (RGB arrays)
   colors: {
-    primary: string; // hex
+    primary: string;
     primaryDark: string;
     accent: string;
     textDark: string;
@@ -42,7 +45,6 @@ export interface PDFStyleConfig {
     background: string;
     border: string;
   };
-  // Typography
   typography: {
     headerTitleSize: number;
     headerSubtitleSize: number;
@@ -51,7 +53,6 @@ export interface PDFStyleConfig {
     smallTextSize: number;
     fontFamily: "helvetica" | "times" | "courier";
   };
-  // Layout
   layout: {
     marginHorizontal: number;
     headerHeight: number;
@@ -62,7 +63,6 @@ export interface PDFStyleConfig {
     showBankInfo: boolean;
     showTerms: boolean;
   };
-  // Company info overrides
   company: {
     name: string;
     slogan: string;
@@ -70,7 +70,6 @@ export interface PDFStyleConfig {
     phone: string;
     email: string;
   };
-  // Bank info
   bank: {
     bcp_soles: string;
     bcp_dolares: string;
@@ -122,7 +121,6 @@ const DEFAULT_STYLE_CONFIG: PDFStyleConfig = {
   },
 };
 
-// Color presets
 const COLOR_PRESETS = [
   { name: "Dorado Corporativo", primary: "#CA9348", accent: "#D91A22" },
   { name: "Azul Profesional", primary: "#2563EB", accent: "#DC2626" },
@@ -136,21 +134,25 @@ interface PDFStyleEditorProps {
   plantillaId: string;
   plantillaNombre: string;
   plantillaTipo: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo }: PDFStyleEditorProps) {
+export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, open, onOpenChange }: PDFStyleEditorProps) {
   const [config, setConfig] = useState<PDFStyleConfig>(DEFAULT_STYLE_CONFIG);
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
 
-  // Load saved config from database
   useEffect(() => {
-    loadConfig();
-  }, [plantillaId]);
+    if (open && plantillaId) {
+      loadConfig();
+      setPreviewUrl(null);
+    }
+  }, [plantillaId, open]);
 
   const loadConfig = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("configuracion")
       .select("valor")
       .eq("clave", `pdf_style_${plantillaId}`)
@@ -172,7 +174,6 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo }: 
   const saveConfig = async () => {
     setLoading(true);
     
-    // Check if config exists
     const { data: existing } = await supabase
       .from("configuracion")
       .select("id")
@@ -197,7 +198,6 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo }: 
 
     if (error) {
       toast.error("Error al guardar configuración");
-      console.error(error);
     } else {
       toast.success("Estilos guardados correctamente");
     }
@@ -225,7 +225,6 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo }: 
   const generatePreview = async () => {
     setIsGeneratingPreview(true);
     try {
-      // Create sample data for preview
       const sampleData = {
         numero: "PC-2026-001",
         tipo: plantillaTipo || "CONTABILIDAD",
@@ -264,7 +263,7 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo }: 
     setIsGeneratingPreview(false);
   };
 
-  const downloadPreview = async () => {
+  const downloadPreview = () => {
     if (previewUrl) {
       const link = document.createElement("a");
       link.href = previewUrl;
@@ -311,453 +310,285 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo }: 
   };
 
   return (
-    <div className="h-full flex">
-      {/* Editor Panel */}
-      <div className="w-96 border-r flex flex-col bg-background">
-        <div className="px-4 py-3 border-b bg-muted/30">
-          <h4 className="font-semibold text-sm flex items-center gap-2">
-            <Palette className="h-4 w-4 text-primary" />
-            Editor de Estilos PDF
-          </h4>
-          <p className="text-xs text-muted-foreground mt-1">
-            Personaliza la apariencia del documento
-          </p>
-        </div>
-
-        <ScrollArea className="flex-1">
-          <div className="p-4">
-            <Accordion type="multiple" defaultValue={["colors", "typography", "layout"]} className="space-y-2">
-              {/* Colors Section */}
-              <AccordionItem value="colors" className="border rounded-lg px-3">
-                <AccordionTrigger className="py-3 hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Palette className="h-4 w-4" />
-                    <span className="font-medium text-sm">Colores</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4 space-y-4">
-                  {/* Color Presets */}
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-2 block">Presets de color</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {COLOR_PRESETS.map((preset) => (
-                        <button
-                          key={preset.name}
-                          onClick={() => applyColorPreset(preset)}
-                          className="flex items-center gap-2 p-2 rounded-lg border hover:bg-muted/50 transition-colors text-left"
-                        >
-                          <div className="flex gap-1">
-                            <div 
-                              className="w-4 h-4 rounded-full border"
-                              style={{ backgroundColor: preset.primary }}
-                            />
-                            <div 
-                              className="w-4 h-4 rounded-full border"
-                              style={{ backgroundColor: preset.accent }}
-                            />
-                          </div>
-                          <span className="text-xs font-medium truncate">{preset.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Individual Colors */}
-                  <div className="space-y-3">
-                    <ColorPicker
-                      label="Color Principal"
-                      value={config.colors.primary}
-                      onChange={(v) => updateColor("primary", v)}
-                    />
-                    <ColorPicker
-                      label="Color Principal Oscuro"
-                      value={config.colors.primaryDark}
-                      onChange={(v) => updateColor("primaryDark", v)}
-                    />
-                    <ColorPicker
-                      label="Color de Acento"
-                      value={config.colors.accent}
-                      onChange={(v) => updateColor("accent", v)}
-                    />
-                    <ColorPicker
-                      label="Texto Principal"
-                      value={config.colors.textDark}
-                      onChange={(v) => updateColor("textDark", v)}
-                    />
-                    <ColorPicker
-                      label="Texto Secundario"
-                      value={config.colors.textMuted}
-                      onChange={(v) => updateColor("textMuted", v)}
-                    />
-                    <ColorPicker
-                      label="Color de Borde"
-                      value={config.colors.border}
-                      onChange={(v) => updateColor("border", v)}
-                    />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Typography Section */}
-              <AccordionItem value="typography" className="border rounded-lg px-3">
-                <AccordionTrigger className="py-3 hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Type className="h-4 w-4" />
-                    <span className="font-medium text-sm">Tipografía</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4 space-y-4">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Familia de fuente</Label>
-                    <Select
-                      value={config.typography.fontFamily}
-                      onValueChange={(v) => updateTypography("fontFamily", v)}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="helvetica">Helvetica (Sans-serif)</SelectItem>
-                        <SelectItem value="times">Times (Serif)</SelectItem>
-                        <SelectItem value="courier">Courier (Monospace)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <SizeSlider
-                    label="Título del encabezado"
-                    value={config.typography.headerTitleSize}
-                    min={12}
-                    max={24}
-                    onChange={(v) => updateTypography("headerTitleSize", v)}
-                  />
-                  <SizeSlider
-                    label="Subtítulo del encabezado"
-                    value={config.typography.headerSubtitleSize}
-                    min={7}
-                    max={14}
-                    onChange={(v) => updateTypography("headerSubtitleSize", v)}
-                  />
-                  <SizeSlider
-                    label="Títulos de sección"
-                    value={config.typography.sectionTitleSize}
-                    min={8}
-                    max={16}
-                    onChange={(v) => updateTypography("sectionTitleSize", v)}
-                  />
-                  <SizeSlider
-                    label="Texto del cuerpo"
-                    value={config.typography.bodyTextSize}
-                    min={8}
-                    max={14}
-                    onChange={(v) => updateTypography("bodyTextSize", v)}
-                  />
-                  <SizeSlider
-                    label="Texto pequeño"
-                    value={config.typography.smallTextSize}
-                    min={6}
-                    max={10}
-                    onChange={(v) => updateTypography("smallTextSize", v)}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Layout Section */}
-              <AccordionItem value="layout" className="border rounded-lg px-3">
-                <AccordionTrigger className="py-3 hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Layout className="h-4 w-4" />
-                    <span className="font-medium text-sm">Diseño</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4 space-y-4">
-                  <SizeSlider
-                    label="Margen horizontal"
-                    value={config.layout.marginHorizontal}
-                    min={10}
-                    max={25}
-                    suffix="mm"
-                    onChange={(v) => updateLayout("marginHorizontal", v)}
-                  />
-                  <SizeSlider
-                    label="Altura del encabezado"
-                    value={config.layout.headerHeight}
-                    min={25}
-                    max={50}
-                    suffix="mm"
-                    onChange={(v) => updateLayout("headerHeight", v)}
-                  />
-                  <SizeSlider
-                    label="Espaciado entre secciones"
-                    value={config.layout.sectionSpacing}
-                    min={6}
-                    max={20}
-                    suffix="mm"
-                    onChange={(v) => updateLayout("sectionSpacing", v)}
-                  />
-                  <SizeSlider
-                    label="Radio de bordes"
-                    value={config.layout.borderRadius}
-                    min={0}
-                    max={6}
-                    suffix="mm"
-                    onChange={(v) => updateLayout("borderRadius", v)}
-                  />
-
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <ToggleOption
-                      label="Mostrar logo"
-                      checked={config.layout.showLogo}
-                      onChange={(v) => updateLayout("showLogo", v)}
-                    />
-                    <ToggleOption
-                      label="Mostrar eslogan"
-                      checked={config.layout.showSlogan}
-                      onChange={(v) => updateLayout("showSlogan", v)}
-                    />
-                    <ToggleOption
-                      label="Mostrar datos bancarios"
-                      checked={config.layout.showBankInfo}
-                      onChange={(v) => updateLayout("showBankInfo", v)}
-                    />
-                    <ToggleOption
-                      label="Mostrar términos y condiciones"
-                      checked={config.layout.showTerms}
-                      onChange={(v) => updateLayout("showTerms", v)}
-                    />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Company Info Section */}
-              <AccordionItem value="company" className="border rounded-lg px-3">
-                <AccordionTrigger className="py-3 hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Layout className="h-4 w-4" />
-                    <span className="font-medium text-sm">Datos de la Empresa</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4 space-y-3">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Nombre de la empresa</Label>
-                    <Input
-                      value={config.company.name}
-                      onChange={(e) => updateCompany("name", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Eslogan</Label>
-                    <Input
-                      value={config.company.slogan}
-                      onChange={(e) => updateCompany("slogan", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Dirección</Label>
-                    <Input
-                      value={config.company.address}
-                      onChange={(e) => updateCompany("address", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Teléfono</Label>
-                    <Input
-                      value={config.company.phone}
-                      onChange={(e) => updateCompany("phone", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Email</Label>
-                    <Input
-                      value={config.company.email}
-                      onChange={(e) => updateCompany("email", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Bank Info Section */}
-              <AccordionItem value="bank" className="border rounded-lg px-3">
-                <AccordionTrigger className="py-3 hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Layout className="h-4 w-4" />
-                    <span className="font-medium text-sm">Datos Bancarios</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4 space-y-3">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">BCP Soles</Label>
-                    <Input
-                      value={config.bank.bcp_soles}
-                      onChange={(e) => updateBank("bcp_soles", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">BCP Dólares</Label>
-                    <Input
-                      value={config.bank.bcp_dolares}
-                      onChange={(e) => updateBank("bcp_dolares", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Interbank Soles</Label>
-                    <Input
-                      value={config.bank.interbank_soles}
-                      onChange={(e) => updateBank("interbank_soles", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Interbank Dólares</Label>
-                    <Input
-                      value={config.bank.interbank_dolares}
-                      onChange={(e) => updateBank("interbank_dolares", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] p-0 gap-0 rounded-none border-0">
+        {/* Header */}
+        <div className="px-6 py-4 border-b bg-background flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Volver al diseñador
+            </Button>
+            <Separator orientation="vertical" className="h-6" />
+            <div>
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <Palette className="h-5 w-5 text-primary" />
+                Editor de Estilos PDF
+              </h2>
+              <p className="text-sm text-muted-foreground">{plantillaNombre}</p>
+            </div>
           </div>
-        </ScrollArea>
-
-        {/* Editor Actions */}
-        <div className="p-4 border-t bg-muted/30 space-y-2">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 gap-2"
-              onClick={resetConfig}
-            >
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={resetConfig}>
               <RotateCcw className="h-4 w-4" />
               Restaurar
             </Button>
-            <Button
-              size="sm"
-              className="flex-1 gap-2"
-              onClick={saveConfig}
-              disabled={loading}
-            >
+            <Button size="sm" className="gap-2" onClick={saveConfig} disabled={loading}>
               <Save className="h-4 w-4" />
-              Guardar
+              Guardar estilos
             </Button>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="w-full gap-2"
-            onClick={generatePreview}
-            disabled={isGeneratingPreview}
-          >
-            <Eye className="h-4 w-4" />
-            {isGeneratingPreview ? "Generando..." : "Generar Vista Previa"}
-          </Button>
-        </div>
-      </div>
-
-      {/* Preview Panel */}
-      <div className="flex-1 flex flex-col bg-muted/20">
-        <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
-          <div>
-            <h4 className="font-semibold text-sm flex items-center gap-2">
-              <Eye className="h-4 w-4 text-primary" />
-              Vista Previa del PDF
-            </h4>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {plantillaNombre}
-            </p>
-          </div>
-          {previewUrl && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={downloadPreview}
-            >
-              <Download className="h-4 w-4" />
-              Descargar
-            </Button>
-          )}
         </div>
 
-        <div className="flex-1 p-6 flex items-start justify-center overflow-auto">
-          {previewUrl ? (
-            <div className="bg-white rounded-lg shadow-xl border overflow-hidden" style={{ width: "595px", height: "842px" }}>
-              <iframe
-                src={previewUrl}
-                className="w-full h-full"
-                title="PDF Preview"
-              />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-              <div className="w-24 h-32 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center mb-4">
-                <Eye className="h-8 w-8 text-muted-foreground/30" />
+        {/* Main Content */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Editor Panel */}
+          <div className="w-[420px] border-r flex flex-col bg-muted/30 shrink-0">
+            <ScrollArea className="flex-1">
+              <div className="p-4">
+                <Accordion type="multiple" defaultValue={["colors", "typography", "layout"]} className="space-y-2">
+                  {/* Colors Section */}
+                  <AccordionItem value="colors" className="border rounded-lg px-3 bg-background">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Palette className="h-4 w-4" />
+                        <span className="font-medium text-sm">Colores</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 space-y-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-2 block">Presets de color</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {COLOR_PRESETS.map((preset) => (
+                            <button
+                              key={preset.name}
+                              onClick={() => applyColorPreset(preset)}
+                              className="flex items-center gap-2 p-2 rounded-lg border hover:bg-muted/50 transition-colors text-left"
+                            >
+                              <div className="flex gap-1">
+                                <div className="w-4 h-4 rounded-full border" style={{ backgroundColor: preset.primary }} />
+                                <div className="w-4 h-4 rounded-full border" style={{ backgroundColor: preset.accent }} />
+                              </div>
+                              <span className="text-xs font-medium truncate">{preset.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <Separator />
+                      <div className="space-y-3">
+                        <ColorPicker label="Color Principal" value={config.colors.primary} onChange={(v) => updateColor("primary", v)} />
+                        <ColorPicker label="Color Secundario" value={config.colors.primaryDark} onChange={(v) => updateColor("primaryDark", v)} />
+                        <ColorPicker label="Color de Acento" value={config.colors.accent} onChange={(v) => updateColor("accent", v)} />
+                        <ColorPicker label="Texto Principal" value={config.colors.textDark} onChange={(v) => updateColor("textDark", v)} />
+                        <ColorPicker label="Texto Secundario" value={config.colors.textMuted} onChange={(v) => updateColor("textMuted", v)} />
+                        <ColorPicker label="Color de Borde" value={config.colors.border} onChange={(v) => updateColor("border", v)} />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Typography Section */}
+                  <AccordionItem value="typography" className="border rounded-lg px-3 bg-background">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Type className="h-4 w-4" />
+                        <span className="font-medium text-sm">Tipografía</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 space-y-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Familia de fuente</Label>
+                        <Select value={config.typography.fontFamily} onValueChange={(v) => updateTypography("fontFamily", v)}>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="helvetica">Helvetica (Sans-serif)</SelectItem>
+                            <SelectItem value="times">Times (Serif)</SelectItem>
+                            <SelectItem value="courier">Courier (Monospace)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <SizeSlider label="Título del encabezado" value={config.typography.headerTitleSize} min={12} max={24} onChange={(v) => updateTypography("headerTitleSize", v)} />
+                      <SizeSlider label="Subtítulo" value={config.typography.headerSubtitleSize} min={7} max={14} onChange={(v) => updateTypography("headerSubtitleSize", v)} />
+                      <SizeSlider label="Títulos de sección" value={config.typography.sectionTitleSize} min={8} max={16} onChange={(v) => updateTypography("sectionTitleSize", v)} />
+                      <SizeSlider label="Texto del cuerpo" value={config.typography.bodyTextSize} min={8} max={14} onChange={(v) => updateTypography("bodyTextSize", v)} />
+                      <SizeSlider label="Texto pequeño" value={config.typography.smallTextSize} min={6} max={10} onChange={(v) => updateTypography("smallTextSize", v)} />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Layout Section */}
+                  <AccordionItem value="layout" className="border rounded-lg px-3 bg-background">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Layout className="h-4 w-4" />
+                        <span className="font-medium text-sm">Diseño</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 space-y-4">
+                      <SizeSlider label="Margen horizontal" value={config.layout.marginHorizontal} min={10} max={25} suffix="mm" onChange={(v) => updateLayout("marginHorizontal", v)} />
+                      <SizeSlider label="Altura del encabezado" value={config.layout.headerHeight} min={25} max={50} suffix="mm" onChange={(v) => updateLayout("headerHeight", v)} />
+                      <SizeSlider label="Espaciado entre secciones" value={config.layout.sectionSpacing} min={6} max={20} suffix="mm" onChange={(v) => updateLayout("sectionSpacing", v)} />
+                      <Separator />
+                      <div className="space-y-3">
+                        <ToggleOption label="Mostrar logo" checked={config.layout.showLogo} onChange={(v) => updateLayout("showLogo", v)} />
+                        <ToggleOption label="Mostrar slogan" checked={config.layout.showSlogan} onChange={(v) => updateLayout("showSlogan", v)} />
+                        <ToggleOption label="Mostrar información bancaria" checked={config.layout.showBankInfo} onChange={(v) => updateLayout("showBankInfo", v)} />
+                        <ToggleOption label="Mostrar términos y condiciones" checked={config.layout.showTerms} onChange={(v) => updateLayout("showTerms", v)} />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Company Info */}
+                  <AccordionItem value="company" className="border rounded-lg px-3 bg-background">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        <span className="font-medium text-sm">Datos de la empresa</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 space-y-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Nombre</Label>
+                        <Input value={config.company.name} onChange={(e) => updateCompany("name", e.target.value)} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Slogan</Label>
+                        <Input value={config.company.slogan} onChange={(e) => updateCompany("slogan", e.target.value)} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Dirección</Label>
+                        <Input value={config.company.address} onChange={(e) => updateCompany("address", e.target.value)} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Teléfono</Label>
+                        <Input value={config.company.phone} onChange={(e) => updateCompany("phone", e.target.value)} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Email</Label>
+                        <Input value={config.company.email} onChange={(e) => updateCompany("email", e.target.value)} className="mt-1" />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Bank Info */}
+                  <AccordionItem value="bank" className="border rounded-lg px-3 bg-background">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Landmark className="h-4 w-4" />
+                        <span className="font-medium text-sm">Cuentas bancarias</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 space-y-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">BCP Soles</Label>
+                        <Input value={config.bank.bcp_soles} onChange={(e) => updateBank("bcp_soles", e.target.value)} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">BCP Dólares</Label>
+                        <Input value={config.bank.bcp_dolares} onChange={(e) => updateBank("bcp_dolares", e.target.value)} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Interbank Soles</Label>
+                        <Input value={config.bank.interbank_soles} onChange={(e) => updateBank("interbank_soles", e.target.value)} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Interbank Dólares</Label>
+                        <Input value={config.bank.interbank_dolares} onChange={(e) => updateBank("interbank_dolares", e.target.value)} className="mt-1" />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
-              <p className="text-muted-foreground text-sm">
-                Haz clic en "Generar Vista Previa" para ver el PDF
-              </p>
-              <p className="text-muted-foreground/60 text-xs mt-1">
-                Los cambios se reflejarán en tiempo real
-              </p>
+            </ScrollArea>
+
+            {/* Generate Preview Button */}
+            <div className="p-4 border-t bg-background">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full gap-2"
+                onClick={generatePreview}
+                disabled={isGeneratingPreview}
+              >
+                <Eye className="h-4 w-4" />
+                {isGeneratingPreview ? "Generando..." : "Generar Vista Previa"}
+              </Button>
             </div>
-          )}
+          </div>
+
+          {/* Preview Panel */}
+          <div className="flex-1 flex flex-col bg-muted/10 overflow-hidden">
+            <div className="px-6 py-4 border-b bg-background flex items-center justify-between shrink-0">
+              <div>
+                <h4 className="font-semibold text-base flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-primary" />
+                  Vista Previa del PDF
+                </h4>
+                <p className="text-sm text-muted-foreground">Plantilla: {plantillaNombre}</p>
+              </div>
+              {previewUrl && (
+                <Button variant="outline" size="sm" className="gap-2" onClick={downloadPreview}>
+                  <Download className="h-4 w-4" />
+                  Descargar PDF
+                </Button>
+              )}
+            </div>
+
+            <div className="flex-1 p-8 flex items-start justify-center overflow-auto bg-[#e5e5e5]">
+              {previewUrl ? (
+                <div className="bg-white rounded-lg shadow-2xl overflow-hidden" style={{ width: "595px", minHeight: "842px" }}>
+                  <object
+                    data={previewUrl}
+                    type="application/pdf"
+                    className="w-full"
+                    style={{ height: "842px" }}
+                  >
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                      <p className="text-muted-foreground mb-4">No se puede mostrar el PDF en este navegador.</p>
+                      <Button variant="outline" onClick={downloadPreview} className="gap-2">
+                        <Download className="h-4 w-4" />
+                        Descargar PDF
+                      </Button>
+                    </div>
+                  </object>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                  <div className="w-32 h-44 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center mb-6 bg-white">
+                    <Eye className="h-12 w-12 text-muted-foreground/30" />
+                  </div>
+                  <p className="text-muted-foreground text-base font-medium">
+                    Haz clic en "Generar Vista Previa" para ver el PDF
+                  </p>
+                  <p className="text-muted-foreground/60 text-sm mt-2">
+                    Personaliza los estilos y genera una vista previa con datos de ejemplo
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 // Helper Components
-function ColorPicker({ 
-  label, 
-  value, 
-  onChange 
-}: { 
-  label: string; 
-  value: string; 
-  onChange: (value: string) => void;
-}) {
+function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <div className="flex items-center justify-between">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Popover>
         <PopoverTrigger asChild>
           <button className="flex items-center gap-2 p-1 rounded border hover:bg-muted/50 transition-colors">
-            <div
-              className="w-6 h-6 rounded border"
-              style={{ backgroundColor: value }}
-            />
+            <div className="w-6 h-6 rounded border" style={{ backgroundColor: value }} />
             <span className="text-xs font-mono">{value}</span>
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-3" align="end">
           <div className="space-y-3">
-            <Input
-              type="color"
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="w-full h-32 cursor-pointer p-1"
-            />
-            <Input
-              type="text"
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder="#FFFFFF"
-              className="font-mono text-sm"
-            />
+            <Input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="w-full h-32 cursor-pointer p-1" />
+            <Input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder="#FFFFFF" className="font-mono text-sm" />
           </div>
         </PopoverContent>
       </Popover>
@@ -765,50 +596,19 @@ function ColorPicker({
   );
 }
 
-function SizeSlider({
-  label,
-  value,
-  min,
-  max,
-  suffix = "pt",
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  suffix?: string;
-  onChange: (value: number) => void;
-}) {
+function SizeSlider({ label, value, min, max, suffix = "pt", onChange }: { label: string; value: number; min: number; max: number; suffix?: string; onChange: (value: number) => void }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label className="text-xs text-muted-foreground">{label}</Label>
-        <Badge variant="secondary" className="text-xs font-mono">
-          {value}{suffix}
-        </Badge>
+        <Badge variant="secondary" className="text-xs font-mono">{value}{suffix}</Badge>
       </div>
-      <Slider
-        value={[value]}
-        min={min}
-        max={max}
-        step={1}
-        onValueChange={([v]) => onChange(v)}
-        className="w-full"
-      />
+      <Slider value={[value]} min={min} max={max} step={1} onValueChange={([v]) => onChange(v)} className="w-full" />
     </div>
   );
 }
 
-function ToggleOption({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
+function ToggleOption({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <div className="flex items-center justify-between">
       <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -817,7 +617,6 @@ function ToggleOption({
   );
 }
 
-// Helper function to darken/lighten a hex color
 function adjustColor(hex: string, amount: number): string {
   const num = parseInt(hex.replace("#", ""), 16);
   const r = Math.max(0, Math.min(255, (num >> 16) + amount));
