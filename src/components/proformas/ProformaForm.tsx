@@ -957,23 +957,23 @@ export function ProformaForm({
               </p>
             )}
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
+            <div className="overflow-x-auto border rounded-lg bg-white">
+              <table className="w-full border-collapse">
                 <thead>
-                  <tr className="text-xs font-medium text-muted-foreground border-b">
-                    <th className="text-left px-2 py-2 w-[35%]">Descripción del servicio</th>
-                    <th className="text-center px-2 py-2 w-[60px]">Cant.</th>
-                    <th className="text-right px-2 py-2 w-[100px]">Base Imp.</th>
-                    <th className="text-right px-2 py-2 w-[90px]">IGV ({config.igv_percentage}%)</th>
-                    <th className="text-right px-2 py-2 w-[100px]">Precio</th>
-                    <th className="text-right px-2 py-2 w-[110px]">Subtotal</th>
-                    <th className="w-[40px]"></th>
+                  <tr className="text-xs font-medium text-muted-foreground bg-muted/30">
+                    <th className="text-left px-3 py-2 border-b">Descripción del servicio</th>
+                    <th className="text-center px-1 py-2 border-b border-l w-[70px]">Cant.</th>
+                    <th className="text-right px-1 py-2 border-b border-l w-[100px]">Base Imp.</th>
+                    <th className="text-right px-1 py-2 border-b border-l w-[90px]">IGV ({config.igv_percentage}%)</th>
+                    <th className="text-right px-1 py-2 border-b border-l w-[100px]">Precio</th>
+                    <th className="text-right px-1 py-2 border-b border-l w-[110px]">Subtotal</th>
+                    <th className="px-1 py-2 border-b border-l w-[40px]"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody>
                   {items.map((item, index) => (
-                    <tr key={index} className="hover:bg-muted/30">
-                      <td className="px-2 py-2">
+                    <tr key={index} className="hover:bg-muted/20 border-b last:border-b-0">
+                      <td className="px-1 py-1">
                         <Popover
                           open={openServicePopovers[index] || false}
                           onOpenChange={(isOpen) =>
@@ -982,7 +982,7 @@ export function ProformaForm({
                         >
                           <PopoverTrigger asChild>
                             <div className="relative">
-                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                               <Input
                                 placeholder={plantillaServicios.length > 0 ? "Buscar servicio..." : "Escribir servicio..."}
                                 value={item.descripcion}
@@ -997,7 +997,7 @@ export function ProformaForm({
                                     setOpenServicePopovers((prev) => ({ ...prev, [index]: true }));
                                   }
                                 }}
-                                className="pl-9 bg-white"
+                                className="pl-8 h-8 border-0 shadow-none focus-visible:ring-0 bg-transparent"
                               />
                             </div>
                           </PopoverTrigger>
@@ -1037,16 +1037,16 @@ export function ProformaForm({
                           )}
                         </Popover>
                       </td>
-                      <td className="px-2 py-2">
+                      <td className="px-1 py-1 border-l">
                         <Input
                           type="number"
                           value={item.cantidad}
                           onChange={(e) => handleItemChange(index, "cantidad", Number(e.target.value))}
                           min={1}
-                          className="text-center bg-white w-[60px]"
+                          className="text-center h-8 border-0 shadow-none focus-visible:ring-0 bg-transparent w-full"
                         />
                       </td>
-                      <td className="px-2 py-2">
+                      <td className="px-1 py-1 border-l">
                         <Input
                           type="number"
                           value={item.base_imponible?.toFixed(2) || "0.00"}
@@ -1055,42 +1055,42 @@ export function ProformaForm({
                           }
                           min={0}
                           step="0.01"
-                          className="text-right bg-white w-[100px]"
+                          className="text-right h-8 border-0 shadow-none focus-visible:ring-0 bg-transparent w-full"
                         />
                       </td>
-                      <td className="px-2 py-2">
+                      <td className="px-1 py-1 border-l bg-muted/20">
                         <Input
                           type="number"
                           value={(item.igv_monto || 0).toFixed(2)}
                           readOnly
-                          className="text-right bg-muted/50 w-[90px]"
+                          className="text-right h-8 border-0 shadow-none focus-visible:ring-0 bg-transparent w-full"
                           title="IGV calculado automáticamente"
                         />
                       </td>
-                      <td className="px-2 py-2">
+                      <td className="px-1 py-1 border-l bg-muted/20">
                         <Input
                           type="number"
                           value={item.precio_unitario.toFixed(2)}
                           readOnly
-                          className="text-right bg-muted/50 w-[100px]"
+                          className="text-right h-8 border-0 shadow-none focus-visible:ring-0 bg-transparent w-full"
                           title="Precio = Base Imponible + IGV"
                         />
                       </td>
-                      <td className="px-2 py-2">
+                      <td className="px-1 py-1 border-l bg-muted/30">
                         <Input
                           type="number"
                           value={item.subtotal.toFixed(2)}
                           readOnly
-                          className="text-right bg-muted/50 font-medium w-[110px]"
+                          className="text-right h-8 border-0 shadow-none focus-visible:ring-0 bg-transparent w-full font-semibold"
                         />
                       </td>
-                      <td className="px-2 py-2">
+                      <td className="px-1 py-1 border-l text-center">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => removeItem(index)}
                           disabled={items.length === 1}
-                          className="text-muted-foreground hover:text-destructive h-8 w-8"
+                          className="text-muted-foreground hover:text-destructive h-7 w-7"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
