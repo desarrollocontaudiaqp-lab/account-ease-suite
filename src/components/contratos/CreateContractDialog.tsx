@@ -18,6 +18,7 @@ import {
   Trash2,
   Search
 } from "lucide-react";
+import { ServiceSearchInput } from "./ServiceSearchInput";
 import {
   Dialog,
   DialogContent,
@@ -845,12 +846,17 @@ export const CreateContractDialog = ({
                       <tr key={proj.id} className="hover:bg-muted/30">
                         <td className="p-2">
                           <div className="flex items-center gap-2">
-                            <div className={cn("w-3 h-3 rounded-full flex-shrink-0", proj.color)} />
-                            <Input
+                            <ServiceSearchInput
                               value={proj.descripcion}
-                              onChange={(e) => handleProjectionChange(index, "descripcion", e.target.value)}
-                              placeholder="Nombre del servicio"
-                              className="h-8 text-xs"
+                              onChange={(descripcion, precio) => {
+                                handleProjectionChange(index, "descripcion", descripcion);
+                                if (precio !== undefined && proj.pago === 0) {
+                                  handleProjectionChange(index, "pago", precio);
+                                }
+                              }}
+                              placeholder="Buscar o escribir servicio..."
+                              className="flex-1"
+                              colorIndicator={<div className={cn("w-3 h-3 rounded-full flex-shrink-0", proj.color)} />}
                             />
                           </div>
                         </td>
