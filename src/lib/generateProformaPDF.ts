@@ -310,24 +310,32 @@ export async function generateProformaPDF(
   doc.setFont(config.typography.fontFamily, "bold");
   doc.text("DATOS DEL CLIENTE", margin + 32, yPos + 10, { align: "center" });
 
-  // Client details
+  // Client details - with text wrapping
+  const clientTextMaxWidth = clientColWidth - 16; // Account for padding on both sides
+  
   doc.setTextColor(...COLORS.textDark);
   doc.setFontSize(config.typography.sectionTitleSize);
   doc.setFont(config.typography.fontFamily, "bold");
-  doc.text(data.cliente.razon_social.toUpperCase(), margin + 8, yPos + 22);
+  
+  // Split razon_social to fit within column
+  const razonSocialLines = doc.splitTextToSize(data.cliente.razon_social.toUpperCase(), clientTextMaxWidth);
+  const razonSocialText = razonSocialLines.length > 1 ? razonSocialLines.slice(0, 2).join('\n') : razonSocialLines[0];
+  doc.text(razonSocialText, margin + 8, yPos + 20);
+  
+  // Adjust Y position based on whether razon social wrapped
+  const razonLineCount = Math.min(razonSocialLines.length, 2);
+  const razonHeight = razonLineCount * 5;
 
   doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(config.typography.bodyTextSize);
   doc.setFont(config.typography.fontFamily, "normal");
-  doc.text(`RUC/DNI: ${data.cliente.codigo}`, margin + 8, yPos + 29);
+  doc.text(`RUC/DNI: ${data.cliente.codigo}`, margin + 8, yPos + 18 + razonHeight);
 
   if (data.cliente.direccion) {
-    const maxWidth = middleX - margin - 15;
-    const direccion =
-      data.cliente.direccion.length > 50
-        ? data.cliente.direccion.substring(0, 47) + "..."
-        : data.cliente.direccion;
-    doc.text(`Dir: ${direccion}`, margin + 8, yPos + 36);
+    // Split direccion to fit within column
+    const direccionLines = doc.splitTextToSize(`Dir: ${data.cliente.direccion}`, clientTextMaxWidth);
+    const direccionText = direccionLines.length > 1 ? direccionLines[0].substring(0, direccionLines[0].length - 3) + "..." : direccionLines[0];
+    doc.text(direccionText, margin + 8, yPos + 25 + razonHeight);
   }
 
   // Dates badge
