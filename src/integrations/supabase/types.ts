@@ -907,7 +907,9 @@ export type Database = {
       }
       proforma_secuencias: {
         Row: {
+          anio_vigente: number
           created_at: string
+          digitos_correlativo: number
           id: string
           prefijo: string
           tipo: string
@@ -915,7 +917,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          anio_vigente?: number
           created_at?: string
+          digitos_correlativo?: number
           id?: string
           prefijo: string
           tipo: string
@@ -923,7 +927,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          anio_vigente?: number
           created_at?: string
+          digitos_correlativo?: number
           id?: string
           prefijo?: string
           tipo?: string
