@@ -98,7 +98,6 @@ export interface PDFStyleConfig {
     clientSectionHeight: number;
     clientLineSpacing: number;
     tableSeparation: number;
-    bankSectionOffset: number;
   };
   annotations: string[];
   company: {
@@ -154,7 +153,6 @@ export const DEFAULT_PDF_CONFIG: PDFStyleConfig = {
     clientSectionHeight: 42,
     clientLineSpacing: 6,
     tableSeparation: 14,
-    bankSectionOffset: 0,
   },
   annotations: [
     "• Los precios incluyen IGV.",
@@ -639,10 +637,6 @@ export async function generateProformaPDF(
 
   // ========== BANK INFO SECTION ==========
   if (config.layout.showBankInfo) {
-    // Apply offset to move bank section up (negative offset moves it up)
-    const bankOffset = config.layout.bankSectionOffset || 0;
-    yPos = yPos - bankOffset;
-    
     // Calculate if bank info fits on current page - use compact layout
     const bankSectionHeight = 22; // Reduced height for compact layout
     

@@ -354,9 +354,6 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
                       <Label className="text-xs font-medium text-foreground">Tablas</Label>
                       <SizeSlider label="Separación entre tablas" value={config.layout.tableSeparation} min={8} max={30} suffix="mm" onChange={(v) => updateLayout("tableSeparation", v)} />
                       <Separator />
-                      <Label className="text-xs font-medium text-foreground">Datos Bancarios</Label>
-                      <SizeSlider label="Desplazar hacia arriba" value={config.layout.bankSectionOffset || 0} min={0} max={80} suffix="mm" onChange={(v) => updateLayout("bankSectionOffset", v)} />
-                      <Separator />
                       <div className="space-y-3">
                         <ToggleOption label="Mostrar logo" checked={config.layout.showLogo} onChange={(v) => updateLayout("showLogo", v)} />
                         <ToggleOption label="Mostrar slogan" checked={config.layout.showSlogan} onChange={(v) => updateLayout("showSlogan", v)} />
