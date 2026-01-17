@@ -630,132 +630,167 @@ export function ApplyTemplateModal({
                       Resumen del Contrato
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="py-2 space-y-4">
-                    {/* Contract Number */}
-                    {contractData && (
-                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                        <div className="p-2 rounded-md bg-primary/10">
-                          <FileText className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">N° Contrato</p>
-                          <p className="font-semibold">{contractData.numero}</p>
-                        </div>
+                  <CardContent className="py-2 space-y-3">
+                    {!contractData && !clienteData ? (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Cargando datos del contrato...</p>
                       </div>
-                    )}
-                    
-                    {/* Client Info */}
-                    {clienteData && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                          <Building2 className="h-3.5 w-3.5" />
-                          CLIENTE
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <p className="font-medium">{clienteData.razon_social}</p>
-                          <p className="text-sm text-muted-foreground">{clienteData.codigo}</p>
-                          {clienteData.direccion && (
-                            <p className="text-xs text-muted-foreground mt-1">{clienteData.direccion}</p>
-                          )}
-                          {(clienteData.email || clienteData.telefono) && (
-                            <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
-                              {clienteData.email && <span>{clienteData.email}</span>}
-                              {clienteData.telefono && <span>• {clienteData.telefono}</span>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    <Separator />
-
-                    {/* Service Type */}
-                    {contractData && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                          <Target className="h-3.5 w-3.5" />
-                          SERVICIO
-                        </div>
-                        <div className="p-3 border rounded-lg">
-                          <Badge variant="secondary">{contractData.tipo_servicio}</Badge>
-                          <p className="text-sm text-muted-foreground mt-2">{contractData.descripcion}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Dates */}
-                    {contractData && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                          <Calendar className="h-3.5 w-3.5" />
-                          PERÍODO
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="p-2 border rounded-lg text-center">
-                            <p className="text-xs text-muted-foreground">Inicio</p>
-                            <p className="text-sm font-medium">
-                              {new Date(contractData.fecha_inicio).toLocaleDateString("es-PE")}
-                            </p>
-                          </div>
-                          <div className="p-2 border rounded-lg text-center">
-                            <p className="text-xs text-muted-foreground">Fin</p>
-                            <p className="text-sm font-medium">
-                              {contractData.fecha_fin 
-                                ? new Date(contractData.fecha_fin).toLocaleDateString("es-PE")
-                                : "Sin definir"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Amounts */}
-                    {contractData && (contractData.monto_mensual || contractData.monto_total) && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                          <DollarSign className="h-3.5 w-3.5" />
-                          MONTOS
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {contractData.monto_mensual && (
-                            <div className="p-3 border rounded-lg bg-blue-50/50 dark:bg-blue-950/20">
-                              <p className="text-xs text-muted-foreground">Mensual</p>
-                              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                                {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_mensual.toLocaleString()}
-                              </p>
-                            </div>
-                          )}
-                          {contractData.monto_total && (
-                            <div className="p-3 border rounded-lg bg-green-50/50 dark:bg-green-950/20">
-                              <p className="text-xs text-muted-foreground">Total</p>
-                              <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                                {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_total.toLocaleString()}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Proforma Reference */}
-                    {proformaData && (
+                    ) : (
                       <>
-                        <Separator />
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <FileText className="h-3.5 w-3.5" />
-                            PROFORMA ORIGEN
-                          </div>
-                          <div className="p-3 border rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium">{proformaData.numero}</span>
-                              <Badge variant="outline">{proformaData.tipo}</Badge>
+                        {/* Contract Number Header */}
+                        {contractData && (
+                          <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                            <div className="p-2 rounded-md bg-primary/10">
+                              <FileText className="h-5 w-5 text-primary" />
                             </div>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {proformaData.items.length} servicio(s) incluidos
-                            </p>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">N° Contrato</p>
+                              <p className="font-bold text-primary truncate">{contractData.numero}</p>
+                            </div>
+                            <Badge variant="secondary" className="flex-shrink-0">
+                              {contractData.tipo_servicio}
+                            </Badge>
                           </div>
-                        </div>
+                        )}
+                        
+                        {/* Client Info */}
+                        {clienteData && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase">
+                              <Building2 className="h-3.5 w-3.5" />
+                              Cliente
+                            </div>
+                            <div className="p-3 border rounded-lg bg-muted/30">
+                              <p className="font-medium text-sm">{clienteData.razon_social}</p>
+                              <p className="text-xs text-muted-foreground font-mono">{clienteData.codigo}</p>
+                              {clienteData.direccion && (
+                                <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{clienteData.direccion}</p>
+                              )}
+                              {(clienteData.email || clienteData.telefono) && (
+                                <div className="flex flex-wrap gap-x-2 gap-y-1 mt-2 text-xs text-muted-foreground">
+                                  {clienteData.email && (
+                                    <span className="flex items-center gap-1">
+                                      📧 {clienteData.email}
+                                    </span>
+                                  )}
+                                  {clienteData.telefono && (
+                                    <span className="flex items-center gap-1">
+                                      📞 {clienteData.telefono}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Service Description */}
+                        {contractData && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase">
+                              <Target className="h-3.5 w-3.5" />
+                              Descripción del Servicio
+                            </div>
+                            <div className="p-3 border rounded-lg bg-muted/30">
+                              <p className="text-sm text-muted-foreground">{contractData.descripcion}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Dates */}
+                        {contractData && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase">
+                              <Calendar className="h-3.5 w-3.5" />
+                              Vigencia
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="p-2.5 border rounded-lg text-center bg-muted/30">
+                                <p className="text-[10px] text-muted-foreground uppercase">Inicio</p>
+                                <p className="text-sm font-semibold">
+                                  {new Date(contractData.fecha_inicio).toLocaleDateString("es-PE", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric"
+                                  })}
+                                </p>
+                              </div>
+                              <div className="p-2.5 border rounded-lg text-center bg-muted/30">
+                                <p className="text-[10px] text-muted-foreground uppercase">Fin</p>
+                                <p className="text-sm font-semibold">
+                                  {contractData.fecha_fin 
+                                    ? new Date(contractData.fecha_fin).toLocaleDateString("es-PE", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        year: "numeric"
+                                      })
+                                    : "Indefinido"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Amounts */}
+                        {contractData && (contractData.monto_mensual || contractData.monto_total) && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase">
+                              <DollarSign className="h-3.5 w-3.5" />
+                              Honorarios
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {contractData.monto_mensual != null && (
+                                <div className="p-2.5 border rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
+                                  <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-medium">Mensual</p>
+                                  <p className="text-base font-bold text-blue-600 dark:text-blue-400">
+                                    {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_mensual.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                                  </p>
+                                </div>
+                              )}
+                              {contractData.monto_total != null && (
+                                <div className="p-2.5 border rounded-lg bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
+                                  <p className="text-[10px] text-green-600 dark:text-green-400 uppercase font-medium">Total Contrato</p>
+                                  <p className="text-base font-bold text-green-600 dark:text-green-400">
+                                    {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_total.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Services from Proforma */}
+                        {proformaData && proformaData.items.length > 0 && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase">
+                                <TrendingUp className="h-3.5 w-3.5" />
+                                Servicios Incluidos
+                              </div>
+                              <Badge variant="outline" className="text-[10px]">
+                                {proformaData.numero}
+                              </Badge>
+                            </div>
+                            <div className="border rounded-lg divide-y overflow-hidden">
+                              {proformaData.items.map((item, index) => (
+                                <div key={index} className="p-2.5 bg-muted/20 hover:bg-muted/40 transition-colors">
+                                  <div className="flex justify-between items-start gap-2">
+                                    <p className="text-xs flex-1">{item.descripcion}</p>
+                                    <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                                      {proformaData.moneda === "PEN" ? "S/" : "$"} {item.subtotal.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                  {item.cantidad > 1 && (
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                      {item.cantidad} x {proformaData.moneda === "PEN" ? "S/" : "$"} {item.precio_unitario.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
                   </CardContent>
