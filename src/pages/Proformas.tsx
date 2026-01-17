@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2, FileCheck, Pencil } from "lucide-react";
+import { Plus, Search, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2, FileCheck, Pencil, Ban, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +9,20 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { ProformaDesigner } from "@/components/proformas/ProformaDesigner";
@@ -134,6 +145,12 @@ const Proformas = () => {
   
   // Service filter state
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  
+  // Anular/Eliminar states
+  const [anularDialogOpen, setAnularDialogOpen] = useState(false);
+  const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false);
+  const [actionProforma, setActionProforma] = useState<Proforma | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Fetch dynamic statuses
   const { data: estados = [] } = useQuery({
@@ -342,6 +359,76 @@ const Proformas = () => {
     setSelectedPlantillaId(plantillaId);
     setCreateDialogType(tipo as GrupoServicio);
     setCreateDialogOpen(true);
+  };
+
+  const handleAnular = (proforma: Proforma) => {
+    setActionProforma(proforma);
+    setAnularDialogOpen(true);
+  };
+
+  const handleEliminar = (proforma: Proforma) => {
+    setActionProforma(proforma);
+    setEliminarDialogOpen(true);
+  };
+
+  const confirmAnular = async () => {
+    if (!actionProforma) return;
+    
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("proformas")
+        .update({ 
+          status: "rechazada" as any,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", actionProforma.id);
+
+      if (error) throw error;
+
+      toast.success(`Proforma ${actionProforma.numero} anulada correctamente`);
+      fetchProformas();
+    } catch (error: any) {
+      console.error("Error anulando proforma:", error);
+      toast.error("Error al anular la proforma");
+    } finally {
+      setActionLoading(false);
+      setAnularDialogOpen(false);
+      setActionProforma(null);
+    }
+  };
+
+  const confirmEliminar = async () => {
+    if (!actionProforma) return;
+    
+    setActionLoading(true);
+    try {
+      // First delete proforma items
+      const { error: itemsError } = await supabase
+        .from("proforma_items")
+        .delete()
+        .eq("proforma_id", actionProforma.id);
+
+      if (itemsError) throw itemsError;
+
+      // Then delete the proforma
+      const { error: proformaError } = await supabase
+        .from("proformas")
+        .delete()
+        .eq("id", actionProforma.id);
+
+      if (proformaError) throw proformaError;
+
+      toast.success(`Proforma ${actionProforma.numero} eliminada correctamente`);
+      fetchProformas();
+    } catch (error: any) {
+      console.error("Error eliminando proforma:", error);
+      toast.error("Error al eliminar la proforma");
+    } finally {
+      setActionLoading(false);
+      setEliminarDialogOpen(false);
+      setActionProforma(null);
+    }
   };
 
   // Filter proformas with dynamic search and service filter
@@ -588,6 +675,23 @@ const Proformas = () => {
                               <Send className="h-4 w-4 mr-2" />
                               Enviar al cliente
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {proforma.status !== "rechazada" && (
+                              <DropdownMenuItem 
+                                onClick={() => handleAnular(proforma)}
+                                className="text-orange-600 focus:text-orange-600"
+                              >
+                                <Ban className="h-4 w-4 mr-2" />
+                                Anular
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem 
+                              onClick={() => handleEliminar(proforma)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Eliminar
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -795,6 +899,23 @@ const Proformas = () => {
                                       <Send className="h-4 w-4 mr-2" />
                                       Enviar al cliente
                                     </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    {proforma.status !== "rechazada" && (
+                                      <DropdownMenuItem 
+                                        onClick={() => handleAnular(proforma)}
+                                        className="text-orange-600 focus:text-orange-600"
+                                      >
+                                        <Ban className="h-4 w-4 mr-2" />
+                                        Anular
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem 
+                                      onClick={() => handleEliminar(proforma)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Eliminar
+                                    </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
@@ -857,6 +978,62 @@ const Proformas = () => {
         proforma={editProforma as any}
         initialItems={editProformaItems}
       />
+
+      {/* Anular Dialog */}
+      <AlertDialog open={anularDialogOpen} onOpenChange={setAnularDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Anular proforma?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción cambiará el estado de la proforma <strong>{actionProforma?.numero}</strong> a "Rechazada". 
+              La proforma no será eliminada y podrá ser consultada posteriormente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmAnular}
+              disabled={actionLoading}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {actionLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Ban className="h-4 w-4 mr-2" />
+              )}
+              Anular Proforma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Eliminar Dialog */}
+      <AlertDialog open={eliminarDialogOpen} onOpenChange={setEliminarDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar proforma?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente la proforma <strong>{actionProforma?.numero}</strong> y todos sus items. 
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmEliminar}
+              disabled={actionLoading}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {actionLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Eliminar Proforma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
