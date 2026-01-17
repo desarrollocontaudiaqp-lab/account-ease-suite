@@ -294,9 +294,9 @@ export const ContractDetailModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-hidden flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] flex flex-col p-0 gap-0 overflow-hidden [&>button:last-child]:hidden">
         {/* Header with actions - hidden when printing */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30 print:hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30 print:hidden shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
               <FileCheck className="h-5 w-5 text-primary" />
@@ -324,7 +324,7 @@ export const ContractDetailModal = ({
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : contract ? (
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-y-auto">
             <div 
               ref={printRef}
               className="max-w-[900px] mx-auto bg-white print:max-w-none print:mx-0"
@@ -722,7 +722,7 @@ export const ContractDetailModal = ({
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center py-12">
             <p className="text-muted-foreground">No se encontró el contrato</p>
