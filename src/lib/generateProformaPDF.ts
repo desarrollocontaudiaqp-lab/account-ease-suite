@@ -99,6 +99,7 @@ export interface PDFStyleConfig {
     clientLineSpacing: number;
     tableSeparation: number;
   };
+  annotations: string[];
   company: {
     name: string;
     slogan: string;
@@ -153,6 +154,12 @@ export const DEFAULT_PDF_CONFIG: PDFStyleConfig = {
     clientLineSpacing: 6,
     tableSeparation: 14,
   },
+  annotations: [
+    "• Los precios incluyen IGV.",
+    "• Validez de la proforma: 30 días calendarios.",
+    "• Forma de pago: Contado o según acuerdo.",
+    "• Los servicios inician una vez confirmado el pago.",
+  ],
   company: {
     name: "C&A CONTADORES & AUDITORES",
     slogan: "Soluciones Contables y Empresariales",
@@ -195,6 +202,7 @@ export async function generateProformaPDF(
     layout: { ...DEFAULT_CONFIG.layout, ...customConfig?.layout },
     company: { ...DEFAULT_CONFIG.company, ...customConfig?.company },
     bank: { ...DEFAULT_CONFIG.bank, ...customConfig?.bank },
+    annotations: customConfig?.annotations ?? DEFAULT_CONFIG.annotations,
   };
 
   // Convert colors to RGB
@@ -470,24 +478,46 @@ export async function generateProformaPDF(
 
   yPos = (doc as any).lastAutoTable.finalY;
 
-  // ========== TOTALS SECTION - Aligned with table columns ==========
-  // Totals should align with the last two columns (P. Unit. and Subtotal)
+  // ========== TOTALS SECTION WITH ANNOTATIONS - Side by side layout ==========
   const totalsWidth = 70; // Same width as P. Unit. + Subtotal columns
   const totalsX = pageWidth - margin - totalsWidth;
   const labelColWidth = 35;
-  const valueColWidth = 35;
   const rowHeight = 8; // Reduced row height
   
-  // Check if we need a new page for totals
+  // Calculate annotations height
+  const annotationsLineHeight = 5;
+  const annotationsHeight = config.annotations.length * annotationsLineHeight;
   const totalsHeight = rowHeight * 3 + 4; // 3 rows + small padding
+  const sectionHeight = Math.max(totalsHeight, annotationsHeight);
+  
+  // Check if we need a new page for totals + annotations
   const footerZone = pageHeight - 40;
   
-  if (yPos + totalsHeight > footerZone) {
+  if (yPos + sectionHeight > footerZone) {
     doc.addPage();
     drawFooter();
     yPos = margin;
   }
 
+  // Store the starting Y position for annotations
+  const totalsStartY = yPos;
+
+  // Draw annotations on the LEFT side (aligned with table start)
+  if (config.layout.showTerms && config.annotations.length > 0) {
+    doc.setTextColor(...COLORS.textDark);
+    doc.setFontSize(8);
+    doc.setFont(config.typography.fontFamily, "italic");
+    
+    // Calculate max width for annotations (from margin to totals area with some gap)
+    const annotationsMaxWidth = totalsX - margin - 10;
+    
+    config.annotations.forEach((annotation, i) => {
+      const lines = doc.splitTextToSize(annotation, annotationsMaxWidth);
+      doc.text(lines[0], margin, totalsStartY + 5 + i * annotationsLineHeight);
+    });
+  }
+
+  // Draw totals on the RIGHT side
   doc.setDrawColor(...COLORS.border);
   doc.setLineWidth(0.3);
 
@@ -531,7 +561,8 @@ export async function generateProformaPDF(
     align: "right",
   });
 
-  yPos += rowHeight + config.layout.tableSeparation;
+  // Use the maximum height between totals and annotations for next section
+  yPos = totalsStartY + sectionHeight + config.layout.tableSeparation;
 
   // ========== CALENDAR PROJECTION TABLE ==========
   if (config.layout.showCalendarProjection && data.calendarProjection && data.calendarProjection.length > 0) {
@@ -606,61 +637,42 @@ export async function generateProformaPDF(
 
   // ========== BANK INFO SECTION ==========
   if (config.layout.showBankInfo) {
-    // Check if we need a new page for bank info
-    const bankSectionHeight = 30;
-    if (yPos + bankSectionHeight > footerZone) {
+    // Calculate if bank info fits on current page - use compact layout
+    const bankSectionHeight = 22; // Reduced height for compact layout
+    
+    // Only move to new page if there's really not enough space
+    if (yPos + bankSectionHeight > footerZone - 5) {
       doc.addPage();
       drawFooter();
       yPos = margin;
     }
     
     doc.setFillColor(...COLORS.primary);
-    doc.roundedRect(margin, yPos, 48, 7, 1.5, 1.5, "F");
+    doc.roundedRect(margin, yPos, 48, 6, 1.5, 1.5, "F");
     doc.setTextColor(...COLORS.white);
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont(config.typography.fontFamily, "bold");
-    doc.text("DATOS BANCARIOS", margin + 24, yPos + 5, { align: "center" });
+    doc.text("DATOS BANCARIOS", margin + 24, yPos + 4.2, { align: "center" });
 
-    yPos += 12;
+    yPos += 9;
 
     doc.setTextColor(...COLORS.textDark);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont(config.typography.fontFamily, "normal");
 
-    doc.text(config.bank.bcp_soles, margin, yPos);
-    doc.text(config.bank.bcp_dolares, margin, yPos + 5);
-
-    doc.text(config.bank.interbank_soles, pageWidth / 2, yPos);
-    doc.text(config.bank.interbank_dolares, pageWidth / 2, yPos + 5);
-
-    yPos += 16;
-  }
-
-  // ========== TERMS SECTION ==========
-  if (config.layout.showTerms) {
-    // Check if we need a new page for terms
-    const termsSectionHeight = 25;
-    if (yPos + termsSectionHeight > footerZone) {
-      doc.addPage();
-      drawFooter();
-      yPos = margin;
-    }
+    // Compact two-column layout for bank accounts
+    const halfWidth = (pageWidth - margin * 2) / 2;
     
-    doc.setTextColor(...COLORS.textDark);
-    doc.setFontSize(8);
-    doc.setFont(config.typography.fontFamily, "italic");
+    doc.text(config.bank.bcp_soles, margin, yPos);
+    doc.text(config.bank.bcp_dolares, margin, yPos + 4);
 
-    const terms = [
-      "• Los precios incluyen IGV.",
-      "• Validez de la proforma: 30 días calendarios.",
-      "• Forma de pago: Contado o según acuerdo.",
-      "• Los servicios inician una vez confirmado el pago.",
-    ];
+    doc.text(config.bank.interbank_soles, margin + halfWidth, yPos);
+    doc.text(config.bank.interbank_dolares, margin + halfWidth, yPos + 4);
 
-    terms.forEach((term, i) => {
-      doc.text(term, margin, yPos + i * 5);
-    });
+    yPos += 12;
   }
+
+  // Note: Terms/annotations are now shown next to totals section above
 
   // Draw footer on the last page (if not already drawn by tables)
   const totalPages = doc.getNumberOfPages();
