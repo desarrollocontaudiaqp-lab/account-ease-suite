@@ -326,23 +326,53 @@ export const ContractDetailModal = ({
         ) : contract ? (
           <div className="flex-1 overflow-y-auto">
             <div 
+              id="print-contract-content"
               ref={printRef}
-              className="max-w-[900px] mx-auto bg-white print:max-w-none print:mx-0"
+              className="max-w-[900px] mx-auto bg-white print:max-w-none print:mx-0 print:p-0"
             >
               {/* Print styles */}
               <style>{`
                 @media print {
                   @page { 
-                    margin: 15mm; 
+                    margin: 10mm; 
                     size: A4;
                   }
+                  
+                  /* Hide everything except the print content */
+                  body * {
+                    visibility: hidden;
+                  }
+                  
+                  /* Show only the contract content */
+                  #print-contract-content,
+                  #print-contract-content * {
+                    visibility: visible;
+                  }
+                  
+                  /* Position the content for printing */
+                  #print-contract-content {
+                    position: fixed;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    background: white !important;
+                  }
+                  
                   body { 
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
+                    background: white !important;
                   }
+                  
                   .print\\:hidden { display: none !important; }
                   .print\\:break-inside-avoid { break-inside: avoid; }
                   .print\\:break-before-page { break-before: page; }
+                  
+                  /* Force colors to print */
+                  .bg-gradient-to-r {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
                 }
               `}</style>
 
