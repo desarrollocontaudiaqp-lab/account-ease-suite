@@ -225,18 +225,30 @@ export const ContractDetailModal = ({
     try {
       const element = printRef.current;
       
-      // Create canvas from HTML element
+      // A4 dimensions in mm
+      const a4Width = 210;
+      const a4Height = 297;
+      const margin = 10; // 10mm margins
+      const contentWidth = a4Width - (margin * 2); // 190mm usable width
+      const contentHeight = a4Height - (margin * 2); // 277mm usable height per page
+      
+      // Create canvas from HTML element with higher scale for better quality
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
       });
       
       const imgData = canvas.toDataURL('image/png');
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
+      
+      // Calculate the image dimensions to fit within content area
+      const imgWidth = contentWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
       const pdf = new jsPDF({
@@ -245,19 +257,45 @@ export const ContractDetailModal = ({
         format: 'a4',
       });
       
-      let heightLeft = imgHeight;
-      let position = 0;
+      // Calculate number of pages needed
+      const totalPages = Math.ceil(imgHeight / contentHeight);
       
-      // First page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-      
-      // Add more pages if content is longer than one page
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) {
+          pdf.addPage();
+        }
+        
+        // Calculate the Y position for this page's slice
+        const srcY = page * (canvas.height / totalPages);
+        const srcHeight = canvas.height / totalPages;
+        
+        // Create a temporary canvas for this page slice
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = srcHeight;
+        const ctx = pageCanvas.getContext('2d');
+        
+        if (ctx) {
+          ctx.drawImage(
+            canvas,
+            0, srcY, // Source x, y
+            canvas.width, srcHeight, // Source width, height
+            0, 0, // Destination x, y
+            canvas.width, srcHeight // Destination width, height
+          );
+          
+          const pageImgData = pageCanvas.toDataURL('image/png');
+          const pageImgHeight = contentHeight;
+          
+          pdf.addImage(
+            pageImgData,
+            'PNG',
+            margin,
+            margin,
+            contentWidth,
+            pageImgHeight
+          );
+        }
       }
       
       pdf.save(`Contrato-${contract.numero}.pdf`);
