@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard, Percent, DollarSign } from "lucide-react";
+import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard, Percent, DollarSign, FileSignature } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { RolesManager } from "@/components/configuracion/RolesManager";
 import { ServiciosManager } from "@/components/configuracion/ServiciosManager";
 import { ProformaEstadosManager } from "@/components/configuracion/ProformaEstadosManager";
 import { ProformaSecuenciasManager } from "@/components/configuracion/ProformaSecuenciasManager";
+import { ContratoSecuenciasManager } from "@/components/configuracion/ContratoSecuenciasManager";
 import { ImportServiciosDialog } from "@/components/configuracion/ImportServiciosDialog";
 import { DocumentosPagoManager } from "@/components/configuracion/DocumentosPagoManager";
 import { MetodosPagoManager } from "@/components/configuracion/MetodosPagoManager";
@@ -78,6 +79,10 @@ const Configuracion = () => {
           <TabsTrigger value="proformas" className="gap-2">
             <ClipboardList className="h-4 w-4" />
             Proformas
+          </TabsTrigger>
+          <TabsTrigger value="contratos" className="gap-2">
+            <FileSignature className="h-4 w-4" />
+            Contratos
           </TabsTrigger>
           <TabsTrigger value="servicios" className="gap-2">
             <FileText className="h-4 w-4" />
@@ -176,6 +181,13 @@ const Configuracion = () => {
 
             {/* Estados de proforma */}
             <ProformaEstadosManager />
+          </div>
+        </TabsContent>
+
+        {/* Contratos Tab */}
+        <TabsContent value="contratos">
+          <div className="space-y-6">
+            <ContratoSecuenciasManager />
           </div>
         </TabsContent>
 

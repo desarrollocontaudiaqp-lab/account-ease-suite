@@ -542,6 +542,39 @@ export type Database = {
         }
         Relationships: []
       }
+      contrato_secuencias: {
+        Row: {
+          anio_vigente: number
+          created_at: string
+          digitos_correlativo: number
+          id: string
+          prefijo: string
+          tipo: string
+          ultimo_numero: number
+          updated_at: string
+        }
+        Insert: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          tipo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Update: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          tipo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contratos: {
         Row: {
           cliente_id: string
