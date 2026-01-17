@@ -95,6 +95,9 @@ export interface PDFStyleConfig {
     showTerms: boolean;
     showCalendarProjection: boolean;
     clientColumnWidth: number;
+    clientSectionHeight: number;
+    clientLineSpacing: number;
+    tableSeparation: number;
   };
   company: {
     name: string;
@@ -146,6 +149,9 @@ export const DEFAULT_PDF_CONFIG: PDFStyleConfig = {
     showTerms: true,
     showCalendarProjection: true,
     clientColumnWidth: 60,
+    clientSectionHeight: 42,
+    clientLineSpacing: 6,
+    tableSeparation: 14,
   },
   company: {
     name: "C&A CONTADORES & AUDITORES",
@@ -289,7 +295,8 @@ export async function generateProformaPDF(
   yPos = headerHeight + 8;
 
   // ========== CLIENT & DATES SECTION ==========
-  const clientSectionHeight = 42;
+  const clientSectionHeight = config.layout.clientSectionHeight;
+  const clientLineSpacing = config.layout.clientLineSpacing;
   
   // Calculate column widths based on config
   const clientColWidth = (pageWidth - margin * 2) * (config.layout.clientColumnWidth / 100);
@@ -324,18 +331,18 @@ export async function generateProformaPDF(
   
   // Adjust Y position based on whether razon social wrapped
   const razonLineCount = Math.min(razonSocialLines.length, 2);
-  const razonHeight = razonLineCount * 5;
+  const razonHeight = razonLineCount * (clientLineSpacing - 1);
 
   doc.setTextColor(...COLORS.textMuted);
   doc.setFontSize(config.typography.bodyTextSize);
   doc.setFont(config.typography.fontFamily, "normal");
-  doc.text(`RUC/DNI: ${data.cliente.codigo}`, margin + 8, yPos + 18 + razonHeight);
+  doc.text(`RUC/DNI: ${data.cliente.codigo}`, margin + 8, yPos + 20 + razonHeight + clientLineSpacing);
 
   if (data.cliente.direccion) {
     // Split direccion to fit within column
     const direccionLines = doc.splitTextToSize(`Dir: ${data.cliente.direccion}`, clientTextMaxWidth);
     const direccionText = direccionLines.length > 1 ? direccionLines[0].substring(0, direccionLines[0].length - 3) + "..." : direccionLines[0];
-    doc.text(direccionText, margin + 8, yPos + 25 + razonHeight);
+    doc.text(direccionText, margin + 8, yPos + 20 + razonHeight + clientLineSpacing * 2);
   }
 
   // Dates badge
@@ -524,7 +531,7 @@ export async function generateProformaPDF(
     align: "right",
   });
 
-  yPos += rowHeight + 16;
+  yPos += rowHeight + config.layout.tableSeparation;
 
   // ========== CALENDAR PROJECTION TABLE ==========
   if (config.layout.showCalendarProjection && data.calendarProjection && data.calendarProjection.length > 0) {
