@@ -116,6 +116,41 @@ export function ProformaDetailModal({
     },
   });
 
+  // Get payment schedule from campos_personalizados - MUST be before any early returns
+  const scheduleFromData = useMemo(() => {
+    if (paymentSchedule && paymentSchedule.length > 0) {
+      return paymentSchedule;
+    }
+    if (proforma?.campos_personalizados?.payment_schedule) {
+      return proforma.campos_personalizados.payment_schedule as PaymentScheduleItem[];
+    }
+    return [];
+  }, [paymentSchedule, proforma?.campos_personalizados]);
+
+  const getStatusInfo = (statusName: string) => {
+    const estado = estados.find((e) => e.nombre === statusName);
+    return {
+      label: estado?.nombre_display || statusName,
+      color: estado?.color || "#6B7280",
+    };
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr), "dd 'de' MMMM, yyyy", { locale: es });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    const currency = proforma?.moneda === "USD" ? "USD" : "PEN";
+    return new Intl.NumberFormat("es-PE", {
+      style: "currency",
+      currency,
+    }).format(amount);
+  };
+
   const handlePrint = async () => {
     if (!proforma || !proforma.cliente) return;
     
@@ -125,8 +160,8 @@ export function ProformaDetailModal({
       
       let calendarProjectionData: { numero: number; fecha_pago: string; servicio: string; monto: number }[] | undefined;
       
-      if (proforma.incluir_proyeccion_pdf && paymentSchedule.length > 0) {
-        calendarProjectionData = paymentSchedule.map((s) => ({
+      if (proforma.incluir_proyeccion_pdf && scheduleFromData.length > 0) {
+        calendarProjectionData = scheduleFromData.map((s) => ({
           numero: s.cuota,
           fecha_pago: typeof s.fecha === 'string' ? s.fecha : s.fecha.toISOString(),
           servicio: s.servicio,
@@ -188,41 +223,8 @@ export function ProformaDetailModal({
     }
   };
 
-  const getStatusInfo = (statusName: string) => {
-    const estado = estados.find((e) => e.nombre === statusName);
-    return {
-      label: estado?.nombre_display || statusName,
-      color: estado?.color || "#6B7280",
-    };
-  };
-
+  // Early return AFTER all hooks
   if (!proforma) return null;
-
-  const formatDate = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr), "dd 'de' MMMM, yyyy", { locale: es });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("es-PE", {
-      style: "currency",
-      currency: proforma.moneda === "USD" ? "USD" : "PEN",
-    }).format(amount);
-  };
-
-  // Get payment schedule from campos_personalizados
-  const scheduleFromData = useMemo(() => {
-    if (paymentSchedule && paymentSchedule.length > 0) {
-      return paymentSchedule;
-    }
-    if (proforma?.campos_personalizados?.payment_schedule) {
-      return proforma.campos_personalizados.payment_schedule as PaymentScheduleItem[];
-    }
-    return [];
-  }, [paymentSchedule, proforma?.campos_personalizados]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
