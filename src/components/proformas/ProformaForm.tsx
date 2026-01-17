@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2, Copy, Eye, EyeOff, X, CalendarDays, Save, FileText, Loader2 } from "lucide-react";
+import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2, Copy, Eye, EyeOff, X, CalendarDays, Save, FileText, Loader2, Download, Printer } from "lucide-react";
 import { CalendarProjectionModal, ServiceProjection, PaymentScheduleItem } from "./CalendarProjectionModal";
 import {
   Dialog,
@@ -46,6 +46,8 @@ import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
+import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
+import { getPDFStylesForType } from "@/hooks/usePDFStyles";
 
 interface Campo {
   id: string;
@@ -171,6 +173,7 @@ export function ProformaForm({
   const [calendarProjection, setCalendarProjection] = useState<ServiceProjection[]>([]);
   const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>([]);
   const [incluirProyeccionPdf, setIncluirProyeccionPdf] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   // Fetch dynamic statuses
   const { data: estados = [] } = useQuery({
@@ -617,6 +620,155 @@ export function ProformaForm({
   const handleSaveCalendarProjection = (projection: ServiceProjection[], schedule: PaymentScheduleItem[]) => {
     setCalendarProjection(projection);
     setPaymentSchedule(schedule);
+  };
+
+  const getSelectedCliente = () => {
+    return clientes.find(c => c.id === selectedCliente);
+  };
+
+  const handleDownloadPDF = async () => {
+    const cliente = getSelectedCliente();
+    if (!cliente) {
+      toast.error("Seleccione un cliente primero");
+      return;
+    }
+
+    const validItems = items.filter((item) => item.descripcion.trim() !== "");
+    if (validItems.length === 0) {
+      toast.error("Agregue al menos un servicio");
+      return;
+    }
+
+    setGeneratingPDF(true);
+    
+    try {
+      const pdfStyles = await getPDFStylesForType(tipo);
+      const { subtotal, igv, total } = calculateTotals();
+      
+      // Prepare calendar projection data if enabled
+      let calendarProjectionData: { numero: number; fecha_pago: string; servicio: string; monto: number }[] | undefined;
+      
+      if (incluirProyeccionPdf && paymentSchedule.length > 0) {
+        calendarProjectionData = paymentSchedule.map((s) => ({
+          numero: s.cuota,
+          fecha_pago: s.fecha instanceof Date ? s.fecha.toISOString() : s.fecha,
+          servicio: s.servicio,
+          monto: s.monto,
+        }));
+      }
+
+      const proformaNumber = mode === "edit" && proforma ? proforma.numero : "BORRADOR";
+      
+      const pdfBlob = await generateProformaPDF({
+        numero: proformaNumber,
+        tipo: tipo,
+        fecha_emision: format(new Date(), "yyyy-MM-dd"),
+        fecha_vencimiento: fechaVencimiento,
+        cliente: {
+          razon_social: getClienteDisplayName(cliente),
+          codigo: cliente.codigo,
+          direccion: cliente.direccion,
+          email: cliente.email,
+          telefono: cliente.telefono,
+        },
+        items: validItems.map(item => ({
+          descripcion: item.descripcion,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          subtotal: item.subtotal,
+        })),
+        subtotal: subtotal,
+        igv: igv,
+        total: total,
+        notas: notas,
+        moneda: "PEN",
+        calendarProjection: calendarProjectionData,
+      }, pdfStyles);
+
+      downloadPDF(pdfBlob, `Proforma_${proformaNumber}.pdf`);
+      toast.success("PDF descargado correctamente");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Error al generar el PDF");
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    const cliente = getSelectedCliente();
+    if (!cliente) {
+      toast.error("Seleccione un cliente primero");
+      return;
+    }
+
+    const validItems = items.filter((item) => item.descripcion.trim() !== "");
+    if (validItems.length === 0) {
+      toast.error("Agregue al menos un servicio");
+      return;
+    }
+
+    setGeneratingPDF(true);
+    
+    try {
+      const pdfStyles = await getPDFStylesForType(tipo);
+      const { subtotal, igv, total } = calculateTotals();
+      
+      // Prepare calendar projection data if enabled
+      let calendarProjectionData: { numero: number; fecha_pago: string; servicio: string; monto: number }[] | undefined;
+      
+      if (incluirProyeccionPdf && paymentSchedule.length > 0) {
+        calendarProjectionData = paymentSchedule.map((s) => ({
+          numero: s.cuota,
+          fecha_pago: s.fecha instanceof Date ? s.fecha.toISOString() : s.fecha,
+          servicio: s.servicio,
+          monto: s.monto,
+        }));
+      }
+
+      const proformaNumber = mode === "edit" && proforma ? proforma.numero : "BORRADOR";
+      
+      const pdfBlob = await generateProformaPDF({
+        numero: proformaNumber,
+        tipo: tipo,
+        fecha_emision: format(new Date(), "yyyy-MM-dd"),
+        fecha_vencimiento: fechaVencimiento,
+        cliente: {
+          razon_social: getClienteDisplayName(cliente),
+          codigo: cliente.codigo,
+          direccion: cliente.direccion,
+          email: cliente.email,
+          telefono: cliente.telefono,
+        },
+        items: validItems.map(item => ({
+          descripcion: item.descripcion,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          subtotal: item.subtotal,
+        })),
+        subtotal: subtotal,
+        igv: igv,
+        total: total,
+        notas: notas,
+        moneda: "PEN",
+        calendarProjection: calendarProjectionData,
+      }, pdfStyles);
+
+      // Open in new window for printing
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const printWindow = window.open(pdfUrl, '_blank');
+      if (printWindow) {
+        printWindow.addEventListener('load', () => {
+          printWindow.print();
+        });
+      }
+      toast.success("Abriendo ventana de impresión");
+    } catch (error) {
+      console.error("Error generating PDF for print:", error);
+      toast.error("Error al generar el PDF para imprimir");
+    } finally {
+      setGeneratingPDF(false);
+    }
   };
 
   const filteredClientes = useMemo(() => {
@@ -1256,16 +1408,42 @@ export function ProformaForm({
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowCalendarProjection(true)}
-              disabled={items.filter(i => i.descripcion.trim() !== "").length === 0}
-              className="gap-2"
-            >
-              <CalendarDays className="h-4 w-4" />
-              Proyección de Calendario
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowCalendarProjection(true)}
+                disabled={items.filter(i => i.descripcion.trim() !== "").length === 0}
+                className="gap-2"
+              >
+                <CalendarDays className="h-4 w-4" />
+                Proyección
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleDownloadPDF}
+                disabled={generatingPDF || !selectedCliente}
+                className="gap-2"
+              >
+                {generatingPDF ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                PDF
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePrint}
+                disabled={generatingPDF || !selectedCliente}
+                className="gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                Imprimir
+              </Button>
+            </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar

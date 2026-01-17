@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Loader2, Save } from "lucide-react";
+import { Plus, Trash2, Loader2, Save, Download, Printer } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
+import { getPDFStylesForType } from "@/hooks/usePDFStyles";
 
 interface ProformaItem {
   id?: string;
@@ -55,6 +57,16 @@ interface Proforma {
   fecha_vencimiento: string;
   notas: string | null;
   moneda: string;
+  cliente_id?: string;
+  cliente?: {
+    razon_social: string;
+    codigo: string;
+    direccion?: string | null;
+    email?: string | null;
+    telefono?: string | null;
+  };
+  campos_personalizados?: Record<string, any> | null;
+  incluir_proyeccion_pdf?: boolean;
 }
 
 interface EditProformaDialogProps {
@@ -79,6 +91,7 @@ export function EditProformaDialog({
   const [status, setStatus] = useState<string>("borrador");
   const [openServiceIndex, setOpenServiceIndex] = useState<number | null>(null);
   const [serviceSearches, setServiceSearches] = useState<{ [key: number]: string }>({});
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   // Fetch services for autocomplete
   const { data: servicios = [] } = useQuery({
@@ -179,6 +192,147 @@ export function EditProformaDialog({
     const igv = subtotal * 0.18;
     const total = subtotal + igv;
     return { subtotal, igv, total };
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!proforma?.cliente) {
+      toast.error("No hay datos del cliente para generar el PDF");
+      return;
+    }
+
+    const validItems = items.filter((item) => item.descripcion.trim() !== "");
+    if (validItems.length === 0) {
+      toast.error("Agregue al menos un servicio");
+      return;
+    }
+
+    setGeneratingPDF(true);
+    
+    try {
+      const pdfStyles = await getPDFStylesForType(proforma.tipo);
+      const { subtotal, igv, total } = calculateTotals();
+      
+      // Prepare calendar projection data if enabled
+      let calendarProjectionData: { numero: number; fecha_pago: string; servicio: string; monto: number }[] | undefined;
+      
+      if (proforma.incluir_proyeccion_pdf && proforma.campos_personalizados?.payment_schedule) {
+        const schedule = proforma.campos_personalizados.payment_schedule as any[];
+        calendarProjectionData = schedule.map((s: any) => ({
+          numero: s.cuota,
+          fecha_pago: typeof s.fecha === 'string' ? s.fecha : new Date(s.fecha).toISOString(),
+          servicio: s.servicio,
+          monto: s.monto,
+        }));
+      }
+      
+      const pdfBlob = await generateProformaPDF({
+        numero: proforma.numero,
+        tipo: proforma.tipo,
+        fecha_emision: proforma.fecha_emision,
+        fecha_vencimiento: fechaVencimiento,
+        cliente: {
+          razon_social: proforma.cliente.razon_social,
+          codigo: proforma.cliente.codigo,
+          direccion: proforma.cliente.direccion,
+          email: proforma.cliente.email,
+          telefono: proforma.cliente.telefono,
+        },
+        items: validItems.map(item => ({
+          descripcion: item.descripcion,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          subtotal: item.subtotal,
+        })),
+        subtotal: subtotal,
+        igv: igv,
+        total: total,
+        notas: notas,
+        moneda: proforma.moneda,
+        calendarProjection: calendarProjectionData,
+      }, pdfStyles);
+
+      downloadPDF(pdfBlob, `Proforma_${proforma.numero}.pdf`);
+      toast.success("PDF descargado correctamente");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Error al generar el PDF");
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!proforma?.cliente) {
+      toast.error("No hay datos del cliente para generar el PDF");
+      return;
+    }
+
+    const validItems = items.filter((item) => item.descripcion.trim() !== "");
+    if (validItems.length === 0) {
+      toast.error("Agregue al menos un servicio");
+      return;
+    }
+
+    setGeneratingPDF(true);
+    
+    try {
+      const pdfStyles = await getPDFStylesForType(proforma.tipo);
+      const { subtotal, igv, total } = calculateTotals();
+      
+      // Prepare calendar projection data if enabled
+      let calendarProjectionData: { numero: number; fecha_pago: string; servicio: string; monto: number }[] | undefined;
+      
+      if (proforma.incluir_proyeccion_pdf && proforma.campos_personalizados?.payment_schedule) {
+        const schedule = proforma.campos_personalizados.payment_schedule as any[];
+        calendarProjectionData = schedule.map((s: any) => ({
+          numero: s.cuota,
+          fecha_pago: typeof s.fecha === 'string' ? s.fecha : new Date(s.fecha).toISOString(),
+          servicio: s.servicio,
+          monto: s.monto,
+        }));
+      }
+      
+      const pdfBlob = await generateProformaPDF({
+        numero: proforma.numero,
+        tipo: proforma.tipo,
+        fecha_emision: proforma.fecha_emision,
+        fecha_vencimiento: fechaVencimiento,
+        cliente: {
+          razon_social: proforma.cliente.razon_social,
+          codigo: proforma.cliente.codigo,
+          direccion: proforma.cliente.direccion,
+          email: proforma.cliente.email,
+          telefono: proforma.cliente.telefono,
+        },
+        items: validItems.map(item => ({
+          descripcion: item.descripcion,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          subtotal: item.subtotal,
+        })),
+        subtotal: subtotal,
+        igv: igv,
+        total: total,
+        notas: notas,
+        moneda: proforma.moneda,
+        calendarProjection: calendarProjectionData,
+      }, pdfStyles);
+
+      // Open in new window for printing
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const printWindow = window.open(pdfUrl, '_blank');
+      if (printWindow) {
+        printWindow.addEventListener('load', () => {
+          printWindow.print();
+        });
+      }
+      toast.success("Abriendo ventana de impresión");
+    } catch (error) {
+      console.error("Error generating PDF for print:", error);
+      toast.error("Error al generar el PDF para imprimir");
+    } finally {
+      setGeneratingPDF(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -414,18 +568,44 @@ export function EditProformaDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={loading} className="btn-gradient gap-2">
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Guardar Cambios
-          </Button>
+        <DialogFooter className="gap-2 flex-col sm:flex-row">
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleDownloadPDF} 
+              disabled={loading || generatingPDF}
+              className="gap-2"
+            >
+              {generatingPDF ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              PDF
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handlePrint} 
+              disabled={loading || generatingPDF}
+              className="gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit} disabled={loading} className="btn-gradient gap-2">
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Guardar Cambios
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
