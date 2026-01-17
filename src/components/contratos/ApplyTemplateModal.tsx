@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Check, ChevronDown, ChevronUp, Edit, FileText, Loader2, Save, X, Eye } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Edit, FileText, Loader2, Save, X, Eye, Briefcase, Users, CheckCircle2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -28,10 +30,27 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+interface Cartera {
+  id: string;
+  nombre: string;
+  especialidad: string | null;
+  descripcion: string | null;
+  activa: boolean;
+  miembros: {
+    user_id: string;
+    rol_en_cartera: string;
+    profile: {
+      full_name: string | null;
+      email: string;
+      avatar_url: string | null;
+    } | null;
+  }[];
+}
 
 interface Plantilla {
   id: string;
@@ -131,10 +150,14 @@ export function ApplyTemplateModal({
   // Contract and related data
   const [contractData, setContractData] = useState<ContractData | null>(null);
   const [clienteData, setClienteData] = useState<ClienteData | null>(null);
+  
+  // Cartera assignment
+  const [carteras, setCarteras] = useState<Cartera[]>([]);
+  const [selectedCarteraId, setSelectedCarteraId] = useState<string>("");
   const [proformaData, setProformaData] = useState<ProformaData | null>(null);
   
   const [editingClausulaId, setEditingClausulaId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"plantilla" | "preview">("plantilla");
+  const [activeTab, setActiveTab] = useState<"cartera" | "plantilla" | "preview">("cartera");
 
   // Fetch all initial data
   useEffect(() => {
@@ -162,6 +185,35 @@ export function ApplyTemplateModal({
 
     if (plantillasData) {
       setPlantillas(plantillasData);
+    }
+
+    // Fetch carteras with members
+    const { data: carterasData } = await supabase
+      .from("carteras")
+      .select(`
+        id, nombre, especialidad, descripcion, activa,
+        miembros:cartera_miembros(
+          user_id,
+          rol_en_cartera,
+          profile:profiles(full_name, email, avatar_url)
+        )
+      `)
+      .eq("activa", true)
+      .order("nombre");
+
+    if (carterasData) {
+      setCarteras(carterasData.map(c => ({
+        ...c,
+        miembros: (c.miembros || []).map((m: any) => ({
+          user_id: m.user_id,
+          rol_en_cartera: m.rol_en_cartera,
+          profile: m.profile ? {
+            full_name: m.profile.full_name,
+            email: m.profile.email,
+            avatar_url: m.profile.avatar_url,
+          } : null,
+        })),
+      })));
     }
 
     // Fetch contract data with existing template data
@@ -192,6 +244,17 @@ export function ApplyTemplateModal({
       const cliente = contrato.cliente as unknown as ClienteData;
       if (cliente) {
         setClienteData(cliente);
+        
+        // Check if client is already assigned to a cartera
+        const { data: existingAssignment } = await supabase
+          .from("cartera_clientes")
+          .select("cartera_id")
+          .eq("cliente_id", cliente.id)
+          .maybeSingle();
+        
+        if (existingAssignment) {
+          setSelectedCarteraId(existingAssignment.cartera_id);
+        }
       }
 
       // Check if there's already saved template data
@@ -199,6 +262,7 @@ export function ApplyTemplateModal({
         plantilla_id?: string;
         partes?: Record<string, Record<string, string>>;
         clausulas?: { id: string; contenido: string }[];
+        cartera_id?: string;
       } | null;
 
       if (savedData && savedData.plantilla_id) {
@@ -215,6 +279,10 @@ export function ApplyTemplateModal({
             editedMap[c.id] = c.contenido;
           });
           setEditedClausulas(editedMap);
+        }
+        
+        if (savedData.cartera_id) {
+          setSelectedCarteraId(savedData.cartera_id);
         }
       } else if (cliente) {
         // Pre-fill "LA SEGUNDA PARTE" with client data only if no saved data
@@ -407,46 +475,101 @@ export function ApplyTemplateModal({
       return;
     }
 
+    if (!selectedCarteraId) {
+      toast.error("Por favor asigna el contrato a una cartera");
+      return;
+    }
+
     setSaving(true);
 
-    // Build the complete template data to save
-    const datosPlantilla = {
-      plantilla_id: selectedPlantillaId,
-      partes: partesData,
-      clausulas: clausulas.map((c) => ({
-        id: c.id,
-        numero: c.numero,
-        titulo: c.titulo,
-        contenido: editedClausulas[c.id] ?? c.contenido,
-        contenido_procesado: getProcessedClausulaContent(c),
-      })),
-      variables: templateVariables,
-      fecha_aplicacion: new Date().toISOString(),
-    };
-
-    // Update contract with template data and change status to "en_gestion"
-    const { error } = await supabase
-      .from("contratos")
-      .update({
+    try {
+      // Build the complete template data to save
+      const datosPlantilla = {
         plantilla_id: selectedPlantillaId,
-        datos_plantilla: datosPlantilla,
-        status: "en_gestion",
-      })
-      .eq("id", contractId);
+        cartera_id: selectedCarteraId,
+        partes: partesData,
+        clausulas: clausulas.map((c) => ({
+          id: c.id,
+          numero: c.numero,
+          titulo: c.titulo,
+          contenido: editedClausulas[c.id] ?? c.contenido,
+          contenido_procesado: getProcessedClausulaContent(c),
+        })),
+        variables: templateVariables,
+        fecha_aplicacion: new Date().toISOString(),
+      };
 
-    if (error) {
-      console.error("Error applying template:", error);
-      toast.error("Error al aplicar la plantilla");
-    } else {
-      toast.success("Plantilla aplicada. Contrato en gestión.");
+      // Update contract with template data and change status to "en_gestion"
+      const { error: contractError } = await supabase
+        .from("contratos")
+        .update({
+          plantilla_id: selectedPlantillaId,
+          datos_plantilla: datosPlantilla,
+          status: "en_gestion",
+        })
+        .eq("id", contractId);
+
+      if (contractError) {
+        throw contractError;
+      }
+
+      // Assign client to cartera if not already assigned
+      if (clienteData) {
+        // Check if already assigned
+        const { data: existing } = await supabase
+          .from("cartera_clientes")
+          .select("id")
+          .eq("cliente_id", clienteData.id)
+          .eq("cartera_id", selectedCarteraId)
+          .maybeSingle();
+
+        if (!existing) {
+          // Remove from any other cartera first
+          await supabase
+            .from("cartera_clientes")
+            .delete()
+            .eq("cliente_id", clienteData.id);
+
+          // Assign to new cartera
+          const { error: assignError } = await supabase
+            .from("cartera_clientes")
+            .insert({
+              cliente_id: clienteData.id,
+              cartera_id: selectedCarteraId,
+            });
+
+          if (assignError) {
+            console.error("Error assigning client to cartera:", assignError);
+          }
+        }
+      }
+
+      const selectedCartera = carteras.find(c => c.id === selectedCarteraId);
+      toast.success(`Contrato en gestión. Asignado a cartera "${selectedCartera?.nombre || ""}"`);
       onSuccess();
       onOpenChange(false);
+    } catch (error) {
+      console.error("Error applying template:", error);
+      toast.error("Error al aplicar la plantilla");
     }
 
     setSaving(false);
   };
 
   const selectedPlantilla = plantillas.find((p) => p.id === selectedPlantillaId);
+  const selectedCartera = carteras.find((c) => c.id === selectedCarteraId);
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "?";
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  const especialidadStyles: Record<string, string> = {
+    "Contabilidad": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+    "Trámites": "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+    "Auditoría": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+    "Mixta": "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -454,10 +577,10 @@ export function ApplyTemplateModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Aplicar Plantilla al Contrato
+            Iniciar Gestión de Contrato
           </DialogTitle>
           <DialogDescription>
-            Selecciona una plantilla y completa los datos para generar el contrato.
+            Configura la plantilla, asigna a una cartera y completa los datos para iniciar la gestión.
             {contractData && (
               <span className="font-medium ml-1">
                 Contrato: {contractData.numero}
@@ -473,16 +596,192 @@ export function ApplyTemplateModal({
         ) : (
           <div className="flex-1 overflow-hidden">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="cartera" className="gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  <span className="hidden sm:inline">Asignar</span> Cartera
+                  {selectedCarteraId && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
+                </TabsTrigger>
                 <TabsTrigger value="plantilla" className="gap-2">
                   <Edit className="h-4 w-4" />
-                  Configurar
+                  Plantilla
+                  {selectedPlantillaId && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
                 </TabsTrigger>
                 <TabsTrigger value="preview" className="gap-2" disabled={!selectedPlantillaId}>
                   <Eye className="h-4 w-4" />
                   Vista Previa
                 </TabsTrigger>
               </TabsList>
+
+              {/* Cartera Assignment Tab */}
+              <TabsContent value="cartera" className="flex-1 overflow-hidden mt-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+                  {/* Left: Contract summary */}
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Resumen del Contrato
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="py-2 space-y-3">
+                        {clienteData && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">Cliente</p>
+                            <p className="text-sm font-medium">{clienteData.razon_social}</p>
+                            <p className="text-xs text-muted-foreground">{clienteData.codigo}</p>
+                          </div>
+                        )}
+                        {contractData && (
+                          <>
+                            <Separator />
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground">Tipo de Servicio</p>
+                              <p className="text-sm">{contractData.tipo_servicio}</p>
+                            </div>
+                            <div className="flex gap-4">
+                              {contractData.monto_mensual && (
+                                <div>
+                                  <p className="text-xs font-medium text-muted-foreground">Mensual</p>
+                                  <p className="text-sm font-medium">
+                                    {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_mensual.toLocaleString()}
+                                  </p>
+                                </div>
+                              )}
+                              {contractData.monto_total && (
+                                <div>
+                                  <p className="text-xs font-medium text-muted-foreground">Total</p>
+                                  <p className="text-sm font-medium">
+                                    {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_total.toLocaleString()}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {selectedCartera && (
+                      <Card className="border-primary/50 bg-primary/5">
+                        <CardHeader className="py-3">
+                          <CardTitle className="text-base flex items-center gap-2 text-primary">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Cartera Seleccionada
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="py-2">
+                          <p className="font-medium">{selectedCartera.nombre}</p>
+                          <Badge className={cn("mt-1", especialidadStyles[selectedCartera.especialidad || "Mixta"])}>
+                            {selectedCartera.especialidad || "Mixta"}
+                          </Badge>
+                          <div className="flex items-center gap-1 mt-3">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {selectedCartera.miembros.length} miembro(s)
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  {/* Right: Cartera selection */}
+                  <div className="lg:col-span-2">
+                    <Card className="h-full">
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-base">Seleccionar Cartera de Trabajo</CardTitle>
+                        <CardDescription>
+                          El contrato y el cliente serán asignados a la cartera seleccionada
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="py-2">
+                        <ScrollArea className="h-[45vh]">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-4">
+                            {carteras.map((cartera) => (
+                              <div
+                                key={cartera.id}
+                                onClick={() => setSelectedCarteraId(cartera.id)}
+                                className={cn(
+                                  "p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md",
+                                  selectedCarteraId === cartera.id
+                                    ? "border-primary bg-primary/5 shadow-md"
+                                    : "border-border hover:border-primary/50"
+                                )}
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-sm">{cartera.nombre}</h4>
+                                    <Badge 
+                                      variant="secondary" 
+                                      className={cn("mt-1 text-xs", especialidadStyles[cartera.especialidad || "Mixta"])}
+                                    >
+                                      {cartera.especialidad || "Mixta"}
+                                    </Badge>
+                                  </div>
+                                  {selectedCarteraId === cartera.id && (
+                                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                                  )}
+                                </div>
+                                
+                                {cartera.descripcion && (
+                                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                                    {cartera.descripcion}
+                                  </p>
+                                )}
+
+                                {/* Team members */}
+                                <div className="space-y-2">
+                                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    Equipo ({cartera.miembros.length})
+                                  </p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {cartera.miembros.slice(0, 4).map((miembro) => (
+                                      <div
+                                        key={miembro.user_id}
+                                        className="flex items-center gap-1.5 bg-muted/50 rounded-full px-2 py-0.5"
+                                      >
+                                        <Avatar className="h-5 w-5">
+                                          <AvatarFallback className="text-[10px] bg-primary/10">
+                                            {getInitials(miembro.profile?.full_name)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xs truncate max-w-[80px]">
+                                          {miembro.profile?.full_name?.split(" ")[0] || "Usuario"}
+                                        </span>
+                                        {miembro.rol_en_cartera === "responsable" && (
+                                          <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                            Resp.
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    ))}
+                                    {cartera.miembros.length > 4 && (
+                                      <span className="text-xs text-muted-foreground px-2 py-0.5">
+                                        +{cartera.miembros.length - 4} más
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {carteras.length === 0 && (
+                            <div className="text-center py-12 text-muted-foreground">
+                              <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p className="font-medium">No hay carteras disponibles</p>
+                              <p className="text-sm">Crea una cartera primero desde la sección Carteras</p>
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
 
               <TabsContent value="plantilla" className="flex-1 overflow-hidden mt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
@@ -788,24 +1087,38 @@ export function ApplyTemplateModal({
           </div>
         )}
 
-        <DialogFooter className="mt-4">
+        <DialogFooter className="mt-4 flex-wrap gap-2">
+          <div className="flex items-center gap-2 mr-auto text-sm text-muted-foreground">
+            {selectedCartera && (
+              <Badge variant="outline" className="gap-1">
+                <Briefcase className="h-3 w-3" />
+                {selectedCartera.nombre}
+              </Badge>
+            )}
+            {selectedPlantilla && (
+              <Badge variant="outline" className="gap-1">
+                <FileText className="h-3 w-3" />
+                {selectedPlantilla.nombre}
+              </Badge>
+            )}
+          </div>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
           <Button
             onClick={handleSaveAndApply}
-            disabled={!selectedPlantillaId || saving}
+            disabled={!selectedPlantillaId || !selectedCarteraId || saving}
             className="gap-2"
           >
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Aplicando...
+                Iniciando Gestión...
               </>
             ) : (
               <>
                 <Check className="h-4 w-4" />
-                Aplicar y Continuar Gestión
+                Iniciar Gestión
               </>
             )}
           </Button>
