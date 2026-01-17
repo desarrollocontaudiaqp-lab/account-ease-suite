@@ -57,8 +57,6 @@ export interface ServiceProjection {
   fechaPago: number;
   cicloPago: "unico" | "mensual" | "anual";
   nroCuotas: number;
-  documentoPagoId: string;
-  metodoPagoId: string;
   pago: number;
   total: number;
   dividirEnCuotas: boolean; // Toggle: si true divide total/cuotas, si false usa total por cuota
@@ -71,8 +69,6 @@ export interface PaymentScheduleItem {
   servicioId: string;
   color: string;
   monto: number;
-  documentoPago: string;
-  metodoPago: string;
 }
 
 interface CalendarProjectionModalProps {
@@ -83,17 +79,6 @@ interface CalendarProjectionModalProps {
   initialProjection?: ServiceProjection[];
 }
 
-interface DocumentoPago {
-  id: string;
-  nombre: string;
-  activo: boolean;
-}
-
-interface MetodoPago {
-  id: string;
-  nombre: string;
-  activo: boolean;
-}
 
 const SERVICE_COLORS = [
   "bg-blue-500",
@@ -121,32 +106,6 @@ export function CalendarProjectionModal({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarView, setCalendarView] = useState<CalendarViewType>("month");
 
-  const { data: documentosPago = [] } = useQuery({
-    queryKey: ["documentos_pago_activos"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("documentos_pago")
-        .select("*")
-        .eq("activo", true)
-        .order("orden");
-      if (error) throw error;
-      return data as DocumentoPago[];
-    },
-  });
-
-  const { data: metodosPago = [] } = useQuery({
-    queryKey: ["metodos_pago_activos"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("metodos_pago")
-        .select("*")
-        .eq("activo", true)
-        .order("orden");
-      if (error) throw error;
-      return data as MetodoPago[];
-    },
-  });
-
   useEffect(() => {
     if (open && items.length > 0) {
       const today = new Date();
@@ -163,24 +122,22 @@ export function CalendarProjectionModal({
           id: `service-${index}`,
           descripcion: item.descripcion,
           color: SERVICE_COLORS[index % SERVICE_COLORS.length],
-          fechaInicio: today, // Por defecto fecha de hoy
+          fechaInicio: today,
           fechaTermino: undefined,
           dias: 0,
           meses: 0,
           anos: 0,
-          fechaPago: today.getDate(), // Usar el día de hoy como día de pago
+          fechaPago: today.getDate(),
           cicloPago: "mensual" as const,
           nroCuotas: 1,
-          documentoPagoId: documentosPago[0]?.id || "",
-          metodoPagoId: metodosPago[0]?.id || "",
           pago: item.subtotal,
           total: item.subtotal,
-          dividirEnCuotas: true, // Por defecto divide entre cuotas
+          dividirEnCuotas: true,
         }));
         setProjections(newProjections);
       }
     }
-  }, [open, items, initialProjection, documentosPago, metodosPago]);
+  }, [open, items, initialProjection]);
 
   const calculateDaysMonthsYears = (fechaInicio: Date | undefined, fechaTermino: Date | undefined) => {
     if (!fechaInicio || !fechaTermino) return { dias: 0, meses: 0, anos: 0 };
@@ -308,9 +265,6 @@ export function CalendarProjectionModal({
     projections.forEach((proj) => {
       if (!proj.fechaInicio || !proj.fechaTermino) return;
 
-      const docPago = documentosPago.find(d => d.id === proj.documentoPagoId)?.nombre || "";
-      const metPago = metodosPago.find(m => m.id === proj.metodoPagoId)?.nombre || "";
-      
       // Calcular el monto por cuota según el toggle
       const montoPorCuota = proj.dividirEnCuotas 
         ? proj.pago / proj.nroCuotas 
@@ -324,8 +278,6 @@ export function CalendarProjectionModal({
           servicioId: proj.id,
           color: proj.color,
           monto: proj.pago,
-          documentoPago: docPago,
-          metodoPago: metPago,
         });
       } else if (proj.cicloPago === "mensual") {
         let currentDate = new Date(proj.fechaInicio);
@@ -340,8 +292,6 @@ export function CalendarProjectionModal({
               servicioId: proj.id,
               color: proj.color,
               monto: montoPorCuota,
-              documentoPago: docPago,
-              metodoPago: metPago,
             });
           }
         }
@@ -358,8 +308,6 @@ export function CalendarProjectionModal({
               servicioId: proj.id,
               color: proj.color,
               monto: montoPorCuota,
-              documentoPago: docPago,
-              metodoPago: metPago,
             });
           }
         }
@@ -367,7 +315,7 @@ export function CalendarProjectionModal({
     });
 
     return schedule.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
-  }, [projections, documentosPago, metodosPago]);
+  }, [projections]);
 
   // Group payments by date for calendar
   const paymentsByDate = useMemo(() => {
@@ -483,8 +431,6 @@ export function CalendarProjectionModal({
               <TableHead className="w-[60px]">Cuota</TableHead>
               <TableHead className="w-[120px]">Fecha Pago</TableHead>
               <TableHead>Servicio</TableHead>
-              <TableHead className="w-[120px]">Doc. Pago</TableHead>
-              <TableHead className="w-[100px]">Método</TableHead>
               <TableHead className="w-[100px] text-right">Monto</TableHead>
             </TableRow>
           </TableHeader>
@@ -501,8 +447,6 @@ export function CalendarProjectionModal({
                 <TableCell className="max-w-[200px] truncate" title={item.servicio}>
                   {item.servicio}
                 </TableCell>
-                <TableCell>{item.documentoPago}</TableCell>
-                <TableCell>{item.metodoPago}</TableCell>
                 <TableCell className="text-right font-medium">S/ {item.monto.toFixed(2)}</TableCell>
               </TableRow>
             ))}
@@ -534,7 +478,7 @@ export function CalendarProjectionModal({
           {/* Services Table */}
           <div className="border rounded-lg overflow-hidden">
             <div className="overflow-x-auto overflow-y-auto max-h-[30vh]">
-              <table className="w-full min-w-[1500px] text-sm">
+              <table className="w-full min-w-[1100px] text-sm">
                 <thead className="bg-muted/50 sticky top-0">
                   <tr>
                     <th className="text-left p-2 font-medium">Servicio</th>
@@ -547,8 +491,6 @@ export function CalendarProjectionModal({
                     <th className="text-left p-2 font-medium w-[120px]">Ciclo</th>
                     <th className="text-center p-2 font-medium w-[80px]">N° Cuotas</th>
                     <th className="text-center p-2 font-medium w-[80px]" title="Si está activado, divide el total entre las cuotas. Si no, cada cuota paga el monto completo.">Dividir</th>
-                    <th className="text-left p-2 font-medium w-[150px]">Doc. Pago</th>
-                    <th className="text-left p-2 font-medium w-[130px]">Método Pago</th>
                     <th className="text-right p-2 font-medium w-[100px]">Monto Serv.</th>
                     <th className="text-right p-2 font-medium w-[100px]">Total</th>
                   </tr>
@@ -662,40 +604,6 @@ export function CalendarProjectionModal({
                         </div>
                       </td>
                       <td className="p-2">
-                        <Select
-                          value={proj.documentoPagoId}
-                          onValueChange={(v) => handleProjectionChange(index, "documentoPagoId", v)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Seleccionar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {documentosPago.map((doc) => (
-                              <SelectItem key={doc.id} value={doc.id}>
-                                {doc.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="p-2">
-                        <Select
-                          value={proj.metodoPagoId}
-                          onValueChange={(v) => handleProjectionChange(index, "metodoPagoId", v)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Seleccionar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {metodosPago.map((met) => (
-                              <SelectItem key={met.id} value={met.id}>
-                                {met.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="p-2">
                         <Input
                           type="number"
                           min={0}
@@ -713,7 +621,7 @@ export function CalendarProjectionModal({
                 </tbody>
                 <tfoot className="bg-muted/50 border-t-2">
                   <tr>
-                    <td colSpan={13} className="p-2 text-right font-semibold">Total General:</td>
+                    <td colSpan={11} className="p-2 text-right font-semibold">Total General:</td>
                     <td className="p-2 text-right font-bold text-lg">S/ {totalGeneral.toFixed(2)}</td>
                   </tr>
                 </tfoot>

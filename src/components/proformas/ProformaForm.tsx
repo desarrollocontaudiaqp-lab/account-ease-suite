@@ -39,6 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addDays } from "date-fns";
@@ -114,6 +115,7 @@ interface Proforma {
   moneda: string;
   cliente_id: string;
   campos_personalizados?: Record<string, string> | null;
+  incluir_proyeccion_pdf?: boolean;
 }
 
 interface ProformaFormProps {
@@ -168,6 +170,7 @@ export function ProformaForm({
   const [showCalendarProjection, setShowCalendarProjection] = useState(false);
   const [calendarProjection, setCalendarProjection] = useState<ServiceProjection[]>([]);
   const [paymentSchedule, setPaymentSchedule] = useState<PaymentScheduleItem[]>([]);
+  const [incluirProyeccionPdf, setIncluirProyeccionPdf] = useState(false);
 
   // Fetch dynamic statuses
   const { data: estados = [] } = useQuery({
@@ -229,6 +232,9 @@ export function ProformaForm({
           }));
           setPaymentSchedule(parsedSchedule);
         }
+        
+        // Load incluir_proyeccion_pdf
+        setIncluirProyeccionPdf(proforma.incluir_proyeccion_pdf ?? false);
         
         // Convert initialItems to include base_imponible and igv_monto
         const convertedItems = initialItems.length > 0 
@@ -500,6 +506,7 @@ export function ProformaForm({
               payment_schedule: serializableSchedule,
             } as any,
             status,
+            incluir_proyeccion_pdf: incluirProyeccionPdf,
           })
           .select()
           .single();
@@ -537,6 +544,7 @@ export function ProformaForm({
               payment_schedule: serializableSchedule,
             } as any,
             status,
+            incluir_proyeccion_pdf: incluirProyeccionPdf,
             updated_at: new Date().toISOString(),
           })
           .eq("id", proforma!.id);
@@ -1142,8 +1150,6 @@ export function ProformaForm({
                         <TableHead className="w-[60px]">Cuota</TableHead>
                         <TableHead className="w-[120px]">Fecha Pago</TableHead>
                         <TableHead>Servicio</TableHead>
-                        <TableHead className="w-[120px]">Doc. Pago</TableHead>
-                        <TableHead className="w-[100px]">Método</TableHead>
                         <TableHead className="w-[100px] text-right">Monto</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1160,21 +1166,31 @@ export function ProformaForm({
                           <TableCell className="max-w-[200px] truncate" title={item.servicio}>
                             {item.servicio}
                           </TableCell>
-                          <TableCell>{item.documentoPago}</TableCell>
-                          <TableCell>{item.metodoPago}</TableCell>
                           <TableCell className="text-right font-medium">S/ {item.monto.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
-                <div className="border-t bg-muted/30 p-3 flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">
-                    Total de cuotas: {paymentSchedule.length}
-                  </span>
-                  <span className="font-bold">
-                    Total: S/ {paymentSchedule.reduce((sum, p) => sum + p.monto, 0).toFixed(2)}
-                  </span>
+                <div className="border-t bg-muted/30 p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground">
+                      Total de cuotas: {paymentSchedule.length}
+                    </span>
+                    <span className="font-bold">
+                      Total: S/ {paymentSchedule.reduce((sum, p) => sum + p.monto, 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="incluir-proyeccion"
+                      checked={incluirProyeccionPdf}
+                      onCheckedChange={setIncluirProyeccionPdf}
+                    />
+                    <Label htmlFor="incluir-proyeccion" className="text-sm cursor-pointer">
+                      Incluir proyección en impresión
+                    </Label>
+                  </div>
                 </div>
               </div>
             </div>

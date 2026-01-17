@@ -943,6 +943,7 @@ export type Database = {
           fecha_vencimiento: string
           id: string
           igv: number
+          incluir_proyeccion_pdf: boolean
           moneda: string
           notas: string | null
           numero: string
@@ -962,6 +963,7 @@ export type Database = {
           fecha_vencimiento: string
           id?: string
           igv?: number
+          incluir_proyeccion_pdf?: boolean
           moneda?: string
           notas?: string | null
           numero: string
@@ -981,6 +983,7 @@ export type Database = {
           fecha_vencimiento?: string
           id?: string
           igv?: number
+          incluir_proyeccion_pdf?: boolean
           moneda?: string
           notas?: string | null
           numero?: string
