@@ -10,6 +10,7 @@ import { OpcionesManager } from "@/components/configuracion/OpcionesManager";
 import { RolesManager } from "@/components/configuracion/RolesManager";
 import { ServiciosManager } from "@/components/configuracion/ServiciosManager";
 import { ProformaEstadosManager } from "@/components/configuracion/ProformaEstadosManager";
+import { ProformaSecuenciasManager } from "@/components/configuracion/ProformaSecuenciasManager";
 import { ImportServiciosDialog } from "@/components/configuracion/ImportServiciosDialog";
 import { DocumentosPagoManager } from "@/components/configuracion/DocumentosPagoManager";
 import { MetodosPagoManager } from "@/components/configuracion/MetodosPagoManager";
@@ -132,11 +133,14 @@ const Configuracion = () => {
         {/* Proformas Tab */}
         <TabsContent value="proformas">
           <div className="space-y-6">
+            {/* Codificación de proformas */}
+            <ProformaSecuenciasManager />
+
             {/* Configuración de vencimiento */}
             <div className="bg-card rounded-xl border border-border p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                 <ClipboardList className="h-5 w-5 text-primary" />
-                Configuración de Proformas
+                Configuración General
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

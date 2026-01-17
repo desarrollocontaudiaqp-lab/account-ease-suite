@@ -263,16 +263,33 @@ export function CreateProformaDialog({
     return { subtotal, igv, total };
   };
 
-  const generateProformaNumber = () => {
-    let prefix = "PC";
-    if (tipo === "Trámites") prefix = "PT";
-    else if (tipo === "Auditoría y Control Interno") prefix = "PA";
-    const date = new Date();
-    const year = date.getFullYear();
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0");
-    return `${prefix}-${year}-${random}`;
+  const generateProformaNumber = async (): Promise<string> => {
+    try {
+      const { data, error } = await supabase.rpc("get_next_proforma_number", {
+        p_tipo: tipo,
+      });
+      
+      if (error) {
+        console.error("Error getting proforma number:", error);
+        // Fallback to random number if DB function fails
+        const year = new Date().getFullYear();
+        const random = Math.floor(Math.random() * 10000).toString().padStart(5, "0");
+        let prefix = "PC";
+        if (tipo === "Trámites") prefix = "PT";
+        else if (tipo === "Auditoría y Control Interno") prefix = "PA";
+        return `${prefix}-${year}-${random}`;
+      }
+      
+      return data as string;
+    } catch (err) {
+      console.error("Error generating proforma number:", err);
+      const year = new Date().getFullYear();
+      const random = Math.floor(Math.random() * 10000).toString().padStart(5, "0");
+      let prefix = "PC";
+      if (tipo === "Trámites") prefix = "PT";
+      else if (tipo === "Auditoría y Control Interno") prefix = "PA";
+      return `${prefix}-${year}-${random}`;
+    }
   };
 
   const handleSubmit = async () => {
@@ -304,10 +321,11 @@ export function CreateProformaDialog({
     setLoading(true);
     const { subtotal, igv, total } = calculateTotals();
 
+    const proformaNumber = await generateProformaNumber();
     const { data: proforma, error: proformaError } = await supabase
       .from("proformas")
       .insert({
-        numero: generateProformaNumber(),
+        numero: proformaNumber,
         cliente_id: selectedCliente,
         tipo: tipo as any, // Cast for TypeScript, DB accepts all 3 groups
         fecha_vencimiento: fechaVencimiento,
