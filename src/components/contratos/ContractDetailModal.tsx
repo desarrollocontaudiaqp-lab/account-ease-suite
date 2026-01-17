@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import { 
   FileCheck, 
   Calendar as CalendarIcon, 
@@ -41,7 +43,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ContractStatus } from "./ContractActions";
-import { generateContractPDF } from "@/lib/generateContractPDF";
 import logoImage from "@/assets/logo-ca-full.png";
 
 interface ContractDetailModalProps {
@@ -218,51 +219,48 @@ export const ContractDetailModal = ({
   const [downloading, setDownloading] = useState(false);
 
   const handleDownloadPDF = async () => {
-    if (!contract) return;
+    if (!contract || !printRef.current) return;
     
     setDownloading(true);
     try {
-      const pdfData = {
-        numero: contract.numero,
-        descripcion: contract.descripcion,
-        tipo_servicio: contract.tipo_servicio,
-        fecha_inicio: contract.fecha_inicio,
-        fecha_fin: contract.fecha_fin,
-        monto_mensual: contract.monto_mensual,
-        monto_total: contract.monto_total,
-        moneda: contract.moneda,
-        status: contract.status,
-        notas: contract.notas,
-        numero_cuotas: contract.numero_cuotas,
-        dia_vencimiento: contract.dia_vencimiento,
-        created_at: contract.created_at,
-        cliente: contract.cliente,
-        proforma: contract.proforma,
-        projections: projections.map(p => ({
-          descripcion: p.descripcion,
-          fechaInicio: p.fechaInicio?.toISOString(),
-          fechaTermino: p.fechaTermino?.toISOString(),
-          nroCuotas: p.nroCuotas,
-          pago: p.pago,
-          total: p.total,
-        })),
-        paymentSchedule: paymentSchedule.map(s => ({
-          cuota: s.cuota,
-          fecha: s.fecha.toISOString(),
-          servicio: s.servicio,
-          monto: s.monto,
-        })),
-      };
+      const element = printRef.current;
       
-      const blob = await generateContractPDF(pdfData);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Contrato-${contract.numero}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Create canvas from HTML element
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      // First page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      // Add more pages if content is longer than one page
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      pdf.save(`Contrato-${contract.numero}.pdf`);
       toast.success("PDF descargado correctamente");
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -390,56 +388,9 @@ export const ContractDetailModal = ({
         ) : contract ? (
           <div className="flex-1 overflow-y-auto">
             <div 
-              id="print-contract-content"
               ref={printRef}
-              className="max-w-[900px] mx-auto bg-white print:max-w-none print:mx-0 print:p-0"
+              className="max-w-[900px] mx-auto bg-white p-6"
             >
-              {/* Print styles */}
-              <style>{`
-                @media print {
-                  @page { 
-                    margin: 10mm; 
-                    size: A4;
-                  }
-                  
-                  /* Hide everything except the print content */
-                  body * {
-                    visibility: hidden;
-                  }
-                  
-                  /* Show only the contract content */
-                  #print-contract-content,
-                  #print-contract-content * {
-                    visibility: visible;
-                  }
-                  
-                  /* Position the content for printing */
-                  #print-contract-content {
-                    position: fixed;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                    background: white !important;
-                  }
-                  
-                  body { 
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                    background: white !important;
-                  }
-                  
-                  .print\\:hidden { display: none !important; }
-                  .print\\:break-inside-avoid { break-inside: avoid; }
-                  .print\\:break-before-page { break-before: page; }
-                  
-                  /* Force colors to print */
-                  .bg-gradient-to-r {
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                  }
-                }
-              `}</style>
-
               {/* === CORPORATE HEADER === */}
               <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-8 py-6">
                 <div className="flex items-center justify-between">
