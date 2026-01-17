@@ -413,6 +413,10 @@ export async function generateProformaPDF(
     doc.text("¡Gracias por confiar en nosotros!", pageWidth / 2, footerBarY + 17, { align: "center" });
   };
 
+  // Calculate table width to align totals
+  const tableWidth = pageWidth - margin * 2;
+  const totalsColWidth = 70; // Width for P. Unit. and Subtotal columns combined
+  
   autoTable(doc, {
     startY: yPos,
     head: [["#", "Descripción del Servicio", "Cant", "P. Unit.", "Subtotal"]],
@@ -425,24 +429,24 @@ export async function generateProformaPDF(
       fontStyle: "bold",
       halign: "center",
       valign: "middle",
-      cellPadding: 4,
+      cellPadding: 3,
     },
     bodyStyles: {
       fontSize: 9,
-      cellPadding: 4,
+      cellPadding: 3,
       textColor: COLORS.textDark,
       valign: "middle",
       lineColor: COLORS.border,
       lineWidth: 0.3,
     },
     columnStyles: {
-      0: { halign: "center", cellWidth: 12 },
+      0: { halign: "center", cellWidth: 14 },
       1: { halign: "left", cellWidth: "auto" },
-      2: { halign: "center", cellWidth: 18 },
-      3: { halign: "center", cellWidth: 28 },
-      4: { halign: "center", cellWidth: 28 },
+      2: { halign: "center", cellWidth: 22 },
+      3: { halign: "right", cellWidth: 35 },
+      4: { halign: "right", cellWidth: 35 },
     },
-    margin: { left: margin, right: margin, bottom: 30 },
+    margin: { left: margin, right: margin, bottom: 40 },
     tableLineColor: COLORS.border,
     tableLineWidth: 0.3,
     didDrawCell: (hookData) => {
@@ -459,57 +463,78 @@ export async function generateProformaPDF(
 
   yPos = (doc as any).lastAutoTable.finalY;
 
-  // ========== TOTALS SECTION ==========
-  const totalsWidth = 80;
+  // ========== TOTALS SECTION - Aligned with table columns ==========
+  // Totals should align with the last two columns (P. Unit. and Subtotal)
+  const totalsWidth = 70; // Same width as P. Unit. + Subtotal columns
   const totalsX = pageWidth - margin - totalsWidth;
+  const labelColWidth = 35;
+  const valueColWidth = 35;
+  const rowHeight = 8; // Reduced row height
+  
+  // Check if we need a new page for totals
+  const totalsHeight = rowHeight * 3 + 4; // 3 rows + small padding
+  const footerZone = pageHeight - 40;
+  
+  if (yPos + totalsHeight > footerZone) {
+    doc.addPage();
+    drawFooter();
+    yPos = margin;
+  }
 
   doc.setDrawColor(...COLORS.border);
-  doc.setLineWidth(0.4);
+  doc.setLineWidth(0.3);
 
   // Subtotal row
-  doc.rect(totalsX, yPos, totalsWidth, 12);
-  doc.line(totalsX + 40, yPos, totalsX + 40, yPos + 12);
+  doc.rect(totalsX, yPos, totalsWidth, rowHeight);
+  doc.line(totalsX + labelColWidth, yPos, totalsX + labelColWidth, yPos + rowHeight);
   doc.setTextColor(...COLORS.textDark);
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont(config.typography.fontFamily, "normal");
-  doc.text("Subtotal:", totalsX + 8, yPos + 8);
+  doc.text("Subtotal:", totalsX + labelColWidth - 4, yPos + 5.5, { align: "right" });
   doc.setFont(config.typography.fontFamily, "bold");
-  doc.text(formatCurrency(data.subtotal, data.moneda || "PEN"), totalsX + totalsWidth - 8, yPos + 8, {
+  doc.text(formatCurrency(data.subtotal, data.moneda || "PEN"), totalsX + totalsWidth - 4, yPos + 5.5, {
     align: "right",
   });
 
-  yPos += 12;
+  yPos += rowHeight;
 
   // IGV row
-  doc.rect(totalsX, yPos, totalsWidth, 12);
-  doc.line(totalsX + 40, yPos, totalsX + 40, yPos + 12);
+  doc.rect(totalsX, yPos, totalsWidth, rowHeight);
+  doc.line(totalsX + labelColWidth, yPos, totalsX + labelColWidth, yPos + rowHeight);
   doc.setFont(config.typography.fontFamily, "normal");
-  doc.text("IGV (18%):", totalsX + 8, yPos + 8);
+  doc.text("IGV (18%):", totalsX + labelColWidth - 4, yPos + 5.5, { align: "right" });
   doc.setFont(config.typography.fontFamily, "bold");
-  doc.text(formatCurrency(data.igv, data.moneda || "PEN"), totalsX + totalsWidth - 8, yPos + 8, {
+  doc.text(formatCurrency(data.igv, data.moneda || "PEN"), totalsX + totalsWidth - 4, yPos + 5.5, {
     align: "right",
   });
 
-  yPos += 12;
+  yPos += rowHeight;
 
   // Total row with tableBackground
   doc.setFillColor(...COLORS.tableBackground);
-  doc.rect(totalsX, yPos, totalsWidth, 14, "F");
+  doc.rect(totalsX, yPos, totalsWidth, rowHeight + 2, "F");
   doc.setDrawColor(...COLORS.border);
-  doc.rect(totalsX, yPos, totalsWidth, 14);
-  doc.line(totalsX + 40, yPos, totalsX + 40, yPos + 14);
+  doc.rect(totalsX, yPos, totalsWidth, rowHeight + 2);
+  doc.line(totalsX + labelColWidth, yPos, totalsX + labelColWidth, yPos + rowHeight + 2);
   doc.setTextColor(...COLORS.white);
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont(config.typography.fontFamily, "bold");
-  doc.text("TOTAL:", totalsX + 8, yPos + 10);
-  doc.text(formatCurrency(data.total, data.moneda || "PEN"), totalsX + totalsWidth - 8, yPos + 10, {
+  doc.text("TOTAL:", totalsX + labelColWidth - 4, yPos + 6.5, { align: "right" });
+  doc.text(formatCurrency(data.total, data.moneda || "PEN"), totalsX + totalsWidth - 4, yPos + 6.5, {
     align: "right",
   });
 
-  yPos += 28;
+  yPos += rowHeight + 16;
 
   // ========== CALENDAR PROJECTION TABLE ==========
   if (config.layout.showCalendarProjection && data.calendarProjection && data.calendarProjection.length > 0) {
+    // Check if we need a new page for the projection header
+    if (yPos + 30 > footerZone) {
+      doc.addPage();
+      drawFooter();
+      yPos = margin;
+    }
+    
     doc.setFillColor(...COLORS.primary);
     doc.roundedRect(margin, yPos, 62, 7, 1.5, 1.5, "F");
     doc.setTextColor(...COLORS.white);
@@ -554,7 +579,7 @@ export async function generateProformaPDF(
         2: { halign: "left", cellWidth: "auto" },
         3: { halign: "right", cellWidth: 32 },
       },
-      margin: { left: margin, right: margin, bottom: 30 },
+      margin: { left: margin, right: margin, bottom: 40 },
       tableLineColor: COLORS.border,
       tableLineWidth: 0.2,
       didDrawCell: (hookData) => {
@@ -574,6 +599,14 @@ export async function generateProformaPDF(
 
   // ========== BANK INFO SECTION ==========
   if (config.layout.showBankInfo) {
+    // Check if we need a new page for bank info
+    const bankSectionHeight = 30;
+    if (yPos + bankSectionHeight > footerZone) {
+      doc.addPage();
+      drawFooter();
+      yPos = margin;
+    }
+    
     doc.setFillColor(...COLORS.primary);
     doc.roundedRect(margin, yPos, 48, 7, 1.5, 1.5, "F");
     doc.setTextColor(...COLORS.white);
@@ -598,6 +631,14 @@ export async function generateProformaPDF(
 
   // ========== TERMS SECTION ==========
   if (config.layout.showTerms) {
+    // Check if we need a new page for terms
+    const termsSectionHeight = 25;
+    if (yPos + termsSectionHeight > footerZone) {
+      doc.addPage();
+      drawFooter();
+      yPos = margin;
+    }
+    
     doc.setTextColor(...COLORS.textDark);
     doc.setFontSize(8);
     doc.setFont(config.typography.fontFamily, "italic");
