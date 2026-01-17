@@ -158,7 +158,7 @@ export const EditContractDialog = ({
       .select(`
         *,
         cliente:clientes(id, razon_social, codigo, direccion, email, telefono),
-        proforma:proformas(numero, total, subtotal, igv, moneda, tipo, items:proforma_items(descripcion, cantidad, precio_unitario, subtotal))
+        proforma:proformas!contratos_proforma_id_fkey(numero, total, subtotal, igv, moneda, tipo, items:proforma_items(descripcion, cantidad, precio_unitario, subtotal))
       `)
       .eq("id", contractId)
       .maybeSingle();
