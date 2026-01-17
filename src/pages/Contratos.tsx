@@ -38,6 +38,7 @@ import { ContractActions, type ContractStatus } from "@/components/contratos/Con
 import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { ConfirmContractFromProformaDialog } from "@/components/contratos/ConfirmContractFromProformaDialog";
+import { CreateContractDialog } from "@/components/contratos/CreateContractDialog";
 
 interface Contract {
   id: string;
@@ -657,126 +658,14 @@ const Contratos = () => {
         </>
       )}
 
-      {/* Create Contract Dialog - Simple version for new contracts without proforma */}
-      <Dialog open={createDialogOpen && !proformaData} onOpenChange={(open) => {
-        setCreateDialogOpen(open);
-        if (!open) {
-          resetForm();
-        }
-      }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Nuevo Contrato</DialogTitle>
-            <DialogDescription>
-              Completa los datos para crear un nuevo contrato en estado Borrador
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Tipo de Servicio</Label>
-                <Select 
-                  value={newContract.tipo_servicio} 
-                  onValueChange={(value) => setNewContract(prev => ({ ...prev, tipo_servicio: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="contabilidad">Contabilidad</SelectItem>
-                    <SelectItem value="tramites">Trámites</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Moneda</Label>
-                <Select 
-                  value={newContract.moneda} 
-                  onValueChange={(value) => setNewContract(prev => ({ ...prev, moneda: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PEN">Soles (S/)</SelectItem>
-                    <SelectItem value="USD">Dólares ($)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Descripción *</Label>
-              <Textarea
-                value={newContract.descripcion}
-                onChange={(e) => setNewContract(prev => ({ ...prev, descripcion: e.target.value }))}
-                placeholder="Descripción del contrato..."
-                rows={2}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Fecha Inicio *</Label>
-                <Input
-                  type="date"
-                  value={newContract.fecha_inicio}
-                  onChange={(e) => setNewContract(prev => ({ ...prev, fecha_inicio: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Fecha Fin</Label>
-                <Input
-                  type="date"
-                  value={newContract.fecha_fin}
-                  onChange={(e) => setNewContract(prev => ({ ...prev, fecha_fin: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Monto Mensual</Label>
-                <Input
-                  type="number"
-                  value={newContract.monto_mensual}
-                  onChange={(e) => setNewContract(prev => ({ ...prev, monto_mensual: e.target.value }))}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Monto Total</Label>
-                <Input
-                  type="number"
-                  value={newContract.monto_total}
-                  onChange={(e) => setNewContract(prev => ({ ...prev, monto_total: e.target.value }))}
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Notas</Label>
-              <Textarea
-                value={newContract.notas}
-                onChange={(e) => setNewContract(prev => ({ ...prev, notas: e.target.value }))}
-                placeholder="Notas adicionales..."
-                rows={2}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreateContract}>
-              Crear Contrato
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Create Contract Dialog - Full featured */}
+      <CreateContractDialog
+        open={createDialogOpen && !proformaData}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+        }}
+        onSuccess={fetchContracts}
+      />
 
       {/* Confirm Contract from Proforma Dialog - Full featured */}
       <ConfirmContractFromProformaDialog
