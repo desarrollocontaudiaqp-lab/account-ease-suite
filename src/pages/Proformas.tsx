@@ -46,6 +46,7 @@ interface Proforma {
   notas: string | null;
   moneda: string;
   campos_personalizados?: Record<string, any> | null;
+  incluir_proyeccion_pdf?: boolean;
 }
 
 interface ProformaItem {
@@ -271,6 +272,19 @@ const Proformas = () => {
       // Load PDF styles for this proforma type from database
       const pdfStyles = await getPDFStylesForType(proforma.tipo);
 
+      // Prepare calendar projection data if enabled
+      let calendarProjectionData: { numero: number; fecha_pago: string; servicio: string; monto: number }[] | undefined;
+      
+      if (proforma.incluir_proyeccion_pdf && proforma.campos_personalizados?.payment_schedule) {
+        const schedule = proforma.campos_personalizados.payment_schedule as any[];
+        calendarProjectionData = schedule.map((s: any) => ({
+          numero: s.cuota,
+          fecha_pago: typeof s.fecha === 'string' ? s.fecha : new Date(s.fecha).toISOString(),
+          servicio: s.servicio,
+          monto: s.monto,
+        }));
+      }
+
       const pdfBlob = await generateProformaPDF({
         numero: proforma.numero,
         tipo: proforma.tipo,
@@ -294,6 +308,7 @@ const Proformas = () => {
         total: proforma.total,
         notas: proforma.notas,
         moneda: proforma.moneda,
+        calendarProjection: calendarProjectionData,
       }, pdfStyles);
 
       downloadPDF(pdfBlob, `Proforma_${proforma.numero}.pdf`);
