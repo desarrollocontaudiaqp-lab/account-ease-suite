@@ -494,7 +494,7 @@ export function ProformaForm({
     }
 
     const { subtotal, igv, total } = calculateTotals();
-    const status = asDraft ? "borrador" : "enviada";
+    const status = asDraft ? "borrador" : "facturada";
 
     try {
       // Serialize dates for JSON storage
