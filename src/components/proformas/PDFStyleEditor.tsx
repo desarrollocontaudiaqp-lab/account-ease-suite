@@ -347,6 +347,11 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
                       <Separator />
                       <Label className="text-xs font-medium text-foreground">Datos del Cliente</Label>
                       <SizeSlider label="Ancho columna cliente" value={config.layout.clientColumnWidth} min={50} max={75} suffix="%" onChange={(v) => updateLayout("clientColumnWidth", v)} />
+                      <SizeSlider label="Alto sección cliente" value={config.layout.clientSectionHeight} min={30} max={60} suffix="mm" onChange={(v) => updateLayout("clientSectionHeight", v)} />
+                      <SizeSlider label="Interlineado cliente" value={config.layout.clientLineSpacing} min={4} max={10} suffix="mm" onChange={(v) => updateLayout("clientLineSpacing", v)} />
+                      <Separator />
+                      <Label className="text-xs font-medium text-foreground">Tablas</Label>
+                      <SizeSlider label="Separación entre tablas" value={config.layout.tableSeparation} min={8} max={30} suffix="mm" onChange={(v) => updateLayout("tableSeparation", v)} />
                       <Separator />
                       <div className="space-y-3">
                         <ToggleOption label="Mostrar logo" checked={config.layout.showLogo} onChange={(v) => updateLayout("showLogo", v)} />
