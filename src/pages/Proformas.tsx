@@ -58,6 +58,7 @@ interface Proforma {
   moneda: string;
   campos_personalizados?: Record<string, any> | null;
   incluir_proyeccion_pdf?: boolean;
+  contrato_id?: string | null;
 }
 
 interface ProformaItem {
@@ -207,6 +208,7 @@ const Proformas = () => {
         cliente_id,
         campos_personalizados,
         incluir_proyeccion_pdf,
+        contrato_id,
         cliente:clientes(razon_social, codigo, direccion, email, telefono)
       `)
       .order("created_at", { ascending: false });
@@ -851,7 +853,7 @@ const Proformas = () => {
                                 >
                                   <Send className="h-4 w-4" />
                                 </Button>
-                                {proforma.status === "aprobada" && (
+                                {proforma.status === "aprobada" && !proforma.contrato_id && (
                                   <Button
                                     variant="default"
                                     size="sm"
@@ -870,7 +872,7 @@ const Proformas = () => {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                    {proforma.status !== "aprobada" && (
+                                    {proforma.status !== "aprobada" && !proforma.contrato_id && (
                                       <DropdownMenuItem onClick={() => handleConfirmContract(proforma)}>
                                         <FileCheck className="h-4 w-4 mr-2" />
                                         Confirmar Contrato
