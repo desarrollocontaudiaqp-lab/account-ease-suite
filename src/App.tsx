@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
 import Proformas from "./pages/Proformas";
 import Contratos from "./pages/Contratos";
+import Asignaciones from "./pages/Asignaciones";
 import Carteras from "./pages/Carteras";
 import CalendarioTrabajo from "./pages/CalendarioTrabajo";
 import CalendarioPagos from "./pages/CalendarioPagos";
@@ -54,7 +55,7 @@ const AppRoutes = () => {
         <Route path="/clientes" element={<Clientes />} />
         <Route path="/proformas" element={<Proformas />} />
         <Route path="/contratos" element={<Contratos />} />
-        <Route path="/asignaciones" element={<Dashboard />} />
+        <Route path="/asignaciones" element={<Asignaciones />} />
         <Route path="/carteras" element={<Carteras />} />
         <Route path="/calendario-pagos" element={<CalendarioPagos />} />
         <Route path="/calendario-trabajo" element={<CalendarioTrabajo />} />
