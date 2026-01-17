@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, Palette, Type, Layout, RotateCcw, Save, Download, ArrowLeft, Building2, Landmark } from "lucide-react";
+import { Eye, Palette, Type, Layout, RotateCcw, Save, Download, ArrowLeft, Building2, Landmark, FileText, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -84,6 +84,7 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
         layout: { ...DEFAULT_PDF_CONFIG.layout, ...savedConfig.layout },
         company: { ...DEFAULT_PDF_CONFIG.company, ...savedConfig.company },
         bank: { ...DEFAULT_PDF_CONFIG.bank, ...savedConfig.bank },
+        annotations: savedConfig.annotations ?? DEFAULT_PDF_CONFIG.annotations,
       });
     }
   };
@@ -420,6 +421,57 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
                         <Label className="text-xs text-muted-foreground">Interbank Dólares</Label>
                         <Input value={config.bank.interbank_dolares} onChange={(e) => updateBank("interbank_dolares", e.target.value)} className="mt-1" />
                       </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Annotations */}
+                  <AccordionItem value="annotations" className="border rounded-lg px-3 bg-background">
+                    <AccordionTrigger className="py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="font-medium text-sm">Anotaciones</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4 space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        Estas anotaciones aparecen junto a los totales en el PDF.
+                      </p>
+                      {config.annotations.map((annotation, index) => (
+                        <div key={index} className="flex gap-2">
+                          <Input 
+                            value={annotation} 
+                            onChange={(e) => {
+                              const newAnnotations = [...config.annotations];
+                              newAnnotations[index] = e.target.value;
+                              setConfig(prev => ({ ...prev, annotations: newAnnotations }));
+                            }} 
+                            className="flex-1"
+                            placeholder={`Anotación ${index + 1}`}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0 h-10 w-10 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              const newAnnotations = config.annotations.filter((_, i) => i !== index);
+                              setConfig(prev => ({ ...prev, annotations: newAnnotations }));
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={() => {
+                          setConfig(prev => ({ ...prev, annotations: [...prev.annotations, "• Nueva anotación"] }));
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Agregar anotación
+                      </Button>
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>

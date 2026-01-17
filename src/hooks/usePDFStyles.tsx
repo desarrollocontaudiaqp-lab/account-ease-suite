@@ -23,6 +23,7 @@ export async function getPDFStylesForType(tipo: string): Promise<PDFStyleConfig>
       layout: { ...DEFAULT_PDF_CONFIG.layout, ...savedConfig.layout },
       company: { ...DEFAULT_PDF_CONFIG.company, ...savedConfig.company },
       bank: { ...DEFAULT_PDF_CONFIG.bank, ...savedConfig.bank },
+      annotations: savedConfig.annotations ?? DEFAULT_PDF_CONFIG.annotations,
     };
   }
 
@@ -48,6 +49,7 @@ export async function getPDFStylesForPlantilla(plantillaId: string): Promise<PDF
       layout: { ...DEFAULT_PDF_CONFIG.layout, ...savedConfig.layout },
       company: { ...DEFAULT_PDF_CONFIG.company, ...savedConfig.company },
       bank: { ...DEFAULT_PDF_CONFIG.bank, ...savedConfig.bank },
+      annotations: savedConfig.annotations ?? DEFAULT_PDF_CONFIG.annotations,
     };
   }
 
