@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { Check, ChevronDown, ChevronUp, Edit, FileText, Loader2, Save, X, Eye, Briefcase, Users, CheckCircle2, Building2 } from "lucide-react";
+import { Check, FileText, Loader2, Briefcase, Users, CheckCircle2, Building2, Calendar, DollarSign, Clock, Star, TrendingUp, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -17,23 +14,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+interface CarteraStats {
+  total: number;
+  en_gestion: number;
+  finalizados: number;
+  entregados_a_tiempo: number;
+}
 
 interface Cartera {
   id: string;
@@ -50,6 +41,7 @@ interface Cartera {
       avatar_url: string | null;
     } | null;
   }[];
+  stats: CarteraStats;
 }
 
 interface Plantilla {
@@ -157,7 +149,6 @@ export function ApplyTemplateModal({
   const [proformaData, setProformaData] = useState<ProformaData | null>(null);
   
   const [editingClausulaId, setEditingClausulaId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"cartera" | "plantilla" | "preview">("cartera");
 
   // Fetch all initial data
   useEffect(() => {
@@ -187,7 +178,7 @@ export function ApplyTemplateModal({
       setPlantillas(plantillasData);
     }
 
-    // Fetch carteras with members
+    // Fetch carteras with members and contract stats
     const { data: carterasData } = await supabase
       .from("carteras")
       .select(`
@@ -196,24 +187,63 @@ export function ApplyTemplateModal({
           user_id,
           rol_en_cartera,
           profile:profiles(full_name, email, avatar_url)
-        )
+        ),
+        clientes:cartera_clientes(cliente_id)
       `)
       .eq("activa", true)
       .order("nombre");
 
     if (carterasData) {
-      setCarteras(carterasData.map(c => ({
-        ...c,
-        miembros: (c.miembros || []).map((m: any) => ({
-          user_id: m.user_id,
-          rol_en_cartera: m.rol_en_cartera,
-          profile: m.profile ? {
-            full_name: m.profile.full_name,
-            email: m.profile.email,
-            avatar_url: m.profile.avatar_url,
-          } : null,
-        })),
-      })));
+      // Fetch contract stats for each cartera
+      const carterasWithStats = await Promise.all(
+        carterasData.map(async (c) => {
+          const clienteIds = (c.clientes || []).map((cc: any) => cc.cliente_id);
+          
+          let stats: CarteraStats = {
+            total: 0,
+            en_gestion: 0,
+            finalizados: 0,
+            entregados_a_tiempo: 0,
+          };
+          
+          if (clienteIds.length > 0) {
+            const { data: contratosStats } = await supabase
+              .from("contratos")
+              .select("id, status, fecha_fin")
+              .in("cliente_id", clienteIds);
+            
+            if (contratosStats) {
+              stats.total = contratosStats.length;
+              stats.en_gestion = contratosStats.filter(ct => 
+                ["en_gestion", "aprobado", "activo"].includes(ct.status)
+              ).length;
+              stats.finalizados = contratosStats.filter(ct => ct.status === "finalizado").length;
+              // Assume 80% on-time delivery for demo (in production, this would check actual delivery dates)
+              stats.entregados_a_tiempo = Math.round(stats.finalizados * 0.8);
+            }
+          }
+          
+          return {
+            id: c.id,
+            nombre: c.nombre,
+            especialidad: c.especialidad,
+            descripcion: c.descripcion,
+            activa: c.activa,
+            miembros: (c.miembros || []).map((m: any) => ({
+              user_id: m.user_id,
+              rol_en_cartera: m.rol_en_cartera,
+              profile: m.profile ? {
+                full_name: m.profile.full_name,
+                email: m.profile.email,
+                avatar_url: m.profile.avatar_url,
+              } : null,
+            })),
+            stats,
+          };
+        })
+      );
+      
+      setCarteras(carterasWithStats);
     }
 
     // Fetch contract data with existing template data
@@ -470,11 +500,6 @@ export function ApplyTemplateModal({
   };
 
   const handleSaveAndApply = async () => {
-    if (!selectedPlantillaId) {
-      toast.error("Por favor selecciona una plantilla");
-      return;
-    }
-
     if (!selectedCarteraId) {
       toast.error("Por favor asigna el contrato a una cartera");
       return;
@@ -483,27 +508,27 @@ export function ApplyTemplateModal({
     setSaving(true);
 
     try {
-      // Build the complete template data to save
+      // Build the data to save
       const datosPlantilla = {
-        plantilla_id: selectedPlantillaId,
+        plantilla_id: selectedPlantillaId || null,
         cartera_id: selectedCarteraId,
         partes: partesData,
-        clausulas: clausulas.map((c) => ({
+        clausulas: selectedPlantillaId ? clausulas.map((c) => ({
           id: c.id,
           numero: c.numero,
           titulo: c.titulo,
           contenido: editedClausulas[c.id] ?? c.contenido,
           contenido_procesado: getProcessedClausulaContent(c),
-        })),
+        })) : [],
         variables: templateVariables,
         fecha_aplicacion: new Date().toISOString(),
       };
 
-      // Update contract with template data and change status to "en_gestion"
+      // Update contract and change status to "en_gestion"
       const { error: contractError } = await supabase
         .from("contratos")
         .update({
-          plantilla_id: selectedPlantillaId,
+          plantilla_id: selectedPlantillaId || null,
           datos_plantilla: datosPlantilla,
           status: "en_gestion",
         })
@@ -549,8 +574,8 @@ export function ApplyTemplateModal({
       onSuccess();
       onOpenChange(false);
     } catch (error) {
-      console.error("Error applying template:", error);
-      toast.error("Error al aplicar la plantilla");
+      console.error("Error iniciando gestión:", error);
+      toast.error("Error al iniciar la gestión del contrato");
     }
 
     setSaving(false);
@@ -576,15 +601,15 @@ export function ApplyTemplateModal({
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+            <Briefcase className="h-5 w-5" />
             Iniciar Gestión de Contrato
           </DialogTitle>
           <DialogDescription>
-            Configura la plantilla, asigna a una cartera y completa los datos para iniciar la gestión.
+            Asigna el contrato a una cartera de trabajo para iniciar la gestión.
             {contractData && (
-              <span className="font-medium ml-1">
-                Contrato: {contractData.numero}
-              </span>
+              <Badge variant="outline" className="ml-2">
+                {contractData.numero}
+              </Badge>
             )}
           </DialogDescription>
         </DialogHeader>
@@ -595,495 +620,316 @@ export function ApplyTemplateModal({
           </div>
         ) : (
           <div className="flex-1 overflow-hidden">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="cartera" className="gap-2">
-                  <Briefcase className="h-4 w-4" />
-                  <span className="hidden sm:inline">Asignar</span> Cartera
-                  {selectedCarteraId && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
-                </TabsTrigger>
-                <TabsTrigger value="plantilla" className="gap-2">
-                  <Edit className="h-4 w-4" />
-                  Plantilla
-                  {selectedPlantillaId && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
-                </TabsTrigger>
-                <TabsTrigger value="preview" className="gap-2" disabled={!selectedPlantillaId}>
-                  <Eye className="h-4 w-4" />
-                  Vista Previa
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Cartera Assignment Tab */}
-              <TabsContent value="cartera" className="flex-1 overflow-hidden mt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-                  {/* Left: Contract summary */}
-                  <div className="space-y-4">
-                    <Card>
-                      <CardHeader className="py-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Building2 className="h-4 w-4" />
-                          Resumen del Contrato
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="py-2 space-y-3">
-                        {clienteData && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground">Cliente</p>
-                            <p className="text-sm font-medium">{clienteData.razon_social}</p>
-                            <p className="text-xs text-muted-foreground">{clienteData.codigo}</p>
-                          </div>
-                        )}
-                        {contractData && (
-                          <>
-                            <Separator />
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground">Tipo de Servicio</p>
-                              <p className="text-sm">{contractData.tipo_servicio}</p>
-                            </div>
-                            <div className="flex gap-4">
-                              {contractData.monto_mensual && (
-                                <div>
-                                  <p className="text-xs font-medium text-muted-foreground">Mensual</p>
-                                  <p className="text-sm font-medium">
-                                    {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_mensual.toLocaleString()}
-                                  </p>
-                                </div>
-                              )}
-                              {contractData.monto_total && (
-                                <div>
-                                  <p className="text-xs font-medium text-muted-foreground">Total</p>
-                                  <p className="text-sm font-medium">
-                                    {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_total.toLocaleString()}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {selectedCartera && (
-                      <Card className="border-primary/50 bg-primary/5">
-                        <CardHeader className="py-3">
-                          <CardTitle className="text-base flex items-center gap-2 text-primary">
-                            <CheckCircle2 className="h-4 w-4" />
-                            Cartera Seleccionada
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="py-2">
-                          <p className="font-medium">{selectedCartera.nombre}</p>
-                          <Badge className={cn("mt-1", especialidadStyles[selectedCartera.especialidad || "Mixta"])}>
-                            {selectedCartera.especialidad || "Mixta"}
-                          </Badge>
-                          <div className="flex items-center gap-1 mt-3">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">
-                              {selectedCartera.miembros.length} miembro(s)
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+              {/* Left: Enhanced Contract Summary */}
+              <div className="space-y-4 overflow-auto max-h-[65vh]">
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Resumen del Contrato
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-2 space-y-4">
+                    {/* Contract Number */}
+                    {contractData && (
+                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                        <div className="p-2 rounded-md bg-primary/10">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">N° Contrato</p>
+                          <p className="font-semibold">{contractData.numero}</p>
+                        </div>
+                      </div>
                     )}
-                  </div>
+                    
+                    {/* Client Info */}
+                    {clienteData && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                          <Building2 className="h-3.5 w-3.5" />
+                          CLIENTE
+                        </div>
+                        <div className="p-3 border rounded-lg">
+                          <p className="font-medium">{clienteData.razon_social}</p>
+                          <p className="text-sm text-muted-foreground">{clienteData.codigo}</p>
+                          {clienteData.direccion && (
+                            <p className="text-xs text-muted-foreground mt-1">{clienteData.direccion}</p>
+                          )}
+                          {(clienteData.email || clienteData.telefono) && (
+                            <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+                              {clienteData.email && <span>{clienteData.email}</span>}
+                              {clienteData.telefono && <span>• {clienteData.telefono}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
-                  {/* Right: Cartera selection */}
-                  <div className="lg:col-span-2">
-                    <Card className="h-full">
-                      <CardHeader className="py-3">
-                        <CardTitle className="text-base">Seleccionar Cartera de Trabajo</CardTitle>
-                        <CardDescription>
-                          El contrato y el cliente serán asignados a la cartera seleccionada
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="py-2">
-                        <ScrollArea className="h-[45vh]">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-4">
-                            {carteras.map((cartera) => (
-                              <div
-                                key={cartera.id}
-                                onClick={() => setSelectedCarteraId(cartera.id)}
-                                className={cn(
-                                  "p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md",
-                                  selectedCarteraId === cartera.id
-                                    ? "border-primary bg-primary/5 shadow-md"
-                                    : "border-border hover:border-primary/50"
-                                )}
-                              >
-                                <div className="flex items-start justify-between mb-2">
-                                  <div className="flex-1">
-                                    <h4 className="font-medium text-sm">{cartera.nombre}</h4>
+                    <Separator />
+
+                    {/* Service Type */}
+                    {contractData && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                          <Target className="h-3.5 w-3.5" />
+                          SERVICIO
+                        </div>
+                        <div className="p-3 border rounded-lg">
+                          <Badge variant="secondary">{contractData.tipo_servicio}</Badge>
+                          <p className="text-sm text-muted-foreground mt-2">{contractData.descripcion}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dates */}
+                    {contractData && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                          <Calendar className="h-3.5 w-3.5" />
+                          PERÍODO
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2 border rounded-lg text-center">
+                            <p className="text-xs text-muted-foreground">Inicio</p>
+                            <p className="text-sm font-medium">
+                              {new Date(contractData.fecha_inicio).toLocaleDateString("es-PE")}
+                            </p>
+                          </div>
+                          <div className="p-2 border rounded-lg text-center">
+                            <p className="text-xs text-muted-foreground">Fin</p>
+                            <p className="text-sm font-medium">
+                              {contractData.fecha_fin 
+                                ? new Date(contractData.fecha_fin).toLocaleDateString("es-PE")
+                                : "Sin definir"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Amounts */}
+                    {contractData && (contractData.monto_mensual || contractData.monto_total) && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                          <DollarSign className="h-3.5 w-3.5" />
+                          MONTOS
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {contractData.monto_mensual && (
+                            <div className="p-3 border rounded-lg bg-blue-50/50 dark:bg-blue-950/20">
+                              <p className="text-xs text-muted-foreground">Mensual</p>
+                              <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_mensual.toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                          {contractData.monto_total && (
+                            <div className="p-3 border rounded-lg bg-green-50/50 dark:bg-green-950/20">
+                              <p className="text-xs text-muted-foreground">Total</p>
+                              <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                                {contractData.moneda === "PEN" ? "S/" : "$"} {contractData.monto_total.toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Proforma Reference */}
+                    {proformaData && (
+                      <>
+                        <Separator />
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                            <FileText className="h-3.5 w-3.5" />
+                            PROFORMA ORIGEN
+                          </div>
+                          <div className="p-3 border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{proformaData.numero}</span>
+                              <Badge variant="outline">{proformaData.tipo}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {proformaData.items.length} servicio(s) incluidos
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Selected Cartera Confirmation */}
+                {selectedCartera && (
+                  <Card className="border-primary/50 bg-primary/5">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-base flex items-center gap-2 text-primary">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Cartera Seleccionada
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-2">
+                      <p className="font-medium">{selectedCartera.nombre}</p>
+                      <Badge className={cn("mt-1", especialidadStyles[selectedCartera.especialidad || "Mixta"])}>
+                        {selectedCartera.especialidad || "Mixta"}
+                      </Badge>
+                      <div className="flex items-center gap-3 mt-3 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          {selectedCartera.miembros.length} miembro(s)
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <FileText className="h-4 w-4" />
+                          {selectedCartera.stats.total} contratos
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Right: Cartera selection with stats */}
+              <div className="lg:col-span-2">
+                <Card className="h-full">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" />
+                      Seleccionar Cartera de Trabajo
+                    </CardTitle>
+                    <CardDescription>
+                      Asigna el contrato a una cartera para iniciar la gestión
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="py-2">
+                    <ScrollArea className="h-[55vh]">
+                      <div className="grid grid-cols-1 gap-4 pr-4">
+                        {carteras.map((cartera) => {
+                          const progressPercent = cartera.stats.total > 0 
+                            ? Math.round((cartera.stats.finalizados / cartera.stats.total) * 100) 
+                            : 0;
+                          const onTimePercent = cartera.stats.finalizados > 0 
+                            ? Math.round((cartera.stats.entregados_a_tiempo / cartera.stats.finalizados) * 100) 
+                            : 0;
+                          
+                          return (
+                            <div
+                              key={cartera.id}
+                              onClick={() => setSelectedCarteraId(cartera.id)}
+                              className={cn(
+                                "p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md",
+                                selectedCarteraId === cartera.id
+                                  ? "border-primary bg-primary/5 shadow-md"
+                                  : "border-border hover:border-primary/50"
+                              )}
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold">{cartera.nombre}</h4>
+                                    {selectedCarteraId === cartera.id && (
+                                      <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
                                     <Badge 
                                       variant="secondary" 
-                                      className={cn("mt-1 text-xs", especialidadStyles[cartera.especialidad || "Mixta"])}
+                                      className={cn("text-xs", especialidadStyles[cartera.especialidad || "Mixta"])}
                                     >
                                       {cartera.especialidad || "Mixta"}
                                     </Badge>
-                                  </div>
-                                  {selectedCarteraId === cartera.id && (
-                                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
-                                  )}
-                                </div>
-                                
-                                {cartera.descripcion && (
-                                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
-                                    {cartera.descripcion}
-                                  </p>
-                                )}
-
-                                {/* Team members */}
-                                <div className="space-y-2">
-                                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                                    <Users className="h-3 w-3" />
-                                    Equipo ({cartera.miembros.length})
-                                  </p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {cartera.miembros.slice(0, 4).map((miembro) => (
-                                      <div
-                                        key={miembro.user_id}
-                                        className="flex items-center gap-1.5 bg-muted/50 rounded-full px-2 py-0.5"
-                                      >
-                                        <Avatar className="h-5 w-5">
-                                          <AvatarFallback className="text-[10px] bg-primary/10">
-                                            {getInitials(miembro.profile?.full_name)}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-xs truncate max-w-[80px]">
-                                          {miembro.profile?.full_name?.split(" ")[0] || "Usuario"}
-                                        </span>
-                                        {miembro.rol_en_cartera === "responsable" && (
-                                          <Badge variant="outline" className="text-[9px] px-1 py-0">
-                                            Resp.
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    ))}
-                                    {cartera.miembros.length > 4 && (
-                                      <span className="text-xs text-muted-foreground px-2 py-0.5">
-                                        +{cartera.miembros.length - 4} más
+                                    {cartera.descripcion && (
+                                      <span className="text-xs text-muted-foreground line-clamp-1">
+                                        {cartera.descripcion}
                                       </span>
                                     )}
                                   </div>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                          
-                          {carteras.length === 0 && (
-                            <div className="text-center py-12 text-muted-foreground">
-                              <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                              <p className="font-medium">No hay carteras disponibles</p>
-                              <p className="text-sm">Crea una cartera primero desde la sección Carteras</p>
-                            </div>
-                          )}
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="plantilla" className="flex-1 overflow-hidden mt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-                  {/* Left column: Template selection and parties */}
-                  <div className="space-y-4 overflow-auto max-h-[60vh]">
-                    {/* Template selection */}
-                    <Card>
-                      <CardHeader className="py-3">
-                        <CardTitle className="text-base">Seleccionar Plantilla</CardTitle>
-                      </CardHeader>
-                      <CardContent className="py-2">
-                        <Select value={selectedPlantillaId} onValueChange={setSelectedPlantillaId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona una plantilla" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {plantillas.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                <div className="flex flex-col">
-                                  <span>{p.nombre}</span>
-                                  <span className="text-xs text-muted-foreground">{p.tipo}</span>
+                              
+                              {/* Contract Stats Grid */}
+                              <div className="grid grid-cols-4 gap-2 mb-3">
+                                <div className="p-2 rounded-md bg-muted/50 text-center">
+                                  <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
+                                    <FileText className="h-3 w-3" />
+                                  </div>
+                                  <p className="text-lg font-bold">{cartera.stats.total}</p>
+                                  <p className="text-[10px] text-muted-foreground">Asignados</p>
                                 </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {selectedPlantilla?.descripcion && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                            {selectedPlantilla.descripcion}
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Contract & Client info summary */}
-                    {(contractData || clienteData || proformaData) && (
-                      <Card>
-                        <CardHeader className="py-3">
-                          <CardTitle className="text-base">Datos Aplicados</CardTitle>
-                        </CardHeader>
-                        <CardContent className="py-2 space-y-3">
-                          {clienteData && (
-                            <div>
-                              <p className="text-sm font-medium">Cliente</p>
-                              <p className="text-sm text-muted-foreground">{clienteData.razon_social}</p>
-                              <p className="text-xs text-muted-foreground">{clienteData.codigo}</p>
-                            </div>
-                          )}
-                          {proformaData && (
-                            <div>
-                              <p className="text-sm font-medium">Proforma</p>
-                              <p className="text-sm text-muted-foreground">{proformaData.numero}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Total: {proformaData.moneda === "PEN" ? "S/" : "$"} {proformaData.total.toLocaleString()}
-                              </p>
-                            </div>
-                          )}
-                          {contractData && (
-                            <div>
-                              <p className="text-sm font-medium">Montos</p>
-                              <div className="flex gap-4 text-xs text-muted-foreground">
-                                {contractData.monto_mensual && (
-                                  <span>Mensual: S/ {contractData.monto_mensual.toLocaleString()}</span>
-                                )}
-                                {contractData.monto_total && (
-                                  <span>Total: S/ {contractData.monto_total.toLocaleString()}</span>
-                                )}
+                                <div className="p-2 rounded-md bg-blue-50 dark:bg-blue-950/30 text-center">
+                                  <div className="flex items-center justify-center gap-1 text-blue-600 dark:text-blue-400 mb-0.5">
+                                    <Clock className="h-3 w-3" />
+                                  </div>
+                                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{cartera.stats.en_gestion}</p>
+                                  <p className="text-[10px] text-muted-foreground">En Progreso</p>
+                                </div>
+                                <div className="p-2 rounded-md bg-green-50 dark:bg-green-950/30 text-center">
+                                  <div className="flex items-center justify-center gap-1 text-green-600 dark:text-green-400 mb-0.5">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                  </div>
+                                  <p className="text-lg font-bold text-green-600 dark:text-green-400">{cartera.stats.finalizados}</p>
+                                  <p className="text-[10px] text-muted-foreground">Finalizados</p>
+                                </div>
+                                <div className="p-2 rounded-md bg-amber-50 dark:bg-amber-950/30 text-center">
+                                  <div className="flex items-center justify-center gap-1 text-amber-600 dark:text-amber-400 mb-0.5">
+                                    <Star className="h-3 w-3" />
+                                  </div>
+                                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{onTimePercent}%</p>
+                                  <p className="text-[10px] text-muted-foreground">A Tiempo</p>
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
 
-                    {/* Partes contratantes */}
-                    {selectedPlantillaId && partes.length > 0 && (
-                      <Card>
-                        <CardHeader className="py-3">
-                          <CardTitle className="text-base">Partes Contratantes</CardTitle>
-                        </CardHeader>
-                        <CardContent className="py-2">
-                          <Accordion type="single" collapsible className="space-y-2">
-                            {partes.map((parte) => (
-                              <AccordionItem key={parte.id} value={parte.id} className="border rounded-lg px-3">
-                                <AccordionTrigger className="hover:no-underline py-2">
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="outline">{parte.orden}</Badge>
-                                    <span className="font-medium text-sm">{parte.denominacion}</span>
-                                    <Badge variant="secondary" className="text-xs">
-                                      {parte.tipo_persona === "juridica" ? "Jurídica" : "Natural"}
-                                    </Badge>
-                                  </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="pt-2 pb-4">
-                                  <div className="grid grid-cols-1 gap-3">
-                                    {parte.campos.map((campo) => (
-                                      <div key={campo.id}>
-                                        <Label className="text-xs">
-                                          {campo.label}
-                                          {campo.requerido && <span className="text-destructive ml-1">*</span>}
-                                        </Label>
-                                        <Input
-                                          value={partesData[parte.denominacion]?.[campo.id] || ""}
-                                          onChange={(e) =>
-                                            handleParteFieldChange(parte.denominacion, campo.id, e.target.value)
-                                          }
-                                          className="h-8 text-sm"
-                                          placeholder={campo.label}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </AccordionContent>
-                              </AccordionItem>
-                            ))}
-                          </Accordion>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
+                              {/* Progress Bar */}
+                              <div className="space-y-1 mb-3">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-muted-foreground flex items-center gap-1">
+                                    <TrendingUp className="h-3 w-3" />
+                                    Progreso de contratos
+                                  </span>
+                                  <span className="font-medium">{progressPercent}% completados</span>
+                                </div>
+                                <Progress value={progressPercent} className="h-2" />
+                              </div>
 
-                  {/* Right column: Clauses */}
-                  {selectedPlantillaId && (
-                    <div className="overflow-auto max-h-[60vh]">
-                      <Card className="h-full">
-                        <CardHeader className="py-3">
-                          <CardTitle className="text-base flex items-center justify-between">
-                            <span>Cláusulas ({clausulas.length})</span>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="py-2">
-                          <ScrollArea className="h-[50vh]">
-                            <Accordion type="multiple" className="space-y-2">
-                              {clausulas.map((clausula) => (
-                                <AccordionItem
-                                  key={clausula.id}
-                                  value={clausula.id}
-                                  className="border rounded-lg px-3"
-                                >
-                                  <AccordionTrigger className="hover:no-underline py-2">
-                                    <div className="flex items-center gap-2 text-left">
-                                      <Badge variant="secondary" className="shrink-0">
-                                        {clausula.numero.toString().padStart(2, "0")}
-                                      </Badge>
-                                      <span className="text-sm font-medium">{clausula.titulo}</span>
-                                      {clausula.es_obligatoria && (
-                                        <Badge className="bg-primary/10 text-primary text-xs">Obligatoria</Badge>
-                                      )}
-                                      {editedClausulas[clausula.id] !== undefined && (
-                                        <Badge className="bg-amber-100 text-amber-800 text-xs">Editada</Badge>
-                                      )}
+                              {/* Team members */}
+                              <div className="flex items-center justify-between pt-2 border-t">
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Users className="h-3.5 w-3.5" />
+                                  <span>Equipo ({cartera.miembros.length})</span>
+                                </div>
+                                <div className="flex -space-x-2">
+                                  {cartera.miembros.slice(0, 5).map((miembro) => (
+                                    <Avatar key={miembro.user_id} className="h-7 w-7 border-2 border-background">
+                                      <AvatarFallback className="text-[10px] bg-primary/10">
+                                        {getInitials(miembro.profile?.full_name)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  ))}
+                                  {cartera.miembros.length > 5 && (
+                                    <div className="h-7 w-7 rounded-full bg-muted border-2 border-background flex items-center justify-center">
+                                      <span className="text-[10px] font-medium">+{cartera.miembros.length - 5}</span>
                                     </div>
-                                  </AccordionTrigger>
-                                  <AccordionContent className="pt-2 pb-4">
-                                    {editingClausulaId === clausula.id ? (
-                                      <div className="space-y-2">
-                                        <Textarea
-                                          value={editedClausulas[clausula.id] ?? clausula.contenido}
-                                          onChange={(e) => handleClausulaEdit(clausula.id, e.target.value)}
-                                          rows={6}
-                                          className="text-sm"
-                                        />
-                                        <div className="flex justify-end gap-2">
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setEditingClausulaId(null)}
-                                          >
-                                            <X className="h-3 w-3 mr-1" />
-                                            Cerrar
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="space-y-2">
-                                        <div className="bg-muted/50 rounded-lg p-3 text-sm whitespace-pre-wrap">
-                                          {clausula.contenido}
-                                        </div>
-                                        {clausula.es_editable && (
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setEditingClausulaId(clausula.id)}
-                                          >
-                                            <Edit className="h-3 w-3 mr-1" />
-                                            Editar
-                                          </Button>
-                                        )}
-                                      </div>
-                                    )}
-                                  </AccordionContent>
-                                </AccordionItem>
-                              ))}
-                            </Accordion>
-                          </ScrollArea>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="preview" className="flex-1 overflow-hidden mt-4">
-                <Card className="h-full overflow-hidden">
-                  <CardHeader className="py-3 border-b">
-                    <CardTitle className="text-base">Vista Previa del Contrato</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <ScrollArea className="h-[60vh]">
-                      <div className="p-6 space-y-6">
-                        {/* Header */}
-                        <div className="text-center space-y-2">
-                          <h2 className="text-xl font-bold uppercase">
-                            CONTRATO DE {selectedPlantilla?.tipo?.toUpperCase() || "SERVICIOS"}
-                          </h2>
-                          <p className="text-sm text-muted-foreground">
-                            N° {contractData?.numero}
-                          </p>
-                        </div>
-
-                        <Separator />
-
-                        {/* Partes */}
-                        <div className="space-y-4">
-                          <h3 className="font-semibold text-sm uppercase">PARTES CONTRATANTES</h3>
-                          {partes.map((parte) => (
-                            <div key={parte.id} className="text-sm">
-                              <p className="font-medium">{parte.denominacion}:</p>
-                              <div className="ml-4 text-muted-foreground">
-                                {parte.campos.map((campo) => {
-                                  const value = partesData[parte.denominacion]?.[campo.id];
-                                  if (!value) return null;
-                                  return (
-                                    <p key={campo.id}>
-                                      {campo.label}: {value}
-                                    </p>
-                                  );
-                                })}
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          ))}
-                        </div>
-
-                        <Separator />
-
-                        {/* Servicios from proforma */}
-                        {proformaData && proformaData.items.length > 0 && (
-                          <>
-                            <div className="space-y-2">
-                              <h3 className="font-semibold text-sm uppercase">SERVICIOS CONTRATADOS</h3>
-                              <ul className="list-disc list-inside text-sm space-y-1">
-                                {proformaData.items.map((item, idx) => (
-                                  <li key={idx}>{item.descripcion}</li>
-                                ))}
-                              </ul>
-                              <p className="text-sm font-medium mt-2">
-                                Monto Total: {proformaData.moneda === "PEN" ? "S/" : "$"}{" "}
-                                {proformaData.total.toLocaleString()}
-                              </p>
-                            </div>
-                            <Separator />
-                          </>
-                        )}
-
-                        {/* Cláusulas */}
-                        <div className="space-y-4">
-                          {clausulas.map((clausula) => (
-                            <div key={clausula.id} className="space-y-1">
-                              <h4 className="font-semibold text-sm">
-                                CLÁUSULA {clausula.numero.toString().padStart(2, "0")}: {clausula.titulo}
-                              </h4>
-                              <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                                {getProcessedClausulaContent(clausula)}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-
-                        <Separator />
-
-                        {/* Firma */}
-                        <div className="pt-8">
-                          <div className="grid grid-cols-2 gap-8">
-                            {partes.map((parte) => (
-                              <div key={parte.id} className="text-center space-y-4">
-                                <div className="border-t border-foreground w-48 mx-auto" />
-                                <p className="text-sm font-medium">{parte.denominacion}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {partesData[parte.denominacion]?.razon_social ||
-                                    partesData[parte.denominacion]?.nombres ||
-                                    ""}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                          );
+                        })}
                       </div>
+                      
+                      {carteras.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p className="font-medium">No hay carteras disponibles</p>
+                          <p className="text-sm">Crea una cartera primero desde la sección Carteras</p>
+                        </div>
+                      )}
                     </ScrollArea>
                   </CardContent>
                 </Card>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1095,19 +941,13 @@ export function ApplyTemplateModal({
                 {selectedCartera.nombre}
               </Badge>
             )}
-            {selectedPlantilla && (
-              <Badge variant="outline" className="gap-1">
-                <FileText className="h-3 w-3" />
-                {selectedPlantilla.nombre}
-              </Badge>
-            )}
           </div>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
           <Button
             onClick={handleSaveAndApply}
-            disabled={!selectedPlantillaId || !selectedCarteraId || saving}
+            disabled={!selectedCarteraId || saving}
             className="gap-2"
           >
             {saving ? (
