@@ -228,9 +228,9 @@ export const ContractDetailModal = ({
       // A4 dimensions in mm
       const a4Width = 210;
       const a4Height = 297;
-      const margin = 10; // 10mm margins
-      const contentWidth = a4Width - (margin * 2); // 190mm usable width
-      const contentHeight = a4Height - (margin * 2); // 277mm usable height per page
+      const margin = 5; // 5mm margins (minimal)
+      const contentWidth = a4Width - (margin * 2); // 200mm usable width
+      const contentHeight = a4Height - (margin * 2); // 287mm usable height per page
       
       // Create canvas from HTML element with higher scale for better quality
       const canvas = await html2canvas(element, {
