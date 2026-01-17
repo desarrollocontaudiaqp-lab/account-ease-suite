@@ -1,23 +1,34 @@
 import { useState, useEffect, useMemo } from "react";
-import { Loader2, Calendar, CreditCard } from "lucide-react";
-import { format, addMonths } from "date-fns";
+import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { 
+  FileEdit, 
+  Calendar as CalendarIcon, 
+  ChevronLeft, 
+  ChevronRight, 
+  List, 
+  Grid3X3, 
+  CalendarDays, 
+  CalendarRange,
+  Building2,
+  Receipt,
+  CreditCard,
+  Loader2,
+  Save
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -26,6 +37,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
   Table,
   TableBody,
   TableCell,
@@ -33,7 +50,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ContractStatus } from "./ContractActions";
 
@@ -44,24 +63,50 @@ interface EditContractDialogProps {
   onSuccess: () => void;
 }
 
-interface ContractData {
+interface ServiceProjection {
+  id: string;
   descripcion: string;
-  tipo_servicio: string;
-  fecha_inicio: string;
-  fecha_fin: string;
-  monto_mensual: string;
-  monto_total: string;
-  moneda: string;
-  notas: string;
-  numero_cuotas: number;
-  dia_vencimiento: number;
+  color: string;
+  fechaInicio: Date | undefined;
+  fechaTermino: Date | undefined;
+  dias: number;
+  meses: number;
+  anos: number;
+  fechaPago: number;
+  cicloPago: "unico" | "mensual" | "anual";
+  nroCuotas: number;
+  pago: number;
+  total: number;
+  dividirEnCuotas: boolean;
 }
 
 interface PaymentScheduleItem {
-  numero: number;
-  fecha_vencimiento: Date;
+  cuota: number;
+  fecha: Date;
+  servicio: string;
+  servicioId: string;
+  color: string;
   monto: number;
 }
+
+const SERVICE_COLORS = [
+  "bg-blue-500",
+  "bg-green-500",
+  "bg-purple-500",
+  "bg-orange-500",
+  "bg-pink-500",
+  "bg-cyan-500",
+  "bg-red-500",
+  "bg-yellow-500",
+];
+
+const SERVICE_TYPES = [
+  { value: "contabilidad", label: "Contabilidad" },
+  { value: "tramites", label: "Trámites" },
+  { value: "auditoria", label: "Auditoría" },
+];
+
+type CalendarViewType = "month" | "quarter" | "year" | "summary";
 
 export const EditContractDialog = ({
   open,
@@ -71,348 +116,873 @@ export const EditContractDialog = ({
 }: EditContractDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [contractData, setContractData] = useState<ContractData>({
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarView, setCalendarView] = useState<CalendarViewType>("month");
+  
+  // Contract data
+  const [contractData, setContractData] = useState<{
+    numero: string;
+    descripcion: string;
+    tipo_servicio: string;
+    moneda: string;
+    notas: string;
+    status: ContractStatus;
+  }>({
+    numero: "",
     descripcion: "",
     tipo_servicio: "contabilidad",
-    fecha_inicio: "",
-    fecha_fin: "",
-    monto_mensual: "",
-    monto_total: "",
     moneda: "PEN",
     notas: "",
-    numero_cuotas: 1,
-    dia_vencimiento: 15,
+    status: "borrador",
   });
+  
+  // Client info
+  const [clienteDetails, setClienteDetails] = useState<any>(null);
+  
+  // Projections state
+  const [projections, setProjections] = useState<ServiceProjection[]>([]);
 
   useEffect(() => {
     if (open && contractId) {
-      fetchContract();
+      fetchContractDetails();
     }
   }, [open, contractId]);
 
-  const fetchContract = async () => {
+  const fetchContractDetails = async () => {
     if (!contractId) return;
     
     setLoading(true);
-    const { data, error } = await supabase
+    
+    const { data: contract, error } = await supabase
       .from("contratos")
-      .select("*")
+      .select(`
+        *,
+        cliente:clientes(id, razon_social, codigo, direccion, email, telefono),
+        proforma:proformas(numero, total, subtotal, igv, moneda, tipo, items:proforma_items(descripcion, cantidad, precio_unitario, subtotal))
+      `)
       .eq("id", contractId)
       .maybeSingle();
 
     if (error) {
       console.error("Error fetching contract:", error);
       toast.error("Error al cargar el contrato");
-    } else if (data) {
-      setContractData({
-        descripcion: data.descripcion || "",
-        tipo_servicio: data.tipo_servicio || "contabilidad",
-        fecha_inicio: data.fecha_inicio || "",
-        fecha_fin: data.fecha_fin || "",
-        monto_mensual: data.monto_mensual?.toString() || "",
-        monto_total: data.monto_total?.toString() || "",
-        moneda: data.moneda || "PEN",
-        notas: data.notas || "",
-        numero_cuotas: data.numero_cuotas || 1,
-        dia_vencimiento: data.dia_vencimiento || 15,
-      });
+      setLoading(false);
+      return;
     }
+
+    if (contract) {
+      setContractData({
+        numero: contract.numero || "",
+        descripcion: contract.descripcion || "",
+        tipo_servicio: contract.tipo_servicio || "contabilidad",
+        moneda: contract.moneda || "PEN",
+        notas: contract.notas || "",
+        status: contract.status as ContractStatus,
+      });
+      
+      setClienteDetails(contract.cliente);
+      
+      // Initialize projections from datos_plantilla or proforma items
+      initializeProjections(contract);
+    }
+    
     setLoading(false);
   };
 
-  // Calculate payment schedule based on cuotas
-  const paymentSchedule = useMemo((): PaymentScheduleItem[] => {
-    if (!contractData.fecha_inicio || !contractData.numero_cuotas) return [];
+  const initializeProjections = (contract: any) => {
+    const today = new Date();
     
-    const startDate = new Date(contractData.fecha_inicio);
-    const totalAmount = parseFloat(contractData.monto_total) || 0;
-    const numCuotas = contractData.numero_cuotas;
-    const cuotaAmount = numCuotas > 0 ? totalAmount / numCuotas : 0;
+    // Check if contract has saved projections
+    const savedProjections = contract.datos_plantilla?.projections;
     
-    const schedule: PaymentScheduleItem[] = [];
-    
-    for (let i = 0; i < numCuotas; i++) {
-      const paymentDate = addMonths(startDate, i);
-      // Set to the specified day of the month
-      paymentDate.setDate(Math.min(contractData.dia_vencimiento, 28));
-      
-      schedule.push({
-        numero: i + 1,
-        fecha_vencimiento: paymentDate,
-        monto: cuotaAmount,
-      });
+    if (savedProjections && savedProjections.length > 0) {
+      const restoredProjections = savedProjections.map((p: any) => ({
+        ...p,
+        fechaInicio: p.fechaInicio ? new Date(p.fechaInicio) : today,
+        fechaTermino: p.fechaTermino ? new Date(p.fechaTermino) : undefined,
+        dividirEnCuotas: p.dividirEnCuotas !== undefined ? p.dividirEnCuotas : true,
+      }));
+      setProjections(restoredProjections);
+    } else if (contract.proforma?.items && contract.proforma.items.length > 0) {
+      // Create projections from proforma items
+      const newProjections = contract.proforma.items.map((item: any, index: number) => ({
+        id: `service-${index}`,
+        descripcion: item.descripcion,
+        color: SERVICE_COLORS[index % SERVICE_COLORS.length],
+        fechaInicio: contract.fecha_inicio ? new Date(contract.fecha_inicio) : today,
+        fechaTermino: contract.fecha_fin ? new Date(contract.fecha_fin) : undefined,
+        dias: 0,
+        meses: 0,
+        anos: 0,
+        fechaPago: contract.dia_vencimiento || 15,
+        cicloPago: "mensual" as const,
+        nroCuotas: contract.numero_cuotas || 12,
+        pago: Number(item.subtotal) || 0,
+        total: Number(item.subtotal) || 0,
+        dividirEnCuotas: true,
+      }));
+      setProjections(newProjections);
+    } else {
+      // Single service from contract data
+      setProjections([{
+        id: "service-0",
+        descripcion: contract.descripcion || "Servicio",
+        color: SERVICE_COLORS[0],
+        fechaInicio: contract.fecha_inicio ? new Date(contract.fecha_inicio) : today,
+        fechaTermino: contract.fecha_fin ? new Date(contract.fecha_fin) : undefined,
+        dias: 0,
+        meses: 0,
+        anos: 0,
+        fechaPago: contract.dia_vencimiento || 15,
+        cicloPago: "mensual" as const,
+        nroCuotas: contract.numero_cuotas || 12,
+        pago: Number(contract.monto_total) || 0,
+        total: Number(contract.monto_total) || 0,
+        dividirEnCuotas: true,
+      }]);
     }
-    
-    return schedule;
-  }, [contractData.fecha_inicio, contractData.monto_total, contractData.numero_cuotas, contractData.dia_vencimiento]);
+  };
+
+  const calculateDaysMonthsYears = (fechaInicio: Date | undefined, fechaTermino: Date | undefined) => {
+    if (!fechaInicio || !fechaTermino) return { dias: 0, meses: 0, anos: 0 };
+    const dias = differenceInDays(fechaTermino, fechaInicio);
+    const meses = dias / 30;
+    const anos = dias / 365;
+    return { dias, meses: Math.round(meses * 100) / 100, anos: Math.round(anos * 100) / 100 };
+  };
+
+  const handleProjectionChange = (
+    index: number,
+    field: keyof ServiceProjection,
+    value: any
+  ) => {
+    setProjections((prev) => {
+      const newProjections = [...prev];
+      newProjections[index] = { ...newProjections[index], [field]: value };
+
+      if (field === "fechaInicio" || field === "fechaTermino") {
+        const { dias, meses, anos } = calculateDaysMonthsYears(
+          newProjections[index].fechaInicio,
+          newProjections[index].fechaTermino
+        );
+        newProjections[index].dias = dias;
+        newProjections[index].meses = meses;
+        newProjections[index].anos = anos;
+
+        if (newProjections[index].cicloPago === "mensual") {
+          newProjections[index].nroCuotas = Math.max(1, Math.ceil(meses));
+        } else if (newProjections[index].cicloPago === "anual") {
+          newProjections[index].nroCuotas = Math.max(1, Math.ceil(anos));
+        } else {
+          newProjections[index].nroCuotas = 1;
+        }
+
+        if (newProjections[index].dividirEnCuotas) {
+          newProjections[index].total = newProjections[index].pago;
+        } else {
+          newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        }
+      }
+
+      if (field === "cicloPago") {
+        const { meses, anos } = newProjections[index];
+        if (value === "mensual") {
+          newProjections[index].nroCuotas = Math.max(1, Math.ceil(meses));
+        } else if (value === "anual") {
+          newProjections[index].nroCuotas = Math.max(1, Math.ceil(anos));
+        } else {
+          newProjections[index].nroCuotas = 1;
+        }
+        if (newProjections[index].dividirEnCuotas) {
+          newProjections[index].total = newProjections[index].pago;
+        } else {
+          newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        }
+      }
+
+      if (field === "nroCuotas") {
+        const cuotas = Number(value);
+        if (newProjections[index].cicloPago === "mensual" && newProjections[index].fechaInicio) {
+          const nuevaFechaTermino = addMonths(newProjections[index].fechaInicio!, cuotas);
+          newProjections[index].fechaTermino = nuevaFechaTermino;
+          const { dias, meses, anos } = calculateDaysMonthsYears(
+            newProjections[index].fechaInicio,
+            nuevaFechaTermino
+          );
+          newProjections[index].dias = dias;
+          newProjections[index].meses = meses;
+          newProjections[index].anos = anos;
+        } else if (newProjections[index].cicloPago === "anual" && newProjections[index].fechaInicio) {
+          const nuevaFechaTermino = addMonths(newProjections[index].fechaInicio!, cuotas * 12);
+          newProjections[index].fechaTermino = nuevaFechaTermino;
+          const { dias, meses, anos } = calculateDaysMonthsYears(
+            newProjections[index].fechaInicio,
+            nuevaFechaTermino
+          );
+          newProjections[index].dias = dias;
+          newProjections[index].meses = meses;
+          newProjections[index].anos = anos;
+        }
+        
+        if (newProjections[index].dividirEnCuotas) {
+          newProjections[index].total = newProjections[index].pago;
+        } else {
+          newProjections[index].total = newProjections[index].pago * cuotas;
+        }
+      }
+      
+      if (field === "pago") {
+        if (newProjections[index].dividirEnCuotas) {
+          newProjections[index].total = newProjections[index].pago;
+        } else {
+          newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        }
+      }
+
+      if (field === "dividirEnCuotas") {
+        if (value) {
+          newProjections[index].total = newProjections[index].pago;
+        } else {
+          newProjections[index].total = newProjections[index].pago * newProjections[index].nroCuotas;
+        }
+      }
+
+      return newProjections;
+    });
+  };
+
+  // Generate payment schedule
+  const paymentSchedule = useMemo(() => {
+    const schedule: PaymentScheduleItem[] = [];
+
+    projections.forEach((proj) => {
+      if (!proj.fechaInicio) return;
+      
+      const montoPorCuota = proj.dividirEnCuotas 
+        ? proj.pago / proj.nroCuotas 
+        : proj.pago;
+
+      if (proj.cicloPago === "unico") {
+        schedule.push({
+          cuota: 1,
+          fecha: proj.fechaInicio,
+          servicio: proj.descripcion,
+          servicioId: proj.id,
+          color: proj.color,
+          monto: proj.pago,
+        });
+      } else if (proj.cicloPago === "mensual") {
+        let currentDate = new Date(proj.fechaInicio);
+        currentDate.setDate(proj.fechaPago);
+        for (let i = 0; i < proj.nroCuotas; i++) {
+          const paymentDate = addMonths(currentDate, i);
+          schedule.push({
+            cuota: i + 1,
+            fecha: paymentDate,
+            servicio: proj.descripcion,
+            servicioId: proj.id,
+            color: proj.color,
+            monto: montoPorCuota,
+          });
+        }
+      } else if (proj.cicloPago === "anual") {
+        let currentDate = new Date(proj.fechaInicio);
+        currentDate.setDate(proj.fechaPago);
+        for (let i = 0; i < proj.nroCuotas; i++) {
+          const paymentDate = addMonths(currentDate, i * 12);
+          schedule.push({
+            cuota: i + 1,
+            fecha: paymentDate,
+            servicio: proj.descripcion,
+            servicioId: proj.id,
+            color: proj.color,
+            monto: montoPorCuota,
+          });
+        }
+      }
+    });
+
+    return schedule.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+  }, [projections]);
+
+  // Group payments by date for calendar
+  const paymentsByDate = useMemo(() => {
+    const grouped: { [key: string]: PaymentScheduleItem[] } = {};
+    paymentSchedule.forEach((item) => {
+      const key = format(item.fecha, "yyyy-MM-dd");
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(item);
+    });
+    return grouped;
+  }, [paymentSchedule]);
+
+  const getMonthsToDisplay = () => {
+    switch (calendarView) {
+      case "quarter":
+        return [currentMonth, addMonths(currentMonth, 1), addMonths(currentMonth, 2)];
+      case "year":
+        return Array.from({ length: 12 }, (_, i) => addMonths(startOfMonth(new Date(currentMonth.getFullYear(), 0, 1)), i));
+      default:
+        return [currentMonth];
+    }
+  };
+
+  const totalGeneral = projections.reduce((sum, p) => sum + p.total, 0);
+  const totalCuotas = paymentSchedule.length;
+  const currencySymbol = contractData.moneda === "PEN" ? "S/" : "$";
 
   const handleSave = async () => {
-    if (!contractId || !contractData.descripcion || !contractData.fecha_inicio) {
+    if (!contractId || !contractData.descripcion) {
       toast.error("Por favor completa los campos requeridos");
       return;
     }
 
-    setSaving(true);
-    const { error } = await supabase
-      .from("contratos")
-      .update({
-        descripcion: contractData.descripcion,
-        tipo_servicio: contractData.tipo_servicio,
-        fecha_inicio: contractData.fecha_inicio,
-        fecha_fin: contractData.fecha_fin || null,
-        monto_mensual: contractData.monto_mensual ? parseFloat(contractData.monto_mensual) : null,
-        monto_total: contractData.monto_total ? parseFloat(contractData.monto_total) : null,
-        moneda: contractData.moneda,
-        notas: contractData.notas || null,
-        numero_cuotas: contractData.numero_cuotas,
-        dia_vencimiento: contractData.dia_vencimiento,
-      })
-      .eq("id", contractId);
-
-    if (error) {
-      console.error("Error updating contract:", error);
-      toast.error("Error al actualizar el contrato");
-    } else {
-      toast.success("Contrato actualizado");
-      onSuccess();
-      onOpenChange(false);
+    const firstProjection = projections[0];
+    if (!firstProjection?.fechaInicio) {
+      toast.error("Por favor establece la fecha de inicio");
+      return;
     }
-    setSaving(false);
+
+    setSaving(true);
+
+    try {
+      // Prepare projections for JSON storage (serialize dates)
+      const projectionsForStorage = projections.map(p => ({
+        ...p,
+        fechaInicio: p.fechaInicio?.toISOString(),
+        fechaTermino: p.fechaTermino?.toISOString(),
+      }));
+
+      // Prepare payment schedule for storage
+      const scheduleForStorage = paymentSchedule.map(s => ({
+        ...s,
+        fecha: s.fecha.toISOString(),
+      }));
+
+      const fechaInicio = firstProjection.fechaInicio.toISOString().split("T")[0];
+      const fechaFin = firstProjection.fechaTermino?.toISOString().split("T")[0] || null;
+      const numeroCuotas = firstProjection.nroCuotas;
+      const diaVencimiento = firstProjection.fechaPago;
+
+      const { error } = await supabase
+        .from("contratos")
+        .update({
+          descripcion: contractData.descripcion,
+          tipo_servicio: contractData.tipo_servicio,
+          moneda: contractData.moneda,
+          notas: contractData.notas || null,
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          monto_total: totalGeneral,
+          monto_mensual: firstProjection.cicloPago === "mensual" 
+            ? (firstProjection.dividirEnCuotas ? firstProjection.pago / firstProjection.nroCuotas : firstProjection.pago)
+            : null,
+          numero_cuotas: numeroCuotas,
+          dia_vencimiento: diaVencimiento,
+          datos_plantilla: {
+            projections: projectionsForStorage,
+            payment_schedule: scheduleForStorage,
+          },
+        })
+        .eq("id", contractId);
+
+      if (error) {
+        console.error("Error updating contract:", error);
+        toast.error("Error al actualizar el contrato");
+      } else {
+        toast.success("Contrato actualizado exitosamente");
+        onSuccess();
+        onOpenChange(false);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al actualizar el contrato");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `${contractData.moneda === "PEN" ? "S/" : "$"} ${amount.toFixed(2)}`;
+  const renderMonthCalendar = (month: Date, compact: boolean = false) => {
+    const days = eachDayOfInterval({
+      start: startOfMonth(month),
+      end: endOfMonth(month),
+    });
+
+    return (
+      <div className={cn("border border-border rounded-lg overflow-hidden bg-card", compact ? "text-[10px]" : "")}>
+        <div className="bg-primary/5 p-2 text-center font-semibold capitalize border-b border-border">
+          {format(month, "MMMM yyyy", { locale: es })}
+        </div>
+        <div className="p-1">
+          <div className={cn("grid grid-cols-7 gap-0.5 text-center font-medium text-muted-foreground mb-1", compact ? "text-[9px]" : "text-xs")}>
+            <div>D</div>
+            <div>L</div>
+            <div>M</div>
+            <div>M</div>
+            <div>J</div>
+            <div>V</div>
+            <div>S</div>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {Array.from({ length: days[0]?.getDay() || 0 }).map((_, i) => (
+              <div key={`empty-${i}`} className={cn(compact ? "h-6" : "min-h-[50px]")} />
+            ))}
+            {days.map((day) => {
+              const key = format(day, "yyyy-MM-dd");
+              const payments = paymentsByDate[key];
+              const isToday = key === format(new Date(), "yyyy-MM-dd");
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={cn(
+                    "border border-border/50 rounded p-0.5",
+                    compact ? "h-6" : "min-h-[50px]",
+                    isToday && "bg-primary/10 border-primary",
+                    !isSameMonth(day, month) && "opacity-50"
+                  )}
+                >
+                  <div className={cn("font-medium", isToday && "text-primary", compact ? "text-[9px]" : "text-xs")}>
+                    {format(day, "d")}
+                  </div>
+                  {payments && !compact && (
+                    <div className="space-y-0.5 mt-0.5">
+                      {payments.slice(0, 2).map((p, idx) => (
+                        <div
+                          key={`${p.servicioId}-${idx}`}
+                          className={cn("text-white px-0.5 rounded text-[8px] truncate", p.color)}
+                          title={`${p.servicio} - Cuota ${p.cuota}: ${currencySymbol} ${p.monto.toFixed(2)}`}
+                        >
+                          C{p.cuota}: {currencySymbol}{p.monto.toFixed(0)}
+                        </div>
+                      ))}
+                      {payments.length > 2 && (
+                        <div className="text-[8px] text-muted-foreground">+{payments.length - 2} más</div>
+                      )}
+                    </div>
+                  )}
+                  {payments && compact && (
+                    <div className="flex gap-0.5 flex-wrap">
+                      {payments.map((p, idx) => (
+                        <div
+                          key={`${p.servicioId}-${idx}`}
+                          className={cn("w-1.5 h-1.5 rounded-full", p.color)}
+                          title={`${p.servicio} - Cuota ${p.cuota}: ${currencySymbol} ${p.monto.toFixed(2)}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
   };
+
+  const renderSummaryTable = () => (
+    <div className="border border-border rounded-lg overflow-hidden">
+      <div className="overflow-auto max-h-[250px]">
+        <Table>
+          <TableHeader className="sticky top-0 bg-background">
+            <TableRow>
+              <TableHead className="w-[60px]">Cuota</TableHead>
+              <TableHead className="w-[110px]">Fecha Pago</TableHead>
+              <TableHead>Servicio</TableHead>
+              <TableHead className="w-[100px] text-right">Monto</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paymentSchedule.map((item, idx) => (
+              <TableRow key={`${item.servicioId}-${item.cuota}-${idx}`}>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <div className={cn("w-2 h-2 rounded-full", item.color)} />
+                    {item.cuota}
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm">{format(item.fecha, "dd/MM/yyyy")}</TableCell>
+                <TableCell className="max-w-[180px] truncate text-sm" title={item.servicio}>
+                  {item.servicio}
+                </TableCell>
+                <TableCell className="text-right font-medium">{currencySymbol} {item.monto.toFixed(2)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="border-t border-border bg-muted/30 p-3 flex justify-between items-center">
+        <span className="text-sm text-muted-foreground">
+          Total de cuotas: {paymentSchedule.length}
+        </span>
+        <span className="font-bold text-primary">
+          Total: {currencySymbol} {paymentSchedule.reduce((sum, p) => sum + p.monto, 0).toFixed(2)}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Editar Detalles del Contrato</DialogTitle>
-          <DialogDescription>
-            Modifica los datos del contrato y configura el calendario de pagos
-          </DialogDescription>
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-hidden flex flex-col">
+        <DialogHeader className="border-b border-border pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <FileEdit className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <DialogTitle className="text-xl font-bold">
+                Editar Detalles del Contrato
+              </DialogTitle>
+              <DialogDescription className="mt-1">
+                Contrato <span className="font-semibold text-foreground">{contractData.numero}</span>
+                {clienteDetails && (
+                  <> • Cliente: <span className="font-semibold text-foreground">{clienteDetails.razon_social}</span></>
+                )}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="flex-1 flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <ScrollArea className="flex-1 pr-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column - Contract Details */}
+          <div className="flex-1 overflow-hidden flex flex-col lg:flex-row gap-4 py-4">
+            {/* Left Panel - Contract Info */}
+            <div className="lg:w-1/3 flex flex-col gap-4 overflow-auto">
+              {/* Client Info */}
+              {clienteDetails && (
+                <div className="bg-muted/30 rounded-xl p-4 border border-border">
+                  <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Información del Cliente
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Empresa:</span>
+                      <span className="font-medium">{clienteDetails.razon_social}</span>
+                    </div>
+                    {clienteDetails.codigo && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">RUC:</span>
+                        <span className="font-mono">{clienteDetails.codigo}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Contract Details Form */}
               <div className="space-y-4">
-                <Card>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-base">Datos del Contrato</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Tipo de Servicio</Label>
-                        <Select 
-                          value={contractData.tipo_servicio} 
-                          onValueChange={(value) => setContractData(prev => ({ ...prev, tipo_servicio: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="contabilidad">Contabilidad</SelectItem>
-                            <SelectItem value="tramites">Trámites</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Moneda</Label>
-                        <Select 
-                          value={contractData.moneda} 
-                          onValueChange={(value) => setContractData(prev => ({ ...prev, moneda: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PEN">Soles (S/)</SelectItem>
-                            <SelectItem value="USD">Dólares ($)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Tipo de Servicio *</Label>
+                    <Select 
+                      value={contractData.tipo_servicio} 
+                      onValueChange={(value) => setContractData(prev => ({ ...prev, tipo_servicio: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SERVICE_TYPES.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Moneda</Label>
+                    <Select 
+                      value={contractData.moneda} 
+                      onValueChange={(value) => setContractData(prev => ({ ...prev, moneda: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PEN">Soles (S/)</SelectItem>
+                        <SelectItem value="USD">Dólares ($)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-                    <div className="space-y-2">
-                      <Label>Descripción *</Label>
-                      <Textarea
-                        value={contractData.descripcion}
-                        onChange={(e) => setContractData(prev => ({ ...prev, descripcion: e.target.value }))}
-                        placeholder="Descripción del contrato..."
-                        rows={2}
-                      />
-                    </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Descripción del Contrato *</Label>
+                  <Textarea
+                    value={contractData.descripcion}
+                    onChange={(e) => setContractData(prev => ({ ...prev, descripcion: e.target.value }))}
+                    placeholder="Descripción del contrato..."
+                    rows={2}
+                    className="resize-none"
+                  />
+                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Fecha Inicio *</Label>
-                        <Input
-                          type="date"
-                          value={contractData.fecha_inicio}
-                          onChange={(e) => setContractData(prev => ({ ...prev, fecha_inicio: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Fecha Fin</Label>
-                        <Input
-                          type="date"
-                          value={contractData.fecha_fin}
-                          onChange={(e) => setContractData(prev => ({ ...prev, fecha_fin: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Monto Mensual</Label>
-                        <Input
-                          type="number"
-                          value={contractData.monto_mensual}
-                          onChange={(e) => setContractData(prev => ({ ...prev, monto_mensual: e.target.value }))}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Monto Total</Label>
-                        <Input
-                          type="number"
-                          value={contractData.monto_total}
-                          onChange={(e) => setContractData(prev => ({ ...prev, monto_total: e.target.value }))}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Notas</Label>
-                      <Textarea
-                        value={contractData.notas}
-                        onChange={(e) => setContractData(prev => ({ ...prev, notas: e.target.value }))}
-                        placeholder="Notas adicionales..."
-                        rows={2}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Notas Adicionales</Label>
+                  <Textarea
+                    value={contractData.notas}
+                    onChange={(e) => setContractData(prev => ({ ...prev, notas: e.target.value }))}
+                    placeholder="Notas adicionales..."
+                    rows={2}
+                    className="resize-none"
+                  />
+                </div>
               </div>
 
-              {/* Right Column - Payment Schedule */}
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Calendario de Pagos
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Número de Cuotas</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={60}
-                          value={contractData.numero_cuotas}
-                          onChange={(e) => setContractData(prev => ({ 
-                            ...prev, 
-                            numero_cuotas: Math.max(1, parseInt(e.target.value) || 1)
-                          }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Día de Vencimiento</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={28}
-                          value={contractData.dia_vencimiento}
-                          onChange={(e) => setContractData(prev => ({ 
-                            ...prev, 
-                            dia_vencimiento: Math.min(28, Math.max(1, parseInt(e.target.value) || 15))
-                          }))}
-                        />
-                      </div>
-                    </div>
-
-                    {paymentSchedule.length > 0 && (
-                      <>
-                        <Separator />
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm text-muted-foreground">
-                            <span>Vista previa del cronograma</span>
-                            <Badge variant="outline" className="gap-1">
-                              <CreditCard className="h-3 w-3" />
-                              {paymentSchedule.length} cuotas
-                            </Badge>
-                          </div>
-                          
-                          <div className="border rounded-md max-h-[300px] overflow-auto">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="w-16">#</TableHead>
-                                  <TableHead>Vencimiento</TableHead>
-                                  <TableHead className="text-right">Monto</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {paymentSchedule.map((payment) => (
-                                  <TableRow key={payment.numero}>
-                                    <TableCell className="font-medium">
-                                      {payment.numero}
-                                    </TableCell>
-                                    <TableCell>
-                                      {format(payment.fecha_vencimiento, "dd MMM yyyy", { locale: es })}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      {formatCurrency(payment.monto)}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-
-                          <div className="flex justify-between items-center pt-2 border-t">
-                            <span className="text-sm font-medium">Total</span>
-                            <span className="font-bold">
-                              {formatCurrency(paymentSchedule.reduce((sum, p) => sum + p.monto, 0))}
-                            </span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
+              {/* Totals Summary */}
+              <div className="bg-primary/5 rounded-xl p-4 border border-primary/20 mt-auto">
+                <h3 className="font-semibold text-sm text-primary uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Resumen del Contrato
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Cuotas:</span>
+                    <span className="font-bold">{totalCuotas}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold border-t border-primary/20 pt-2 mt-2">
+                    <span>Monto Total:</span>
+                    <span className="text-primary">{currencySymbol} {totalGeneral.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </ScrollArea>
+
+            {/* Right Panel - Projection & Calendar */}
+            <div className="lg:w-2/3 flex flex-col gap-4 overflow-hidden">
+              {/* Services Projection Table */}
+              <div className="border border-border rounded-xl overflow-hidden bg-card">
+                <div className="bg-muted/30 px-4 py-3 border-b border-border">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-primary" />
+                    Proyección de Servicios
+                  </h3>
+                </div>
+                <div className="overflow-x-auto overflow-y-auto max-h-[200px]">
+                  <table className="w-full min-w-[900px] text-sm">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr>
+                        <th className="text-left p-2 font-medium">Servicio</th>
+                        <th className="text-left p-2 font-medium w-[120px]">Fecha Inicio</th>
+                        <th className="text-center p-2 font-medium w-[70px]">Día Pago</th>
+                        <th className="text-left p-2 font-medium w-[100px]">Ciclo</th>
+                        <th className="text-center p-2 font-medium w-[70px]">N° Cuotas</th>
+                        <th className="text-center p-2 font-medium w-[70px]" title="Si está activado, divide el total entre las cuotas">Dividir</th>
+                        <th className="text-right p-2 font-medium w-[100px]">Monto Serv.</th>
+                        <th className="text-right p-2 font-medium w-[100px]">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {projections.map((proj, index) => (
+                        <tr key={proj.id} className="hover:bg-muted/30">
+                          <td className="p-2">
+                            <div className="flex items-center gap-2">
+                              <div className={cn("w-3 h-3 rounded-full flex-shrink-0", proj.color)} />
+                              <span className="truncate max-w-[180px]" title={proj.descripcion}>
+                                {proj.descripcion}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-2">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal h-8 text-xs",
+                                    !proj.fechaInicio && "text-muted-foreground"
+                                  )}
+                                >
+                                  {proj.fechaInicio ? format(proj.fechaInicio, "dd/MM/yyyy") : "Seleccionar"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={proj.fechaInicio}
+                                  onSelect={(date) => handleProjectionChange(index, "fechaInicio", date)}
+                                  initialFocus
+                                  className="pointer-events-auto"
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </td>
+                          <td className="p-2">
+                            <Input
+                              type="number"
+                              min={1}
+                              max={28}
+                              value={proj.fechaPago}
+                              onChange={(e) => handleProjectionChange(index, "fechaPago", parseInt(e.target.value) || 1)}
+                              className="h-8 text-xs text-center w-full"
+                            />
+                          </td>
+                          <td className="p-2">
+                            <Select
+                              value={proj.cicloPago}
+                              onValueChange={(v) => handleProjectionChange(index, "cicloPago", v)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unico">Único</SelectItem>
+                                <SelectItem value="mensual">Mensual</SelectItem>
+                                <SelectItem value="anual">Anual</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-2">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={proj.nroCuotas}
+                              onChange={(e) => handleProjectionChange(index, "nroCuotas", parseInt(e.target.value) || 1)}
+                              className="h-8 text-xs text-center w-full"
+                              disabled={proj.cicloPago === "unico"}
+                            />
+                          </td>
+                          <td className="p-2">
+                            <div className="flex items-center justify-center">
+                              <Switch
+                                checked={proj.dividirEnCuotas}
+                                onCheckedChange={(checked) => handleProjectionChange(index, "dividirEnCuotas", checked)}
+                                disabled={proj.cicloPago === "unico"}
+                              />
+                            </div>
+                          </td>
+                          <td className="p-2">
+                            <Input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={proj.pago}
+                              onChange={(e) => handleProjectionChange(index, "pago", parseFloat(e.target.value) || 0)}
+                              className="h-8 text-xs text-right w-full"
+                            />
+                          </td>
+                          <td className="p-2 text-right font-semibold text-primary">
+                            {currencySymbol} {proj.total.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-muted/50 border-t-2 border-border">
+                      <tr>
+                        <td colSpan={7} className="p-2 text-right font-semibold">Total General:</td>
+                        <td className="p-2 text-right font-bold text-lg text-primary">{currencySymbol} {totalGeneral.toFixed(2)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* Calendar View */}
+              <div className="border border-border rounded-xl flex-1 overflow-hidden flex flex-col bg-card">
+                <div className="flex items-center justify-between p-3 border-b border-border bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    {calendarView !== "summary" && calendarView !== "year" && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setCurrentMonth(addMonths(currentMonth, calendarView === "quarter" ? -3 : -1))}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="font-semibold capitalize min-w-[140px] text-center text-sm">
+                          {format(currentMonth, "MMMM yyyy", { locale: es })}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setCurrentMonth(addMonths(currentMonth, calendarView === "quarter" ? 3 : 1))}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  
+                  <Tabs value={calendarView} onValueChange={(v) => setCalendarView(v as CalendarViewType)}>
+                    <TabsList className="h-8">
+                      <TabsTrigger value="month" className="gap-1 text-xs h-7 px-2">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        Mes
+                      </TabsTrigger>
+                      <TabsTrigger value="quarter" className="gap-1 text-xs h-7 px-2">
+                        <Grid3X3 className="h-3.5 w-3.5" />
+                        3 Meses
+                      </TabsTrigger>
+                      <TabsTrigger value="year" className="gap-1 text-xs h-7 px-2">
+                        <CalendarRange className="h-3.5 w-3.5" />
+                        Anual
+                      </TabsTrigger>
+                      <TabsTrigger value="summary" className="gap-1 text-xs h-7 px-2">
+                        <List className="h-3.5 w-3.5" />
+                        Resumen
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+
+                <div className="flex-1 overflow-auto p-3">
+                  {calendarView === "summary" ? (
+                    renderSummaryTable()
+                  ) : calendarView === "year" ? (
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                      {getMonthsToDisplay().map((month, idx) => (
+                        <div key={idx}>{renderMonthCalendar(month, true)}</div>
+                      ))}
+                    </div>
+                  ) : calendarView === "quarter" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {getMonthsToDisplay().map((month, idx) => (
+                        <div key={idx}>{renderMonthCalendar(month, false)}</div>
+                      ))}
+                    </div>
+                  ) : (
+                    renderMonthCalendar(currentMonth, false)
+                  )}
+                </div>
+
+                {/* Legend */}
+                {calendarView !== "summary" && (
+                  <div className="border-t border-border p-3 bg-muted/20">
+                    <div className="flex flex-wrap gap-3">
+                      {projections.map((proj) => (
+                        <div key={proj.id} className="flex items-center gap-1.5 text-xs">
+                          <div className={cn("w-3 h-3 rounded-full", proj.color)} />
+                          <span className="truncate max-w-[120px]">{proj.descripcion}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        {/* Footer Actions */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={saving || loading}>
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              "Guardar Cambios"
-            )}
+          <Button onClick={handleSave} disabled={saving || loading} className="gap-2">
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            <Save className="h-4 w-4" />
+            Guardar Cambios
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
