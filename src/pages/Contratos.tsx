@@ -37,6 +37,7 @@ import { ContratoDesigner } from "@/components/contratos/ContratoDesigner";
 import { ContractActions, type ContractStatus } from "@/components/contratos/ContractActions";
 import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
+import { ConfirmContractFromProformaDialog } from "@/components/contratos/ConfirmContractFromProformaDialog";
 
 interface Contract {
   id: string;
@@ -129,6 +130,9 @@ const Contratos = () => {
     proforma_id: "",
   });
 
+  // State for proforma confirmation dialog
+  const [confirmFromProformaOpen, setConfirmFromProformaOpen] = useState(false);
+
   useEffect(() => {
     fetchContracts();
     
@@ -136,15 +140,8 @@ const Contratos = () => {
     const state = location.state as ProformaState | null;
     if (state?.fromProforma) {
       setProformaData(state);
-      setNewContract(prev => ({
-        ...prev,
-        tipo_servicio: state.tipo,
-        monto_total: state.total?.toString() || "",
-        moneda: state.moneda || "PEN",
-        descripcion: `Contrato generado desde Proforma ${state.proformaNumero}`,
-        proforma_id: state.proformaId,
-      }));
-      setCreateDialogOpen(true);
+      // Open the new confirmation dialog instead of the simple one
+      setConfirmFromProformaOpen(true);
       // Clear the state so refreshing doesn't reopen the dialog
       navigate(location.pathname, { replace: true });
     }
@@ -639,24 +636,18 @@ const Contratos = () => {
         </>
       )}
 
-      {/* Create Contract Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={(open) => {
+      {/* Create Contract Dialog - Simple version for new contracts without proforma */}
+      <Dialog open={createDialogOpen && !proformaData} onOpenChange={(open) => {
         setCreateDialogOpen(open);
         if (!open) {
-          setProformaData(null);
           resetForm();
         }
       }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              {proformaData ? "Confirmar Contrato desde Proforma" : "Nuevo Contrato"}
-            </DialogTitle>
+            <DialogTitle>Nuevo Contrato</DialogTitle>
             <DialogDescription>
-              {proformaData 
-                ? `Creando contrato desde la proforma ${proformaData.proformaNumero} para ${proformaData.clienteNombre}. El contrato iniciará en estado Borrador.`
-                : "Completa los datos para crear un nuevo contrato en estado Borrador"
-              }
+              Completa los datos para crear un nuevo contrato en estado Borrador
             </DialogDescription>
           </DialogHeader>
 
@@ -760,11 +751,27 @@ const Contratos = () => {
               Cancelar
             </Button>
             <Button onClick={handleCreateContract}>
-              {proformaData ? "Crear Contrato (Borrador)" : "Crear Contrato"}
+              Crear Contrato
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Contract from Proforma Dialog - Full featured */}
+      <ConfirmContractFromProformaDialog
+        open={confirmFromProformaOpen}
+        onOpenChange={(open) => {
+          setConfirmFromProformaOpen(open);
+          if (!open) {
+            setProformaData(null);
+          }
+        }}
+        proformaData={proformaData}
+        onSuccess={() => {
+          setProformaData(null);
+          fetchContracts();
+        }}
+      />
 
       {/* Contract Detail Modal */}
       <ContractDetailModal
