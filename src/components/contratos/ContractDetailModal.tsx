@@ -228,11 +228,12 @@ export const ContractDetailModal = ({
       // A4 dimensions in mm
       const a4Width = 210;
       const a4Height = 297;
-      const margin = 3; // 3mm minimal margins
-      const contentWidth = a4Width - (margin * 2);
-      const contentHeight = a4Height - (margin * 2);
+      const marginX = 5; // Horizontal margins
+      const marginY = 8; // Vertical margins
+      const contentWidth = a4Width - (marginX * 2);
+      const contentHeight = a4Height - (marginY * 2);
       
-      // Create canvas from HTML element
+      // Create canvas from HTML element with high quality
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
@@ -243,10 +244,9 @@ export const ContractDetailModal = ({
       
       const imgData = canvas.toDataURL('image/png');
       
-      // Calculate dimensions maintaining aspect ratio
-      const canvasAspectRatio = canvas.width / canvas.height;
+      // Calculate the scaled image dimensions
       const imgWidth = contentWidth;
-      const imgHeight = imgWidth / canvasAspectRatio;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -256,40 +256,24 @@ export const ContractDetailModal = ({
       
       // If content fits in one page
       if (imgHeight <= contentHeight) {
-        pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', marginX, marginY, imgWidth, imgHeight);
       } else {
-        // Multi-page: slice the canvas into page-sized chunks
-        const pxPerMm = canvas.width / imgWidth;
-        const pageHeightPx = contentHeight * pxPerMm;
-        const totalPages = Math.ceil(canvas.height / pageHeightPx);
+        // Multi-page: use full image with negative Y offset for each page
+        const totalPages = Math.ceil(imgHeight / contentHeight);
         
         for (let page = 0; page < totalPages; page++) {
           if (page > 0) {
             pdf.addPage();
           }
           
-          const srcY = page * pageHeightPx;
-          const srcHeight = Math.min(pageHeightPx, canvas.height - srcY);
-          const destHeight = srcHeight / pxPerMm;
+          // Calculate the Y offset for this page (negative to shift image up)
+          const yOffset = marginY - (page * contentHeight);
           
-          // Create a temporary canvas for this page slice
-          const pageCanvas = document.createElement('canvas');
-          pageCanvas.width = canvas.width;
-          pageCanvas.height = srcHeight;
-          const ctx = pageCanvas.getContext('2d');
-          
-          if (ctx) {
-            ctx.drawImage(
-              canvas,
-              0, srcY,
-              canvas.width, srcHeight,
-              0, 0,
-              canvas.width, srcHeight
-            );
-            
-            const pageImgData = pageCanvas.toDataURL('image/png');
-            pdf.addImage(pageImgData, 'PNG', margin, margin, imgWidth, destHeight);
-          }
+          // Add clipping region to prevent overflow
+          pdf.saveGraphicsState();
+          pdf.rect(marginX, marginY, contentWidth, contentHeight, 'S');
+          pdf.addImage(imgData, 'PNG', marginX, yOffset, imgWidth, imgHeight);
+          pdf.restoreGraphicsState();
         }
       }
       
