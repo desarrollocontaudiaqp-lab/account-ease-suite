@@ -39,7 +39,9 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { ContractStatus } from "./ContractActions";
+import { generateContractPDF } from "@/lib/generateContractPDF";
 import logoImage from "@/assets/logo-ca-full.png";
 
 interface ContractDetailModalProps {
@@ -213,8 +215,61 @@ export const ContractDetailModal = ({
   const currencySymbol = contract?.moneda === "PEN" ? "S/" : "$";
   const totalGeneral = projections.reduce((sum, p) => sum + (p.total || 0), 0);
 
-  const handlePrint = () => {
-    window.print();
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (!contract) return;
+    
+    setDownloading(true);
+    try {
+      const pdfData = {
+        numero: contract.numero,
+        descripcion: contract.descripcion,
+        tipo_servicio: contract.tipo_servicio,
+        fecha_inicio: contract.fecha_inicio,
+        fecha_fin: contract.fecha_fin,
+        monto_mensual: contract.monto_mensual,
+        monto_total: contract.monto_total,
+        moneda: contract.moneda,
+        status: contract.status,
+        notas: contract.notas,
+        numero_cuotas: contract.numero_cuotas,
+        dia_vencimiento: contract.dia_vencimiento,
+        created_at: contract.created_at,
+        cliente: contract.cliente,
+        proforma: contract.proforma,
+        projections: projections.map(p => ({
+          descripcion: p.descripcion,
+          fechaInicio: p.fechaInicio?.toISOString(),
+          fechaTermino: p.fechaTermino?.toISOString(),
+          nroCuotas: p.nroCuotas,
+          pago: p.pago,
+          total: p.total,
+        })),
+        paymentSchedule: paymentSchedule.map(s => ({
+          cuota: s.cuota,
+          fecha: s.fecha.toISOString(),
+          servicio: s.servicio,
+          monto: s.monto,
+        })),
+      };
+      
+      const blob = await generateContractPDF(pdfData);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Contrato-${contract.numero}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("PDF descargado correctamente");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Error al generar el PDF");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   // Group payments by month for calendar display
@@ -309,9 +364,18 @@ export const ContractDetailModal = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handlePrint} className="gap-2">
-              <Printer className="h-4 w-4" />
-              Imprimir
+            <Button 
+              variant="default" 
+              onClick={handleDownloadPDF} 
+              className="gap-2"
+              disabled={downloading}
+            >
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Descargar PDF
             </Button>
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
