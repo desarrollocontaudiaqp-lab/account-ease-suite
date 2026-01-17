@@ -757,12 +757,21 @@ export function ProformaForm({
       // Open in new window for printing
       const pdfUrl = URL.createObjectURL(pdfBlob);
       const printWindow = window.open(pdfUrl, '_blank');
+      
       if (printWindow) {
-        printWindow.addEventListener('load', () => {
-          printWindow.print();
-        });
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+          }, 500);
+        };
+      } else {
+        // Fallback: download if popup blocked
+        downloadPDF(pdfBlob, `Proforma_${proformaNumber}.pdf`);
+        toast.info("Popup bloqueado - PDF descargado");
       }
-      toast.success("Abriendo ventana de impresión");
+      
+      toast.success("Preparando impresión");
     } catch (error) {
       console.error("Error generating PDF for print:", error);
       toast.error("Error al generar el PDF para imprimir");

@@ -959,6 +959,7 @@ const Proformas = () => {
           }
         }}
         downloadingPDF={downloadingId === selectedProforma?.id}
+        paymentSchedule={selectedProforma?.campos_personalizados?.payment_schedule}
       />
       <SendEmailDialog
         open={emailDialogOpen}
