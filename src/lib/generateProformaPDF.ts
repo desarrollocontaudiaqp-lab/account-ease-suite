@@ -413,19 +413,47 @@ export async function generateProformaPDF(
     formatCurrency(item.subtotal, data.moneda || "PEN"),
   ]);
 
-  // Footer drawing function - to be used on all pages
+  // Footer drawing function - to be used on all pages (includes bank data)
   const drawFooter = () => {
-    const footerBarY = pageHeight - 22;
-    doc.setFillColor(...COLORS.primary);
-    doc.rect(0, footerBarY, pageWidth, 4, "F");
+    const footerStartY = pageHeight - 32;
+    
+    // Bank data section with golden bar
+    if (config.layout.showBankInfo) {
+      // Golden bar with "DATOS BANCARIOS" label
+      doc.setFillColor(...COLORS.primary);
+      doc.roundedRect(margin, footerStartY, 48, 5.5, 1.5, 1.5, "F");
+      doc.setTextColor(...COLORS.white);
+      doc.setFontSize(7);
+      doc.setFont(config.typography.fontFamily, "bold");
+      doc.text("DATOS BANCARIOS", margin + 24, footerStartY + 3.8, { align: "center" });
+      
+      // Bank accounts in two columns below the bar
+      const bankY = footerStartY + 8;
+      const halfWidth = (pageWidth - margin * 2) / 2;
+      
+      doc.setTextColor(...COLORS.textDark);
+      doc.setFontSize(7.5);
+      doc.setFont(config.typography.fontFamily, "normal");
+      
+      // Left column (BCP)
+      doc.text(config.bank.bcp_soles, margin, bankY);
+      doc.text(config.bank.bcp_dolares, margin, bankY + 3.5);
+      
+      // Right column (Interbank)
+      doc.text(config.bank.interbank_soles, margin + halfWidth, bankY);
+      doc.text(config.bank.interbank_dolares, margin + halfWidth, bankY + 3.5);
+    }
+    
+    // Company name and slogan at the bottom
+    const companyY = pageHeight - 12;
     doc.setTextColor(...COLORS.textDark);
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont(config.typography.fontFamily, "bold");
-    doc.text(config.company.name, pageWidth / 2, footerBarY + 11, { align: "center" });
+    doc.text(config.company.name, pageWidth / 2, companyY, { align: "center" });
     doc.setTextColor(...COLORS.textMuted);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont(config.typography.fontFamily, "italic");
-    doc.text("¡Gracias por confiar en nosotros!", pageWidth / 2, footerBarY + 17, { align: "center" });
+    doc.text("¡Gracias por confiar en nosotros!", pageWidth / 2, companyY + 4.5, { align: "center" });
   };
 
   // Calculate table width to align totals
@@ -461,7 +489,7 @@ export async function generateProformaPDF(
       3: { halign: "right", cellWidth: 35 },
       4: { halign: "right", cellWidth: 35 },
     },
-    margin: { left: margin, right: margin, bottom: 40 },
+    margin: { left: margin, right: margin, bottom: 45 },
     tableLineColor: COLORS.border,
     tableLineWidth: 0.3,
     didDrawCell: (hookData) => {
@@ -491,7 +519,7 @@ export async function generateProformaPDF(
   const sectionHeight = Math.max(totalsHeight, annotationsHeight);
   
   // Check if we need a new page for totals + annotations
-  const footerZone = pageHeight - 40;
+  const footerZone = pageHeight - 45; // Reserve space for bank info in footer
   
   if (yPos + sectionHeight > footerZone) {
     doc.addPage();
@@ -617,7 +645,7 @@ export async function generateProformaPDF(
         2: { halign: "left", cellWidth: "auto" },
         3: { halign: "right", cellWidth: 32 },
       },
-      margin: { left: margin, right: margin, bottom: 40 },
+      margin: { left: margin, right: margin, bottom: 45 },
       tableLineColor: COLORS.border,
       tableLineWidth: 0.2,
       didDrawCell: (hookData) => {
@@ -635,42 +663,7 @@ export async function generateProformaPDF(
     yPos = (doc as any).lastAutoTable.finalY + config.layout.sectionSpacing;
   }
 
-  // ========== BANK INFO SECTION ==========
-  if (config.layout.showBankInfo) {
-    // Calculate if bank info fits on current page - use compact layout
-    const bankSectionHeight = 22; // Reduced height for compact layout
-    
-    // Only move to new page if there's really not enough space
-    if (yPos + bankSectionHeight > footerZone - 5) {
-      doc.addPage();
-      drawFooter();
-      yPos = margin;
-    }
-    
-    doc.setFillColor(...COLORS.primary);
-    doc.roundedRect(margin, yPos, 48, 6, 1.5, 1.5, "F");
-    doc.setTextColor(...COLORS.white);
-    doc.setFontSize(7);
-    doc.setFont(config.typography.fontFamily, "bold");
-    doc.text("DATOS BANCARIOS", margin + 24, yPos + 4.2, { align: "center" });
-
-    yPos += 9;
-
-    doc.setTextColor(...COLORS.textDark);
-    doc.setFontSize(8);
-    doc.setFont(config.typography.fontFamily, "normal");
-
-    // Compact two-column layout for bank accounts
-    const halfWidth = (pageWidth - margin * 2) / 2;
-    
-    doc.text(config.bank.bcp_soles, margin, yPos);
-    doc.text(config.bank.bcp_dolares, margin, yPos + 4);
-
-    doc.text(config.bank.interbank_soles, margin + halfWidth, yPos);
-    doc.text(config.bank.interbank_dolares, margin + halfWidth, yPos + 4);
-
-    yPos += 12;
-  }
+  // Bank info is now included in the footer, no separate section needed
 
   // Note: Terms/annotations are now shown next to totals section above
 
