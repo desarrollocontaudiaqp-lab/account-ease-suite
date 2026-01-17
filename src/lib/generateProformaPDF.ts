@@ -398,6 +398,21 @@ export async function generateProformaPDF(
     formatCurrency(item.subtotal, data.moneda || "PEN"),
   ]);
 
+  // Footer drawing function - to be used on all pages
+  const drawFooter = () => {
+    const footerBarY = pageHeight - 22;
+    doc.setFillColor(...COLORS.primary);
+    doc.rect(0, footerBarY, pageWidth, 4, "F");
+    doc.setTextColor(...COLORS.textDark);
+    doc.setFontSize(11);
+    doc.setFont(config.typography.fontFamily, "bold");
+    doc.text(config.company.name, pageWidth / 2, footerBarY + 11, { align: "center" });
+    doc.setTextColor(...COLORS.textMuted);
+    doc.setFontSize(9);
+    doc.setFont(config.typography.fontFamily, "italic");
+    doc.text("¡Gracias por confiar en nosotros!", pageWidth / 2, footerBarY + 17, { align: "center" });
+  };
+
   autoTable(doc, {
     startY: yPos,
     head: [["#", "Descripción del Servicio", "Cant", "P. Unit.", "Subtotal"]],
@@ -427,7 +442,7 @@ export async function generateProformaPDF(
       3: { halign: "center", cellWidth: 28 },
       4: { halign: "center", cellWidth: 28 },
     },
-    margin: { left: margin, right: margin },
+    margin: { left: margin, right: margin, bottom: 30 },
     tableLineColor: COLORS.border,
     tableLineWidth: 0.3,
     didDrawCell: (hookData) => {
@@ -437,9 +452,12 @@ export async function generateProformaPDF(
         doc.rect(hookData.cell.x, hookData.cell.y, hookData.cell.width, hookData.cell.height);
       }
     },
+    didDrawPage: () => {
+      drawFooter();
+    },
   });
 
-  yPos = (doc as any).lastAutoTable.finalY + 20;
+  yPos = (doc as any).lastAutoTable.finalY;
 
   // ========== TOTALS SECTION ==========
   const totalsWidth = 80;
@@ -536,7 +554,7 @@ export async function generateProformaPDF(
         2: { halign: "left", cellWidth: "auto" },
         3: { halign: "right", cellWidth: 32 },
       },
-      margin: { left: margin, right: margin },
+      margin: { left: margin, right: margin, bottom: 30 },
       tableLineColor: COLORS.border,
       tableLineWidth: 0.2,
       didDrawCell: (hookData) => {
@@ -545,6 +563,9 @@ export async function generateProformaPDF(
           doc.setLineWidth(0.2);
           doc.rect(hookData.cell.x, hookData.cell.y, hookData.cell.width, hookData.cell.height);
         }
+      },
+      didDrawPage: () => {
+        drawFooter();
       },
     });
 
@@ -593,21 +614,12 @@ export async function generateProformaPDF(
     });
   }
 
-  // ========== FOOTER ==========
-  const footerBarY = pageHeight - 22;
-
-  doc.setFillColor(...COLORS.primary);
-  doc.rect(0, footerBarY, pageWidth, 4, "F");
-
-  doc.setTextColor(...COLORS.textDark);
-  doc.setFontSize(11);
-  doc.setFont(config.typography.fontFamily, "bold");
-  doc.text(config.company.name, pageWidth / 2, footerBarY + 11, { align: "center" });
-
-  doc.setTextColor(...COLORS.textMuted);
-  doc.setFontSize(9);
-  doc.setFont(config.typography.fontFamily, "italic");
-  doc.text("¡Gracias por confiar en nosotros!", pageWidth / 2, footerBarY + 17, { align: "center" });
+  // Draw footer on the last page (if not already drawn by tables)
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    drawFooter();
+  }
 
   return doc.output("blob");
 }
