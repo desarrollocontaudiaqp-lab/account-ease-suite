@@ -16,7 +16,9 @@ import {
   Save,
   Plus,
   Trash2,
-  Search
+  Search,
+  PanelLeftClose,
+  PanelLeft
 } from "lucide-react";
 import { ServiceSearchInput } from "./ServiceSearchInput";
 import {
@@ -130,6 +132,7 @@ export const CreateContractDialog = ({
   const [saving, setSaving] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarView, setCalendarView] = useState<CalendarViewType>("month");
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   
   // Client selection
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -662,158 +665,196 @@ export const CreateContractDialog = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col lg:flex-row gap-4 py-4">
-          {/* Left Panel - Contract Info */}
-          <div className="lg:w-1/3 flex flex-col gap-4 overflow-auto">
-            {/* Client Selection */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Cliente *</Label>
-              <Popover open={clientePopoverOpen} onOpenChange={setClientePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="w-full justify-between"
-                  >
-                    {selectedCliente ? (
-                      <span className="truncate">{selectedCliente.razon_social}</span>
-                    ) : (
-                      <span className="text-muted-foreground">Seleccionar cliente...</span>
-                    )}
-                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                  <Command>
-                    <CommandInput 
-                      placeholder="Buscar cliente..." 
-                      value={clienteSearch}
-                      onValueChange={setClienteSearch}
+          {/* Left Panel - Contract Info (Collapsible) */}
+          <div className={cn(
+            "flex flex-col gap-4 overflow-auto transition-all duration-300",
+            leftPanelCollapsed ? "lg:w-0 lg:overflow-hidden lg:opacity-0" : "lg:w-1/3"
+          )}>
+            {!leftPanelCollapsed && (
+              <>
+                {/* Client Selection */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Cliente *</Label>
+                  <Popover open={clientePopoverOpen} onOpenChange={setClientePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                      >
+                        {selectedCliente ? (
+                          <span className="truncate">{selectedCliente.razon_social}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Seleccionar cliente...</span>
+                        )}
+                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Buscar cliente..." 
+                          value={clienteSearch}
+                          onValueChange={setClienteSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron clientes.</CommandEmpty>
+                          <CommandGroup className="max-h-[200px] overflow-auto">
+                            {filteredClientes.map((cliente) => (
+                              <CommandItem
+                                key={cliente.id}
+                                value={cliente.razon_social}
+                                onSelect={() => {
+                                  setSelectedCliente(cliente);
+                                  setClientePopoverOpen(false);
+                                }}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{cliente.razon_social}</span>
+                                  <span className="text-xs text-muted-foreground">{cliente.codigo}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Client Info Display */}
+                {selectedCliente && (
+                  <div className="bg-muted/30 rounded-xl p-4 border border-border">
+                    <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Cliente Seleccionado
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Empresa:</span>
+                        <span className="font-medium">{selectedCliente.razon_social}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">RUC:</span>
+                        <span className="font-mono">{selectedCliente.codigo}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Contract Details Form */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Tipo de Servicio *</Label>
+                      <Select 
+                        value={contractData.tipo_servicio} 
+                        onValueChange={(value) => setContractData(prev => ({ ...prev, tipo_servicio: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SERVICE_TYPES.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Moneda</Label>
+                      <Select 
+                        value={contractData.moneda} 
+                        onValueChange={(value) => setContractData(prev => ({ ...prev, moneda: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PEN">Soles (S/)</SelectItem>
+                          <SelectItem value="USD">Dólares ($)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Descripción del Contrato *</Label>
+                    <Textarea
+                      value={contractData.descripcion}
+                      onChange={(e) => setContractData(prev => ({ ...prev, descripcion: e.target.value }))}
+                      placeholder="Descripción del contrato..."
+                      rows={2}
+                      className="resize-none"
                     />
-                    <CommandList>
-                      <CommandEmpty>No se encontraron clientes.</CommandEmpty>
-                      <CommandGroup className="max-h-[200px] overflow-auto">
-                        {filteredClientes.map((cliente) => (
-                          <CommandItem
-                            key={cliente.id}
-                            value={cliente.razon_social}
-                            onSelect={() => {
-                              setSelectedCliente(cliente);
-                              setClientePopoverOpen(false);
-                            }}
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium">{cliente.razon_social}</span>
-                              <span className="text-xs text-muted-foreground">{cliente.codigo}</span>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Client Info Display */}
-            {selectedCliente && (
-              <div className="bg-muted/30 rounded-xl p-4 border border-border">
-                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Cliente Seleccionado
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Empresa:</span>
-                    <span className="font-medium">{selectedCliente.razon_social}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">RUC:</span>
-                    <span className="font-mono">{selectedCliente.codigo}</span>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Notas Adicionales</Label>
+                    <Textarea
+                      value={contractData.notas}
+                      onChange={(e) => setContractData(prev => ({ ...prev, notas: e.target.value }))}
+                      placeholder="Notas adicionales..."
+                      rows={2}
+                      className="resize-none"
+                    />
                   </div>
                 </div>
-              </div>
+
+                {/* Totals Summary */}
+                <div className="bg-primary/5 rounded-xl p-4 border border-primary/20 mt-auto">
+                  <h3 className="font-semibold text-sm text-primary uppercase tracking-wide mb-3 flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Resumen del Contrato
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Cuotas:</span>
+                      <span className="font-bold">{totalCuotas}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold border-t border-primary/20 pt-2 mt-2">
+                      <span>Monto Total:</span>
+                      <span className="text-primary">{currencySymbol} {totalGeneral.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
-
-            {/* Contract Details Form */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Tipo de Servicio *</Label>
-                  <Select 
-                    value={contractData.tipo_servicio} 
-                    onValueChange={(value) => setContractData(prev => ({ ...prev, tipo_servicio: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SERVICE_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Moneda</Label>
-                  <Select 
-                    value={contractData.moneda} 
-                    onValueChange={(value) => setContractData(prev => ({ ...prev, moneda: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PEN">Soles (S/)</SelectItem>
-                      <SelectItem value="USD">Dólares ($)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Descripción del Contrato *</Label>
-                <Textarea
-                  value={contractData.descripcion}
-                  onChange={(e) => setContractData(prev => ({ ...prev, descripcion: e.target.value }))}
-                  placeholder="Descripción del contrato..."
-                  rows={2}
-                  className="resize-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Notas Adicionales</Label>
-                <Textarea
-                  value={contractData.notas}
-                  onChange={(e) => setContractData(prev => ({ ...prev, notas: e.target.value }))}
-                  placeholder="Notas adicionales..."
-                  rows={2}
-                  className="resize-none"
-                />
-              </div>
-            </div>
-
-            {/* Totals Summary */}
-            <div className="bg-primary/5 rounded-xl p-4 border border-primary/20 mt-auto">
-              <h3 className="font-semibold text-sm text-primary uppercase tracking-wide mb-3 flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Resumen del Contrato
-              </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Cuotas:</span>
-                  <span className="font-bold">{totalCuotas}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold border-t border-primary/20 pt-2 mt-2">
-                  <span>Monto Total:</span>
-                  <span className="text-primary">{currencySymbol} {totalGeneral.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Right Panel - Projection & Calendar */}
-          <div className="lg:w-2/3 flex flex-col gap-4 overflow-hidden">
+          <div className={cn(
+            "flex flex-col gap-4 overflow-hidden transition-all duration-300",
+            leftPanelCollapsed ? "lg:w-full" : "lg:w-2/3"
+          )}>
+            {/* Toggle Button for Left Panel */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLeftPanelCollapsed(!leftPanelCollapsed)}
+                className="gap-2"
+              >
+                {leftPanelCollapsed ? (
+                  <>
+                    <PanelLeft className="h-4 w-4" />
+                    <span className="hidden sm:inline">Mostrar detalles</span>
+                  </>
+                ) : (
+                  <>
+                    <PanelLeftClose className="h-4 w-4" />
+                    <span className="hidden sm:inline">Ocultar detalles</span>
+                  </>
+                )}
+              </Button>
+              {leftPanelCollapsed && selectedCliente && (
+                <span className="text-sm text-muted-foreground truncate">
+                  <span className="font-medium text-foreground">{selectedCliente.razon_social}</span>
+                  <span className="mx-2">•</span>
+                  <span>{currencySymbol} {totalGeneral.toFixed(2)}</span>
+                </span>
+              )}
+            </div>
             {/* Services Projection Table */}
             <div className="border border-border rounded-xl overflow-hidden bg-card">
               <div className="bg-muted/30 px-4 py-3 border-b border-border flex items-center justify-between">
