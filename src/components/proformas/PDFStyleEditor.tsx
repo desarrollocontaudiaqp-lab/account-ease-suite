@@ -299,6 +299,9 @@ export function PDFStyleEditor({ plantillaId, plantillaNombre, plantillaTipo, op
                         <ColorPicker label="Texto Principal" value={config.colors.textDark} onChange={(v) => updateColor("textDark", v)} />
                         <ColorPicker label="Texto Secundario" value={config.colors.textMuted} onChange={(v) => updateColor("textMuted", v)} />
                         <ColorPicker label="Color de Borde" value={config.colors.border} onChange={(v) => updateColor("border", v)} />
+                        <Separator className="my-2" />
+                        <Label className="text-xs font-medium text-foreground">Pie de Página</Label>
+                        <ColorPicker label="Barra separadora del pie" value={config.colors.footerSeparator} onChange={(v) => updateColor("footerSeparator", v)} />
                       </div>
                     </AccordionContent>
                   </AccordionItem>

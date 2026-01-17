@@ -75,6 +75,7 @@ export interface PDFStyleConfig {
     headerTitleText: string;
     headerSubtitleText: string;
     headerContactText: string;
+    footerSeparator: string;
   };
   typography: {
     headerTitleSize: number;
@@ -130,6 +131,7 @@ export const DEFAULT_PDF_CONFIG: PDFStyleConfig = {
     headerTitleText: "#FFFFFF",
     headerSubtitleText: "#FFFFFF",
     headerContactText: "#FFFFFF",
+    footerSeparator: "#CA9348",
   },
   typography: {
     headerTitleSize: 16,
@@ -219,6 +221,7 @@ export async function generateProformaPDF(
     headerTitleText: hexToRgb(config.colors.headerTitleText),
     headerSubtitleText: hexToRgb(config.colors.headerSubtitleText),
     headerContactText: hexToRgb(config.colors.headerContactText),
+    footerSeparator: hexToRgb(config.colors.footerSeparator),
     white: [255, 255, 255] as [number, number, number],
   };
 
@@ -415,20 +418,25 @@ export async function generateProformaPDF(
 
   // Footer drawing function - to be used on all pages (includes bank data)
   const drawFooter = () => {
-    const footerStartY = pageHeight - 32;
+    const footerStartY = pageHeight - 35;
+    
+    // Top separator bar - full width
+    doc.setFillColor(...COLORS.footerSeparator);
+    doc.rect(0, footerStartY, pageWidth, 3, "F");
     
     // Bank data section with golden bar
     if (config.layout.showBankInfo) {
       // Golden bar with "DATOS BANCARIOS" label
+      const bankSectionY = footerStartY + 5;
       doc.setFillColor(...COLORS.primary);
-      doc.roundedRect(margin, footerStartY, 48, 5.5, 1.5, 1.5, "F");
+      doc.roundedRect(margin, bankSectionY, 48, 5.5, 1.5, 1.5, "F");
       doc.setTextColor(...COLORS.white);
       doc.setFontSize(7);
       doc.setFont(config.typography.fontFamily, "bold");
-      doc.text("DATOS BANCARIOS", margin + 24, footerStartY + 3.8, { align: "center" });
+      doc.text("DATOS BANCARIOS", margin + 24, bankSectionY + 3.8, { align: "center" });
       
       // Bank accounts in two columns below the bar
-      const bankY = footerStartY + 8;
+      const bankY = bankSectionY + 8;
       const halfWidth = (pageWidth - margin * 2) / 2;
       
       doc.setTextColor(...COLORS.textDark);
@@ -445,7 +453,7 @@ export async function generateProformaPDF(
     }
     
     // Company name and slogan at the bottom
-    const companyY = pageHeight - 12;
+    const companyY = pageHeight - 9;
     doc.setTextColor(...COLORS.textDark);
     doc.setFontSize(10);
     doc.setFont(config.typography.fontFamily, "bold");
@@ -489,7 +497,7 @@ export async function generateProformaPDF(
       3: { halign: "right", cellWidth: 35 },
       4: { halign: "right", cellWidth: 35 },
     },
-    margin: { left: margin, right: margin, bottom: 45 },
+    margin: { left: margin, right: margin, bottom: 50 },
     tableLineColor: COLORS.border,
     tableLineWidth: 0.3,
     didDrawCell: (hookData) => {
@@ -519,7 +527,7 @@ export async function generateProformaPDF(
   const sectionHeight = Math.max(totalsHeight, annotationsHeight);
   
   // Check if we need a new page for totals + annotations
-  const footerZone = pageHeight - 45; // Reserve space for bank info in footer
+  const footerZone = pageHeight - 48; // Reserve space for bank info in footer
   
   if (yPos + sectionHeight > footerZone) {
     doc.addPage();
@@ -645,7 +653,7 @@ export async function generateProformaPDF(
         2: { halign: "left", cellWidth: "auto" },
         3: { halign: "right", cellWidth: 32 },
       },
-      margin: { left: margin, right: margin, bottom: 45 },
+      margin: { left: margin, right: margin, bottom: 50 },
       tableLineColor: COLORS.border,
       tableLineWidth: 0.2,
       didDrawCell: (hookData) => {
