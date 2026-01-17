@@ -204,7 +204,32 @@ export function ProformaForm({
         setSelectedCliente(proforma.cliente_id);
         setNotas(proforma.notas || "");
         setFechaVencimiento(proforma.fecha_vencimiento);
-        setCamposValues((proforma.campos_personalizados as Record<string, string>) || {});
+        
+        // Extract campos_personalizados and separate projection data
+        const camposData = (proforma.campos_personalizados as Record<string, any>) || {};
+        const { calendar_projection, payment_schedule, ...otherCampos } = camposData;
+        
+        setCamposValues(otherCampos as Record<string, string>);
+        
+        // Load calendar projection data if exists
+        if (calendar_projection && Array.isArray(calendar_projection)) {
+          const parsedProjection = calendar_projection.map((p: any) => ({
+            ...p,
+            fechaInicio: p.fechaInicio ? new Date(p.fechaInicio) : null,
+            fechaTermino: p.fechaTermino ? new Date(p.fechaTermino) : null,
+          }));
+          setCalendarProjection(parsedProjection);
+        }
+        
+        // Load payment schedule if exists
+        if (payment_schedule && Array.isArray(payment_schedule)) {
+          const parsedSchedule = payment_schedule.map((s: any) => ({
+            ...s,
+            fecha: s.fecha ? new Date(s.fecha) : new Date(),
+          }));
+          setPaymentSchedule(parsedSchedule);
+        }
+        
         // Convert initialItems to include base_imponible and igv_monto
         const convertedItems = initialItems.length > 0 
           ? initialItems.map(item => ({
