@@ -85,7 +85,6 @@ interface ContractData {
 interface ClienteData {
   id: string;
   razon_social: string;
-  nombre_comercial: string | null;
   codigo: string;
   direccion: string | null;
   telefono: string | null;
@@ -247,15 +246,20 @@ export function ApplyTemplateModal({
     }
 
     // Fetch contract data with existing template data
-    const { data: contrato } = await supabase
+    const { data: contrato, error: contratoError } = await supabase
       .from("contratos")
       .select(`
         id, numero, descripcion, tipo_servicio, fecha_inicio, fecha_fin,
         monto_mensual, monto_total, moneda, proforma_id, plantilla_id, datos_plantilla,
-        cliente:clientes(id, razon_social, nombre_comercial, codigo, direccion, telefono, email, contacto_nombre)
+        cliente:clientes(id, razon_social, codigo, direccion, telefono, email, contacto_nombre)
       `)
       .eq("id", contractId)
       .maybeSingle();
+
+    if (contratoError) {
+      console.error("Error fetching contract:", contratoError);
+      toast.error("Error al cargar los datos del contrato");
+    }
 
     if (contrato) {
       setContractData({
