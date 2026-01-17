@@ -14,7 +14,9 @@ import {
   Receipt,
   CreditCard,
   Loader2,
-  Save
+  Save,
+  Plus,
+  Trash2
 } from "lucide-react";
 import {
   Dialog,
@@ -195,6 +197,15 @@ export const EditContractDialog = ({
     // Check if contract has saved projections
     const savedProjections = contract.datos_plantilla?.projections;
     
+    // Determine the correct tipo_servicio from proforma or contract
+    const proformaTipo = contract.proforma?.tipo;
+    if (proformaTipo && (!contract.tipo_servicio || contract.tipo_servicio === "contabilidad")) {
+      setContractData(prev => ({
+        ...prev,
+        tipo_servicio: proformaTipo,
+      }));
+    }
+    
     if (savedProjections && savedProjections.length > 0) {
       const restoredProjections = savedProjections.map((p: any) => ({
         ...p,
@@ -240,6 +251,32 @@ export const EditContractDialog = ({
         total: Number(contract.monto_total) || 0,
         dividirEnCuotas: true,
       }]);
+    }
+  };
+
+  const addService = () => {
+    const newIndex = projections.length;
+    setProjections(prev => [...prev, {
+      id: `service-${newIndex}`,
+      descripcion: "",
+      color: SERVICE_COLORS[newIndex % SERVICE_COLORS.length],
+      fechaInicio: new Date(),
+      fechaTermino: undefined,
+      dias: 0,
+      meses: 0,
+      anos: 0,
+      fechaPago: 15,
+      cicloPago: "mensual" as const,
+      nroCuotas: 12,
+      pago: 0,
+      total: 0,
+      dividirEnCuotas: true,
+    }]);
+  };
+
+  const removeService = (index: number) => {
+    if (projections.length > 1) {
+      setProjections(prev => prev.filter((_, i) => i !== index));
     }
   };
 
@@ -757,14 +794,18 @@ export const EditContractDialog = ({
             <div className="lg:w-2/3 flex flex-col gap-4 overflow-hidden">
               {/* Services Projection Table */}
               <div className="border border-border rounded-xl overflow-hidden bg-card">
-                <div className="bg-muted/30 px-4 py-3 border-b border-border">
+                <div className="bg-muted/30 px-4 py-3 border-b border-border flex items-center justify-between">
                   <h3 className="font-semibold flex items-center gap-2">
                     <CalendarIcon className="h-4 w-4 text-primary" />
                     Proyección de Servicios
                   </h3>
+                  <Button variant="outline" size="sm" onClick={addService} className="gap-1">
+                    <Plus className="h-4 w-4" />
+                    Agregar Servicio
+                  </Button>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto max-h-[200px]">
-                  <table className="w-full min-w-[900px] text-sm">
+                  <table className="w-full min-w-[950px] text-sm">
                     <thead className="bg-muted/50 sticky top-0">
                       <tr>
                         <th className="text-left p-2 font-medium">Servicio</th>
@@ -775,6 +816,7 @@ export const EditContractDialog = ({
                         <th className="text-center p-2 font-medium w-[70px]" title="Si está activado, divide el total entre las cuotas">Dividir</th>
                         <th className="text-right p-2 font-medium w-[100px]">Monto Serv.</th>
                         <th className="text-right p-2 font-medium w-[100px]">Total</th>
+                        <th className="text-center p-2 font-medium w-[50px]"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -783,9 +825,12 @@ export const EditContractDialog = ({
                           <td className="p-2">
                             <div className="flex items-center gap-2">
                               <div className={cn("w-3 h-3 rounded-full flex-shrink-0", proj.color)} />
-                              <span className="truncate max-w-[180px]" title={proj.descripcion}>
-                                {proj.descripcion}
-                              </span>
+                              <Input
+                                value={proj.descripcion}
+                                onChange={(e) => handleProjectionChange(index, "descripcion", e.target.value)}
+                                placeholder="Nombre del servicio"
+                                className="h-8 text-xs"
+                              />
                             </div>
                           </td>
                           <td className="p-2">
@@ -870,6 +915,17 @@ export const EditContractDialog = ({
                           <td className="p-2 text-right font-semibold text-primary">
                             {currencySymbol} {proj.total.toFixed(2)}
                           </td>
+                          <td className="p-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => removeService(index)}
+                              disabled={projections.length <= 1}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -877,6 +933,7 @@ export const EditContractDialog = ({
                       <tr>
                         <td colSpan={7} className="p-2 text-right font-semibold">Total General:</td>
                         <td className="p-2 text-right font-bold text-lg text-primary">{currencySymbol} {totalGeneral.toFixed(2)}</td>
+                        <td></td>
                       </tr>
                     </tfoot>
                   </table>
