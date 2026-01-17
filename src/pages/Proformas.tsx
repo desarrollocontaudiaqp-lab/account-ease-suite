@@ -189,6 +189,7 @@ const Proformas = () => {
         moneda,
         cliente_id,
         campos_personalizados,
+        incluir_proyeccion_pdf,
         cliente:clientes(razon_social, codigo, direccion, email, telefono)
       `)
       .order("created_at", { ascending: false });
