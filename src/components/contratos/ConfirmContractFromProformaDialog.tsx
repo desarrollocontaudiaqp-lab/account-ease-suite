@@ -186,15 +186,30 @@ export function ConfirmContractFromProformaDialog({
   const initializeProjections = (proforma: any, items: any[]) => {
     const today = new Date();
     
-    // Check if proforma has saved projections
-    const savedProjections = proforma?.campos_personalizados?.projections;
+    // Check if proforma has saved projections in campos_personalizados
+    // The key is "calendar_projection" (saved in ProformaForm.tsx)
+    const camposPersonalizados = proforma?.campos_personalizados;
+    const savedProjections = camposPersonalizados?.calendar_projection || camposPersonalizados?.projections;
     
-    if (savedProjections && savedProjections.length > 0) {
+    console.log("Initializing projections:", { camposPersonalizados, savedProjections, items });
+    
+    if (savedProjections && Array.isArray(savedProjections) && savedProjections.length > 0) {
       // Use saved projections from proforma
-      const restoredProjections = savedProjections.map((p: any) => ({
-        ...p,
+      console.log("Using saved projections from proforma:", savedProjections);
+      const restoredProjections = savedProjections.map((p: any, index: number) => ({
+        id: p.id || `service-${index}`,
+        descripcion: p.descripcion || p.servicio || "Servicio",
+        color: p.color || SERVICE_COLORS[index % SERVICE_COLORS.length],
         fechaInicio: p.fechaInicio ? new Date(p.fechaInicio) : today,
         fechaTermino: p.fechaTermino ? new Date(p.fechaTermino) : undefined,
+        dias: p.dias || 0,
+        meses: p.meses || 0,
+        anos: p.anos || 0,
+        fechaPago: p.fechaPago || p.diaPago || 15,
+        cicloPago: p.cicloPago || "mensual",
+        nroCuotas: p.nroCuotas || p.cuotas || 12,
+        pago: Number(p.pago) || Number(p.monto) || 0,
+        total: Number(p.total) || Number(p.pago) || Number(p.monto) || 0,
         dividirEnCuotas: p.dividirEnCuotas !== undefined ? p.dividirEnCuotas : true,
       }));
       setProjections(restoredProjections);
