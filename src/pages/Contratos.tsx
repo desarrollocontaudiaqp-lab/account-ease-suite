@@ -452,14 +452,35 @@ const Contratos = () => {
                           </p>
                         </div>
                       </div>
-                      <ContractActions
-                        contractId={contract.id}
-                        contractNumero={contract.numero}
-                        currentStatus={contract.status}
-                        onStatusChange={fetchContracts}
-                        onViewDetail={() => handleViewDetail(contract.id)}
-                        onEdit={() => handleEdit(contract.id)}
-                      />
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8" 
+                          title="Ver detalle"
+                          onClick={() => handleViewDetail(contract.id)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8" 
+                          title="Editar"
+                          onClick={() => handleEdit(contract.id)}
+                          disabled={contract.status === "aprobado" || contract.status === "anulado"}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <ContractActions
+                          contractId={contract.id}
+                          contractNumero={contract.numero}
+                          currentStatus={contract.status}
+                          onStatusChange={fetchContracts}
+                          onViewDetail={() => handleViewDetail(contract.id)}
+                          onEdit={() => handleEdit(contract.id)}
+                        />
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-4">
