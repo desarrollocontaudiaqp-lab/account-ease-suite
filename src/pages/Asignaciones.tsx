@@ -526,6 +526,7 @@ const Asignaciones = () => {
                 <TableRow>
                   <TableHead>Contrato</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead className="min-w-[200px]">Descripción</TableHead>
                   <TableHead>Cartera</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Monto</TableHead>
@@ -536,7 +537,7 @@ const Asignaciones = () => {
               <TableBody>
                 {filteredContratos.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No se encontraron contratos
                     </TableCell>
                   </TableRow>
@@ -563,6 +564,11 @@ const Asignaciones = () => {
                             </p>
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground line-clamp-2 max-w-[250px]">
+                          {contrato.descripcion || "-"}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {contrato.cartera ? (
