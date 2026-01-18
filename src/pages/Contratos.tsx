@@ -484,6 +484,12 @@ const Contratos = () => {
                       </div>
                     </div>
 
+                    {contract.descripcion && (
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                        {contract.descripcion}
+                      </p>
+                    )}
+
                     <div className="flex flex-wrap gap-2 mb-4">
                       <Badge variant="outline" className={typeStyles[contract.tipo_servicio] || typeStyles.contabilidad}>
                         {contract.tipo_servicio === "contabilidad" ? "Contabilidad" : "Trámites"}
@@ -550,6 +556,9 @@ const Contratos = () => {
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
                         Cliente
                       </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3 min-w-[200px]">
+                        Descripción
+                      </th>
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
                         Tipo
                       </th>
@@ -585,6 +594,11 @@ const Contratos = () => {
                           <td className="px-6 py-4">
                             <span className="text-sm text-foreground">
                               {contract.cliente?.razon_social || "Sin cliente"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-muted-foreground line-clamp-2 max-w-[250px]">
+                              {contract.descripcion || "-"}
                             </span>
                           </td>
                           <td className="px-6 py-4">
