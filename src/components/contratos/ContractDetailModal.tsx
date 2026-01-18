@@ -104,6 +104,7 @@ interface ContractDetail {
     igv: number;
     moneda: string;
     tipo: string;
+    campos_personalizados?: any;
     items: { descripcion: string; cantidad: number; precio_unitario: number; subtotal: number }[];
   } | null;
 }
@@ -170,7 +171,7 @@ export const ContractDetailModal = ({
       .select(`
         *,
         cliente:clientes(razon_social, codigo, direccion, email, telefono),
-        proforma:proformas!contratos_proforma_id_fkey(numero, total, subtotal, igv, moneda, tipo, items:proforma_items(descripcion, cantidad, precio_unitario, subtotal))
+        proforma:proformas!contratos_proforma_id_fkey(numero, total, subtotal, igv, moneda, tipo, campos_personalizados, items:proforma_items(descripcion, cantidad, precio_unitario, subtotal))
       `)
       .eq("id", contractId)
       .maybeSingle();
@@ -192,24 +193,60 @@ export const ContractDetailModal = ({
     setLoading(false);
   };
 
-  // Parse projections from datos_plantilla
+  // Parse projections from datos_plantilla or proforma campos_personalizados
   const projections: ServiceProjection[] = useMemo(() => {
-    if (!contract?.datos_plantilla?.projections) return [];
+    // First try from datos_plantilla.projections
+    let projectionsData = contract?.datos_plantilla?.projections;
     
-    return contract.datos_plantilla.projections.map((p: any) => ({
-      ...p,
+    // Fallback to proforma.campos_personalizados.calendar_projection if available
+    if (!projectionsData || projectionsData.length === 0) {
+      const proformaCampos = contract?.proforma as any;
+      if (proformaCampos?.campos_personalizados?.calendar_projection) {
+        projectionsData = proformaCampos.campos_personalizados.calendar_projection;
+      } else if (proformaCampos?.campos_personalizados?.projections) {
+        projectionsData = proformaCampos.campos_personalizados.projections;
+      }
+    }
+    
+    if (!projectionsData || !Array.isArray(projectionsData)) return [];
+    
+    return projectionsData.map((p: any) => ({
+      id: p.id || 'service-0',
+      descripcion: p.descripcion || p.servicio || 'Servicio',
+      color: p.color || 'bg-blue-500',
       fechaInicio: p.fechaInicio ? new Date(p.fechaInicio) : undefined,
       fechaTermino: p.fechaTermino ? new Date(p.fechaTermino) : undefined,
+      fechaPago: p.fechaPago || p.diaPago || 15,
+      cicloPago: p.cicloPago || 'mensual',
+      nroCuotas: p.nroCuotas || p.cuotas || 1,
+      pago: Number(p.pago) || Number(p.monto) || 0,
+      total: Number(p.total) || Number(p.pago) || 0,
+      dividirEnCuotas: p.dividirEnCuotas !== undefined ? p.dividirEnCuotas : true,
     }));
   }, [contract]);
 
-  // Parse payment schedule from datos_plantilla
+  // Parse payment schedule from datos_plantilla or proforma campos_personalizados
   const paymentSchedule: PaymentScheduleItem[] = useMemo(() => {
-    if (!contract?.datos_plantilla?.payment_schedule) return [];
+    // First try from datos_plantilla.payment_schedule
+    let scheduleData = contract?.datos_plantilla?.payment_schedule;
     
-    return contract.datos_plantilla.payment_schedule.map((s: any) => ({
-      ...s,
-      fecha: new Date(s.fecha),
+    // Fallback to proforma.campos_personalizados.payment_schedule if available
+    if (!scheduleData || scheduleData.length === 0) {
+      const proformaCampos = contract?.proforma as any;
+      if (proformaCampos?.campos_personalizados?.payment_schedule) {
+        scheduleData = proformaCampos.campos_personalizados.payment_schedule;
+      }
+    }
+    
+    if (!scheduleData || !Array.isArray(scheduleData)) return [];
+    
+    return scheduleData.map((s: any) => ({
+      cuota: s.cuota || 1,
+      fecha: s.fecha ? new Date(s.fecha) : new Date(),
+      servicio: s.servicio || 'Servicio',
+      servicioId: s.servicioId || 'service-0',
+      color: s.color || 'bg-blue-500',
+      monto: Number(s.monto) || 0,
     }));
   }, [contract]);
 
