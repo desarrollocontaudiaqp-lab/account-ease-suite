@@ -15,6 +15,8 @@ interface UserProfile {
   email: string;
   full_name: string | null;
   phone: string | null;
+  dni: string | null;
+  puesto: string | null;
   role: AppRole;
 }
 
@@ -22,7 +24,7 @@ interface EditUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: UserProfile | null;
-  onSave: (userId: string, data: { full_name: string; phone: string; role: AppRole }) => Promise<void>;
+  onSave: (userId: string, data: { full_name: string; phone: string; dni: string; puesto: string; role: AppRole }) => Promise<void>;
   loading: boolean;
 }
 
@@ -30,12 +32,16 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
   const { roles: availableRoles } = useRolePermisos();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [dni, setDni] = useState('');
+  const [puesto, setPuesto] = useState('');
   const [role, setRole] = useState<AppRole>('asesor');
 
   useEffect(() => {
     if (user) {
       setFullName(user.full_name || '');
       setPhone(user.phone || '');
+      setDni(user.dni || '');
+      setPuesto(user.puesto || '');
       setRole(user.role);
     }
   }, [user]);
@@ -43,7 +49,7 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (user) {
-      await onSave(user.id, { full_name: fullName, phone, role });
+      await onSave(user.id, { full_name: fullName, phone, dni, puesto, role });
     }
   };
 
@@ -59,12 +65,33 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
             <Input id="email" value={user?.email || ''} disabled className="bg-muted" />
           </div>
           <div className="space-y-2">
+            <Label htmlFor="dni">DNI</Label>
+            <Input
+              id="dni"
+              value={dni}
+              onChange={(e) => setDni(e.target.value)}
+              placeholder="12345678"
+              maxLength={8}
+              className="input-focus"
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="full_name">Nombre Completo</Label>
             <Input
               id="full_name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Nombre del usuario"
+              className="input-focus"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="puesto">Puesto</Label>
+            <Input
+              id="puesto"
+              value={puesto}
+              onChange={(e) => setPuesto(e.target.value)}
+              placeholder="Contador, Asistente, etc."
               className="input-focus"
             />
           </div>
