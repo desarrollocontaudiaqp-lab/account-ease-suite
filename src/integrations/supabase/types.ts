@@ -1163,12 +1163,76 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_secuencias: {
+        Row: {
+          anio_vigente: number
+          created_at: string
+          digitos_correlativo: number
+          id: string
+          prefijo: string
+          ultimo_numero: number
+          updated_at: string
+        }
+        Insert: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Update: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workflows: {
+        Row: {
+          codigo: string
+          contrato_id: string
+          created_at: string
+          created_by: string | null
+          fecha_creacion: string
+          id: string
+          items: Json
+          updated_at: string
+        }
+        Insert: {
+          codigo: string
+          contrato_id: string
+          created_at?: string
+          created_by?: string | null
+          fecha_creacion?: string
+          id?: string
+          items?: Json
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          contrato_id?: string
+          created_at?: string
+          created_by?: string | null
+          fecha_creacion?: string
+          id?: string
+          items?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       get_next_proforma_number: { Args: { p_tipo: string }; Returns: string }
+      get_next_workflow_code: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
