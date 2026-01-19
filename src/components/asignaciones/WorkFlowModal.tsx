@@ -115,8 +115,16 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const [newItemColumn, setNewItemColumn] = useState<string | null>(null);
   const [newItemTitle, setNewItemTitle] = useState("");
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [, forceUpdate] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Force re-render on resize to update connection lines
+  useEffect(() => {
+    const handleResize = () => forceUpdate(n => n + 1);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Calculate workflow dates and progress
   const fechaInicio = new Date(contrato.fecha_inicio);
@@ -340,50 +348,51 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
             const isSameColumn = fromColIndex === toColIndex;
             
             let path = "";
-            const offset = 15 + (connIndex * 5); // Offset for multiple connections
+            let startX = 0, startY = 0, endX = 0, endY = 0;
+            const offset = 20 + (connIndex * 8); // Offset for multiple connections
             
             if (isSameColumn) {
-              // Same column: route through left side to avoid crossing boxes
-              const fromX = fromRect.left - containerRect.left;
-              const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
-              const toX = toRect.left - containerRect.left;
-              const toY = toRect.top + toRect.height / 2 - containerRect.top;
+              // Same column: route through LEFT side (left-to-left)
+              startX = fromRect.left - containerRect.left;
+              startY = fromRect.top + fromRect.height / 2 - containerRect.top;
+              endX = toRect.left - containerRect.left;
+              endY = toRect.top + toRect.height / 2 - containerRect.top;
               
               const leftOffset = -offset;
               
-              path = `M ${fromX} ${fromY} 
-                      L ${fromX + leftOffset} ${fromY}
-                      L ${toX + leftOffset} ${toY}
-                      L ${toX} ${toY}`;
+              path = `M ${startX} ${startY} 
+                      L ${startX + leftOffset} ${startY}
+                      L ${endX + leftOffset} ${endY}
+                      L ${endX} ${endY}`;
             } else if (toColIndex < fromColIndex) {
-              // Going backwards: route around the top or bottom
-              const fromX = fromRect.left - containerRect.left;
-              const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
-              const toX = toRect.right - containerRect.left;
-              const toY = toRect.top + toRect.height / 2 - containerRect.top;
+              // Going backwards: route around the boxes
+              startX = fromRect.left - containerRect.left;
+              startY = fromRect.top + fromRect.height / 2 - containerRect.top;
+              endX = toRect.right - containerRect.left;
+              endY = toRect.top + toRect.height / 2 - containerRect.top;
               
-              const verticalOffset = fromY < toY ? -30 - offset : 30 + offset;
+              const verticalOffset = startY < endY ? -40 - offset : 40 + offset;
               
-              path = `M ${fromX} ${fromY}
-                      L ${fromX - offset} ${fromY}
-                      L ${fromX - offset} ${fromY + verticalOffset}
-                      L ${toX + offset} ${fromY + verticalOffset}
-                      L ${toX + offset} ${toY}
-                      L ${toX} ${toY}`;
+              path = `M ${startX} ${startY}
+                      L ${startX - offset} ${startY}
+                      L ${startX - offset} ${startY + verticalOffset}
+                      L ${endX + offset} ${startY + verticalOffset}
+                      L ${endX + offset} ${endY}
+                      L ${endX} ${endY}`;
             } else {
-              // Normal left-to-right flow
-              const fromX = fromRect.right - containerRect.left;
-              const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
-              const toX = toRect.left - containerRect.left;
-              const toY = toRect.top + toRect.height / 2 - containerRect.top;
+              // Different columns (forward flow): RIGHT of source → LEFT of destination
+              startX = fromRect.right - containerRect.left;
+              startY = fromRect.top + fromRect.height / 2 - containerRect.top;
+              endX = toRect.left - containerRect.left;
+              endY = toRect.top + toRect.height / 2 - containerRect.top;
               
-              const midX = (fromX + toX) / 2;
+              const midX = (startX + endX) / 2;
               
               // Use orthogonal routing to avoid crossing boxes
-              path = `M ${fromX} ${fromY}
-                      L ${midX} ${fromY}
-                      L ${midX} ${toY}
-                      L ${toX} ${toY}`;
+              path = `M ${startX} ${startY}
+                      L ${midX} ${startY}
+                      L ${midX} ${endY}
+                      L ${endX} ${endY}`;
             }
             
             connections.push(
@@ -391,27 +400,24 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                 <path
                   d={path}
                   fill="none"
-                  stroke="hsl(var(--primary))"
+                  stroke="hsl(var(--destructive))"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="transition-all duration-300"
-                  style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.15))" }}
+                  style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.2))" }}
                 />
                 {/* Connection dots at endpoints */}
                 <circle
-                  cx={isSameColumn ? fromRect.left - containerRect.left : fromRect.right - containerRect.left}
-                  cy={fromRect.top + fromRect.height / 2 - containerRect.top}
-                  r="4"
-                  fill="hsl(var(--primary))"
-                  className="transition-all duration-300"
+                  cx={startX}
+                  cy={startY}
+                  r="5"
+                  fill="hsl(var(--destructive))"
                 />
                 <circle
-                  cx={toColIndex < fromColIndex || isSameColumn ? toRect.left - containerRect.left : toRect.left - containerRect.left}
-                  cy={toRect.top + toRect.height / 2 - containerRect.top}
-                  r="4"
-                  fill="hsl(var(--primary))"
-                  className="transition-all duration-300"
+                  cx={endX}
+                  cy={endY}
+                  r="5"
+                  fill="hsl(var(--destructive))"
                 />
               </g>
             );
