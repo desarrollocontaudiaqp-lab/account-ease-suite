@@ -326,6 +326,23 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     }
   };
 
+  // Check if two items are in the exact same visual column (considering sub-columns)
+  const isSameVisualColumn = (from: WorkFlowItem, to: WorkFlowItem): boolean => {
+    const fromColIndex = getColumnIndex(from);
+    const toColIndex = getColumnIndex(to);
+    
+    // Different main columns
+    if (fromColIndex !== toColIndex) return false;
+    
+    // For 'tarea' type (Procesos), check sub-columns
+    if (from.tipo === "tarea" && to.tipo === "tarea") {
+      return from.subColumna === to.subColumna;
+    }
+    
+    // Same main column, same type
+    return true;
+  };
+
   // Calculate connection lines with improved routing
   const renderConnections = () => {
     const connections: JSX.Element[] = [];
@@ -345,14 +362,14 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
             
             const fromColIndex = getColumnIndex(item);
             const toColIndex = getColumnIndex(toItem);
-            const isSameColumn = fromColIndex === toColIndex;
+            const sameVisualCol = isSameVisualColumn(item, toItem);
             
             let path = "";
             let startX = 0, startY = 0, endX = 0, endY = 0;
             const offset = 20 + (connIndex * 8); // Offset for multiple connections
             
-            if (isSameColumn) {
-              // Same column: route through LEFT side (left-to-left)
+            if (sameVisualCol) {
+              // Exact same visual column (same sub-column): route through LEFT side (left-to-left)
               startX = fromRect.left - containerRect.left;
               startY = fromRect.top + fromRect.height / 2 - containerRect.top;
               endX = toRect.left - containerRect.left;
@@ -365,7 +382,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       L ${endX + leftOffset} ${endY}
                       L ${endX} ${endY}`;
             } else if (toColIndex < fromColIndex) {
-              // Going backwards: route around the boxes
+              // Going backwards (to a previous main column): route around the boxes
               startX = fromRect.left - containerRect.left;
               startY = fromRect.top + fromRect.height / 2 - containerRect.top;
               endX = toRect.right - containerRect.left;
@@ -380,7 +397,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       L ${endX + offset} ${endY}
                       L ${endX} ${endY}`;
             } else {
-              // Different columns (forward flow): RIGHT of source → LEFT of destination
+              // Different columns or different sub-columns (forward flow): RIGHT of source → LEFT of destination
               startX = fromRect.right - containerRect.left;
               startY = fromRect.top + fromRect.height / 2 - containerRect.top;
               endX = toRect.left - containerRect.left;
