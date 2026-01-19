@@ -1002,6 +1002,7 @@ export default function CalendarioPagos() {
         onOpenChange={setRegisterDialogOpen}
         payment={paymentToRegister}
         onSuccess={fetchPayments}
+        allPayments={unifiedPayments}
       />
     </div>
   );
