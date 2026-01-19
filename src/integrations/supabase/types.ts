@@ -1100,6 +1100,95 @@ export type Database = {
           },
         ]
       }
+      registro_ventas: {
+        Row: {
+          base_imponible: number
+          centro_costo: string | null
+          cliente_razon_social: string
+          cliente_ruc: string
+          created_at: string
+          created_by: string | null
+          cta_igv: string | null
+          cta_ingreso: string | null
+          cta_otros_tributos: string | null
+          cta_por_cobrar: string | null
+          estado: string
+          fecha_emision: string
+          glosa: string | null
+          id: string
+          igv: number
+          moneda: string
+          numero_comprobante: string | null
+          pago_id: string | null
+          periodo_anio: number
+          periodo_mes: number
+          serie_comprobante: string | null
+          tipo_comprobante: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          base_imponible?: number
+          centro_costo?: string | null
+          cliente_razon_social: string
+          cliente_ruc: string
+          created_at?: string
+          created_by?: string | null
+          cta_igv?: string | null
+          cta_ingreso?: string | null
+          cta_otros_tributos?: string | null
+          cta_por_cobrar?: string | null
+          estado?: string
+          fecha_emision: string
+          glosa?: string | null
+          id?: string
+          igv?: number
+          moneda?: string
+          numero_comprobante?: string | null
+          pago_id?: string | null
+          periodo_anio: number
+          periodo_mes: number
+          serie_comprobante?: string | null
+          tipo_comprobante?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          base_imponible?: number
+          centro_costo?: string | null
+          cliente_razon_social?: string
+          cliente_ruc?: string
+          created_at?: string
+          created_by?: string | null
+          cta_igv?: string | null
+          cta_ingreso?: string | null
+          cta_otros_tributos?: string | null
+          cta_por_cobrar?: string | null
+          estado?: string
+          fecha_emision?: string
+          glosa?: string | null
+          id?: string
+          igv?: number
+          moneda?: string
+          numero_comprobante?: string | null
+          pago_id?: string | null
+          periodo_anio?: number
+          periodo_mes?: number
+          serie_comprobante?: string | null
+          tipo_comprobante?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registro_ventas_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permisos: {
         Row: {
           activo: boolean
