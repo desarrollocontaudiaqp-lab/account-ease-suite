@@ -81,6 +81,13 @@ interface ContratoWorkflow {
   } | null;
 }
 
+interface SupervisorProfile {
+  id: string;
+  full_name: string | null;
+  email: string;
+  puesto: string | null;
+}
+
 interface WorkFlowModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -107,6 +114,9 @@ const roleColors: Record<string, string> = {
   administrador: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
 };
 
+// Puestos excluidos para supervisión (solo estos roles NO pueden supervisar)
+const PUESTOS_EXCLUIDOS_SUPERVISION = ["Asistente Contable", "Practicante", "Auxiliar Contable"];
+
 export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFlowModalProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -115,6 +125,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const [newItemColumn, setNewItemColumn] = useState<string | null>(null);
   const [newItemTitle, setNewItemTitle] = useState("");
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [supervisores, setSupervisores] = useState<SupervisorProfile[]>([]);
   const [, forceUpdate] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -138,17 +149,40 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const progressPercent = total > 0 ? Math.round((completados / total) * 100) : 0;
 
   // Get unique roles from team members for process column sub-columns
-  const uniqueRoles = [...new Set(miembros.map(m => m.rol_en_cartera))].slice(0, 3);
-  // Pad to always have 3 sub-columns
-  while (uniqueRoles.length < 3) {
+  // Limit to actual member count: if 2 members, 2 sub-columns; if 3+, 3 sub-columns
+  const memberRoles = [...new Set(miembros.map(m => m.rol_en_cartera))];
+  const subColumnCount = Math.min(Math.max(memberRoles.length, 2), 3); // Min 2, max 3
+  const uniqueRoles = memberRoles.slice(0, subColumnCount);
+  // Pad only if we have fewer roles than the determined column count
+  while (uniqueRoles.length < subColumnCount) {
     uniqueRoles.push(`Rol ${uniqueRoles.length + 1}`);
   }
 
   useEffect(() => {
     if (open) {
       loadWorkflow();
+      loadSupervisores();
     }
   }, [open, contrato.id]);
+
+  const loadSupervisores = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, puesto")
+        .not("puesto", "is", null);
+
+      if (error) throw error;
+
+      // Filtrar solo personal que NO tenga los puestos excluidos
+      const supervisoresValidos = (data || []).filter(
+        p => p.puesto && !PUESTOS_EXCLUIDOS_SUPERVISION.includes(p.puesto)
+      );
+      setSupervisores(supervisoresValidos);
+    } catch (error) {
+      console.error("Error loading supervisores:", error);
+    }
+  };
 
   const loadWorkflow = async () => {
     setLoading(true);
@@ -528,8 +562,8 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         </div>
       </div>
 
-      {/* Column Headers - Grid with Procesos taking 3x space */}
-      <div className="grid border-b" style={{ gridTemplateColumns: "1fr 1fr 3fr 1fr 1fr" }}>
+      {/* Column Headers - Grid with Procesos taking dynamic space based on member count */}
+      <div className="grid border-b" style={{ gridTemplateColumns: `1fr 1fr ${subColumnCount}fr 1fr 1fr` }}>
         {columnConfig.map(col => {
           const Icon = col.icon;
           return (
@@ -548,12 +582,12 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         })}
       </div>
 
-      {/* Sub-headers for Procesos column - 3 sub-columns based on roles */}
-      <div className="grid border-b bg-muted/30" style={{ gridTemplateColumns: "1fr 1fr 3fr 1fr 1fr" }}>
+      {/* Sub-headers for Procesos column - dynamic sub-columns based on member count */}
+      <div className="grid border-b bg-muted/30" style={{ gridTemplateColumns: `1fr 1fr ${subColumnCount}fr 1fr 1fr` }}>
         <div /> {/* Empty space for A column */}
         <div /> {/* Empty space for I column */}
         <div className="border-x">
-          <div className="grid grid-cols-3">
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${subColumnCount}, 1fr)` }}>
             {uniqueRoles.map((rol, index) => (
               <div key={rol} className="p-2 text-center border-r last:border-r-0">
                 <Badge 
@@ -585,7 +619,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid h-full" style={{ gridTemplateColumns: "1fr 1fr 3fr 1fr 1fr" }}>
+          <div className="grid h-full" style={{ gridTemplateColumns: `1fr 1fr ${subColumnCount}fr 1fr 1fr` }}>
             {/* Actividades Column */}
             <div className="border-r p-3 bg-sky-50/50 dark:bg-sky-950/20">
               <ScrollArea className="h-full">
@@ -706,9 +740,9 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
               </ScrollArea>
             </div>
 
-            {/* Procesos Column - 3 sub-columns */}
+            {/* Procesos Column - dynamic sub-columns based on member count */}
             <div className="border-r bg-amber-50/50 dark:bg-amber-950/20">
-              <div className="grid grid-cols-3 h-full">
+              <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${subColumnCount}, 1fr)` }}>
                 {uniqueRoles.map((rol, subColIndex) => {
                   const rolMiembros = getMiembrosByRol(rol);
                   const subColItems = getItemsBySubColumna(subColIndex);
@@ -857,6 +891,9 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       }}
                       onCancelEdit={() => setEditingItem(null)}
                       variant="oval"
+                      supervisores={supervisores}
+                      selectedAsignado={item.asignado_a}
+                      onAsignar={(userId) => updateItem(item.id, { asignado_a: userId })}
                       onStartConnection={() => startConnection(item.id)}
                       onCompleteConnection={() => completeConnection(item.id)}
                       isConnecting={!!connectingFrom}
@@ -930,6 +967,7 @@ interface WorkFlowItemCardProps {
   onCancelEdit: () => void;
   variant?: "default" | "diamond" | "rounded" | "oval";
   miembros?: MiembroCartera[];
+  supervisores?: SupervisorProfile[];
   selectedAsignado?: string;
   onAsignar?: (userId: string) => void;
   onStartConnection: () => void;
@@ -952,6 +990,7 @@ function WorkFlowItemCard({
   onCancelEdit,
   variant = "default",
   miembros,
+  supervisores,
   selectedAsignado,
   onAsignar,
   onStartConnection,
@@ -1103,6 +1142,32 @@ function WorkFlowItemCard({
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-xs">{m.profile?.full_name || m.profile?.email}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {supervisores && onAsignar && (
+            <div className="mt-1">
+              <Select value={selectedAsignado || ""} onValueChange={onAsignar}>
+                <SelectTrigger className="h-5 text-[10px]">
+                  <SelectValue placeholder="Asignar supervisor..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {supervisores.map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-4 w-4">
+                          <AvatarFallback className="text-[8px]">
+                            {getInitials(s.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs">{s.full_name || s.email}</span>
+                        {s.puesto && (
+                          <span className="text-[9px] text-muted-foreground">({s.puesto})</span>
+                        )}
                       </div>
                     </SelectItem>
                   ))}
