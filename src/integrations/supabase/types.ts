@@ -728,48 +728,93 @@ export type Database = {
       }
       pagos: {
         Row: {
+          banco: string | null
           contrato_id: string
           created_at: string
           created_by: string | null
+          cuenta_bancaria: string | null
+          detraccion_monto: number | null
+          detraccion_porcentaje: number | null
+          fecha_emision: string | null
           fecha_pago: string | null
           fecha_vencimiento: string
           id: string
+          igv: number | null
           metodo_pago: string | null
           monto: number
+          monto_neto: number | null
           notas: string | null
+          numero_comprobante: string | null
+          observaciones_contables: string | null
           proforma_id: string | null
           referencia: string | null
+          retencion_monto: number | null
+          retencion_porcentaje: number | null
+          serie_comprobante: string | null
           status: Database["public"]["Enums"]["payment_status"]
+          subtotal: number | null
+          tipo_comprobante: string | null
+          tipo_igv: string | null
           updated_at: string
         }
         Insert: {
+          banco?: string | null
           contrato_id: string
           created_at?: string
           created_by?: string | null
+          cuenta_bancaria?: string | null
+          detraccion_monto?: number | null
+          detraccion_porcentaje?: number | null
+          fecha_emision?: string | null
           fecha_pago?: string | null
           fecha_vencimiento: string
           id?: string
+          igv?: number | null
           metodo_pago?: string | null
           monto: number
+          monto_neto?: number | null
           notas?: string | null
+          numero_comprobante?: string | null
+          observaciones_contables?: string | null
           proforma_id?: string | null
           referencia?: string | null
+          retencion_monto?: number | null
+          retencion_porcentaje?: number | null
+          serie_comprobante?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
+          subtotal?: number | null
+          tipo_comprobante?: string | null
+          tipo_igv?: string | null
           updated_at?: string
         }
         Update: {
+          banco?: string | null
           contrato_id?: string
           created_at?: string
           created_by?: string | null
+          cuenta_bancaria?: string | null
+          detraccion_monto?: number | null
+          detraccion_porcentaje?: number | null
+          fecha_emision?: string | null
           fecha_pago?: string | null
           fecha_vencimiento?: string
           id?: string
+          igv?: number | null
           metodo_pago?: string | null
           monto?: number
+          monto_neto?: number | null
           notas?: string | null
+          numero_comprobante?: string | null
+          observaciones_contables?: string | null
           proforma_id?: string | null
           referencia?: string | null
+          retencion_monto?: number | null
+          retencion_porcentaje?: number | null
+          serie_comprobante?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
+          subtotal?: number | null
+          tipo_comprobante?: string | null
+          tipo_igv?: string | null
           updated_at?: string
         }
         Relationships: [

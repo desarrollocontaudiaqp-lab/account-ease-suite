@@ -20,6 +20,7 @@ import {
   LayoutList,
   CalendarDays,
   Bell,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,15 +52,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PaymentCalendarView } from "@/components/calendario-pagos/PaymentCalendarView";
+import { RegisterPaymentDialog } from "@/components/calendario-pagos/RegisterPaymentDialog";
 import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
 
 interface Payment {
@@ -162,6 +164,19 @@ export default function CalendarioPagos() {
   // Detail dialog state
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailPayment, setDetailPayment] = useState<UnifiedPayment | null>(null);
+
+  // Register payment dialog state
+  const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const [paymentToRegister, setPaymentToRegister] = useState<UnifiedPayment | null>(null);
+
+  const handleRegisterPayment = (payment: UnifiedPayment) => {
+    if (payment.isProjected) {
+      toast.info("Los pagos proyectados no se pueden registrar. Primero apruebe el contrato.");
+      return;
+    }
+    setPaymentToRegister(payment);
+    setRegisterDialogOpen(true);
+  };
 
   useEffect(() => {
     fetchPayments();
@@ -670,25 +685,55 @@ export default function CalendarioPagos() {
                               : "-"}
                           </TableCell>
                           <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  •••
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewDetail(payment)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Ver Detalle
-                                </DropdownMenuItem>
+                            <TooltipProvider>
+                              <div className="flex items-center gap-1">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleViewDetail(payment)}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Ver Detalle</TooltipContent>
+                                </Tooltip>
+
                                 {!payment.isProjected && (
-                                  <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Editar Pago
-                                  </DropdownMenuItem>
+                                  <>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          onClick={() => handleEditPayment(payment)}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Editar</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="default"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          onClick={() => handleRegisterPayment(payment)}
+                                        >
+                                          <Receipt className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Registrar Pago</TooltipContent>
+                                    </Tooltip>
+                                  </>
                                 )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              </div>
+                            </TooltipProvider>
                           </TableCell>
                         </TableRow>
                       );
@@ -950,6 +995,14 @@ export default function CalendarioPagos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Register Payment Dialog */}
+      <RegisterPaymentDialog
+        open={registerDialogOpen}
+        onOpenChange={setRegisterDialogOpen}
+        payment={paymentToRegister}
+        onSuccess={fetchPayments}
+      />
     </div>
   );
 }
