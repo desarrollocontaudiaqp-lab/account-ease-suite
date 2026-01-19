@@ -86,6 +86,7 @@ interface SupervisorProfile {
   full_name: string | null;
   email: string;
   puesto: string | null;
+  asignar_supervision: boolean;
 }
 
 interface WorkFlowModalProps {
@@ -114,8 +115,7 @@ const roleColors: Record<string, string> = {
   administrador: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
 };
 
-// Puestos excluidos para supervisión (solo estos roles NO pueden supervisar)
-const PUESTOS_EXCLUIDOS_SUPERVISION = ["Asistente Contable", "Practicante", "Auxiliar Contable"];
+// Ya no usamos exclusión por puesto, ahora usamos el campo asignar_supervision
 
 export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFlowModalProps) {
   const [loading, setLoading] = useState(false);
@@ -169,16 +169,12 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, email, puesto")
-        .not("puesto", "is", null);
+        .select("id, full_name, email, puesto, asignar_supervision")
+        .eq("asignar_supervision", true);
 
       if (error) throw error;
 
-      // Filtrar solo personal que NO tenga los puestos excluidos
-      const supervisoresValidos = (data || []).filter(
-        p => p.puesto && !PUESTOS_EXCLUIDOS_SUPERVISION.includes(p.puesto)
-      );
-      setSupervisores(supervisoresValidos);
+      setSupervisores(data || []);
     } catch (error) {
       console.error("Error loading supervisores:", error);
     }

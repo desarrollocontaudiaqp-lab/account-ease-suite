@@ -128,6 +128,7 @@ const Usuarios = () => {
           phone: profile.phone,
           created_at: profile.created_at,
           has_user: hasUser,
+          asignar_supervision: (profile as any).asignar_supervision || false,
         });
       });
 
@@ -260,7 +261,7 @@ const Usuarios = () => {
   };
 
   // Personal handlers
-  const handleCreatePersonal = async (data: { dni: string; full_name: string; puesto: string; email: string; phone: string }) => {
+  const handleCreatePersonal = async (data: { dni: string; full_name: string; puesto: string; email: string; phone: string; asignar_supervision: boolean }) => {
     setActionLoading(true);
     try {
       // Generate a unique ID for the personal (since they won't have an auth user)
@@ -273,6 +274,7 @@ const Usuarios = () => {
           phone: data.phone,
           dni: data.dni,
           puesto: data.puesto,
+          asignar_supervision: data.asignar_supervision,
         });
 
       if (error) throw error;
@@ -292,7 +294,7 @@ const Usuarios = () => {
     }
   };
 
-  const handleEditPersonal = async (id: string, data: { dni: string; full_name: string; puesto: string; email: string; phone: string }) => {
+  const handleEditPersonal = async (id: string, data: { dni: string; full_name: string; puesto: string; email: string; phone: string; asignar_supervision: boolean }) => {
     setActionLoading(true);
     try {
       const { error } = await supabase
@@ -303,6 +305,7 @@ const Usuarios = () => {
           phone: data.phone,
           dni: data.dni,
           puesto: data.puesto,
+          asignar_supervision: data.asignar_supervision,
         })
         .eq('id', id);
 
