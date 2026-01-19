@@ -17,6 +17,7 @@ import {
   Target,
   Users,
   RefreshCw,
+  Workflow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
+import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
 
 interface ContratoAsignado {
   id: string;
@@ -141,9 +143,11 @@ const Asignaciones = () => {
   const [reasignDialogOpen, setReasignDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
   const [selectedContrato, setSelectedContrato] = useState<ContratoAsignado | null>(null);
   const [selectedCarteraId, setSelectedCarteraId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [selectedCarteraMiembros, setSelectedCarteraMiembros] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -366,6 +370,18 @@ const Asignaciones = () => {
   const openEditDialog = (contrato: ContratoAsignado) => {
     setSelectedContrato(contrato);
     setEditDialogOpen(true);
+  };
+
+  const openWorkflowModal = (contrato: ContratoAsignado) => {
+    setSelectedContrato(contrato);
+    // Find the cartera members for this contract
+    if (contrato.cartera) {
+      const cartera = carteras.find(c => c.id === contrato.cartera?.id);
+      setSelectedCarteraMiembros(cartera?.miembros || []);
+    } else {
+      setSelectedCarteraMiembros([]);
+    }
+    setWorkflowModalOpen(true);
   };
 
   const getInitials = (name: string | null | undefined) => {
@@ -642,6 +658,16 @@ const Asignaciones = () => {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 text-primary hover:text-primary"
+                            onClick={() => openWorkflowModal(contrato)}
+                            title="WorkFlow"
+                            disabled={!contrato.cartera}
+                          >
+                            <Workflow className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-8 w-8"
                             onClick={() => openReasignDialog(contrato)}
                             title="Reasignar cartera"
@@ -855,6 +881,28 @@ const Asignaciones = () => {
           onOpenChange={setEditDialogOpen}
           contractId={selectedContrato.id}
           onSuccess={fetchData}
+        />
+      )}
+
+      {/* WorkFlow Modal */}
+      {selectedContrato && selectedContrato.cartera && (
+        <WorkFlowModal
+          open={workflowModalOpen}
+          onOpenChange={setWorkflowModalOpen}
+          contrato={{
+            id: selectedContrato.id,
+            numero: selectedContrato.numero,
+            descripcion: selectedContrato.descripcion,
+            tipo_servicio: selectedContrato.tipo_servicio,
+            fecha_inicio: selectedContrato.fecha_inicio,
+            fecha_fin: selectedContrato.fecha_fin,
+            cliente: {
+              razon_social: selectedContrato.cliente.razon_social,
+              codigo: selectedContrato.cliente.codigo,
+            },
+            cartera: selectedContrato.cartera,
+          }}
+          miembros={selectedCarteraMiembros}
         />
       )}
     </div>
