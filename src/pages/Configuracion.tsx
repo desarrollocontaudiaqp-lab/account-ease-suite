@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard, Percent, DollarSign, FileSignature } from "lucide-react";
+import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard, Percent, DollarSign, FileSignature, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { ContratoSecuenciasManager } from "@/components/configuracion/ContratoSe
 import { ImportServiciosDialog } from "@/components/configuracion/ImportServiciosDialog";
 import { DocumentosPagoManager } from "@/components/configuracion/DocumentosPagoManager";
 import { MetodosPagoManager } from "@/components/configuracion/MetodosPagoManager";
+import { CalendarioPagosConfig } from "@/components/configuracion/CalendarioPagosConfig";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
 import {
@@ -91,6 +92,10 @@ const Configuracion = () => {
           <TabsTrigger value="pagos" className="gap-2">
             <CreditCard className="h-4 w-4" />
             Pagos
+          </TabsTrigger>
+          <TabsTrigger value="calendario-pagos" className="gap-2">
+            <CalendarClock className="h-4 w-4" />
+            Calendario Pagos
           </TabsTrigger>
           <TabsTrigger value="notificaciones" className="gap-2">
             <Bell className="h-4 w-4" />
@@ -227,6 +232,11 @@ const Configuracion = () => {
             <DocumentosPagoManager />
             <MetodosPagoManager />
           </div>
+        </TabsContent>
+
+        {/* Calendario de Pagos Tab */}
+        <TabsContent value="calendario-pagos">
+          <CalendarioPagosConfig />
         </TabsContent>
 
         {/* Notificaciones Tab */}

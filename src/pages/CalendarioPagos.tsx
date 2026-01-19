@@ -17,6 +17,9 @@ import {
   TrendingUp,
   Building2,
   FileText,
+  LayoutList,
+  CalendarDays,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,8 +56,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PaymentCalendarView } from "@/components/calendario-pagos/PaymentCalendarView";
+import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
 
 interface Payment {
   id: string;
@@ -127,6 +133,7 @@ export default function CalendarioPagos() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [sourceFilter, setSourceFilter] = useState<string>("todos");
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   const [stats, setStats] = useState<PaymentStats>({
     total: 0,
     pendientes: 0,
@@ -137,6 +144,8 @@ export default function CalendarioPagos() {
     montoPagado: 0,
     montoProyectado: 0,
   });
+
+  const { getPaymentNotificationStatus } = usePaymentNotifications();
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -402,6 +411,20 @@ export default function CalendarioPagos() {
             Gestiona y da seguimiento a los pagos de los contratos
           </p>
         </div>
+        
+        {/* View Toggle */}
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "calendar")}>
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="table" className="gap-2">
+              <LayoutList className="h-4 w-4" />
+              Tabla
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Calendario
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Stats Cards */}
@@ -519,126 +542,164 @@ export default function CalendarioPagos() {
         </CardContent>
       </Card>
 
-      {/* Payments Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Calendario de Pagos Consolidado
-            <Badge variant="secondary" className="ml-2">
-              {filteredPayments.length}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filteredPayments.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No hay pagos registrados</p>
-              <p className="text-sm">Los pagos se generan automáticamente al aprobar un contrato</p>
-            </div>
-          ) : (
-            <div className="border rounded-md overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Contrato</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Servicio / Cuota</TableHead>
-                    <TableHead>Vencimiento</TableHead>
-                    <TableHead className="text-right">Monto</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Fecha Pago</TableHead>
-                    <TableHead className="w-[100px]">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPayments.map((payment) => {
-                    const StatusIcon = statusConfig[payment.status]?.icon || Clock;
-                    return (
-                      <TableRow key={payment.id} className={payment.isProjected ? "bg-muted/30" : ""}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {payment.isProjected && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200">
-                                Proy.
-                              </Badge>
-                            )}
-                            {payment.contrato?.numero}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="text-sm">
-                              {payment.contrato?.cliente?.razon_social}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {payment.contrato?.cliente?.codigo}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="text-sm truncate max-w-[150px]" title={payment.servicio || "-"}>
-                              {payment.servicio || "-"}
-                            </span>
-                            {payment.cuota && (
-                              <span className="text-xs text-muted-foreground">
-                                Cuota {payment.cuota}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(payment.fecha_vencimiento), "dd MMM yyyy", { locale: es })}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(payment.monto, payment.contrato?.moneda)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={`gap-1 ${statusConfig[payment.status]?.color}`}
-                          >
-                            <StatusIcon className="h-3 w-3" />
-                            {statusConfig[payment.status]?.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {payment.fecha_pago
-                            ? format(new Date(payment.fecha_pago), "dd MMM yyyy", { locale: es })
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                •••
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewDetail(payment)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                Ver Detalle
-                              </DropdownMenuItem>
-                              {!payment.isProjected && (
-                                <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Editar Pago
-                                </DropdownMenuItem>
+      {/* Content based on view mode */}
+      {viewMode === "calendar" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5" />
+              Vista Calendario
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PaymentCalendarView
+              payments={filteredPayments}
+              onPaymentClick={handleViewDetail}
+              formatCurrency={formatCurrency}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        /* Payments Table */
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Calendario de Pagos Consolidado
+              <Badge variant="secondary" className="ml-2">
+                {filteredPayments.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredPayments.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No hay pagos registrados</p>
+                <p className="text-sm">Los pagos se generan automáticamente al aprobar un contrato</p>
+              </div>
+            ) : (
+              <div className="border rounded-md overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Contrato</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Servicio / Cuota</TableHead>
+                      <TableHead>Vencimiento</TableHead>
+                      <TableHead className="text-right">Monto</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Fecha Pago</TableHead>
+                      <TableHead className="w-[100px]">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPayments.map((payment) => {
+                      const StatusIcon = statusConfig[payment.status]?.icon || Clock;
+                      const notifStatus = getPaymentNotificationStatus(
+                        payment.fecha_vencimiento,
+                        payment.status
+                      );
+                      
+                      return (
+                        <TableRow 
+                          key={payment.id} 
+                          className={payment.isProjected ? "bg-muted/30" : ""}
+                          style={
+                            notifStatus.shouldNotify
+                              ? { borderLeft: `4px solid ${notifStatus.color}` }
+                              : undefined
+                          }
+                        >
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {notifStatus.shouldNotify && (
+                                <Bell
+                                  className="h-4 w-4 flex-shrink-0"
+                                  style={{ color: notifStatus.color }}
+                                />
                               )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                              {payment.isProjected && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200">
+                                  Proy.
+                                </Badge>
+                              )}
+                              {payment.contrato?.numero}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-sm">
+                                {payment.contrato?.cliente?.razon_social}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {payment.contrato?.cliente?.codigo}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-sm truncate max-w-[150px]" title={payment.servicio || "-"}>
+                                {payment.servicio || "-"}
+                              </span>
+                              {payment.cuota && (
+                                <span className="text-xs text-muted-foreground">
+                                  Cuota {payment.cuota}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(payment.fecha_vencimiento), "dd MMM yyyy", { locale: es })}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(payment.monto, payment.contrato?.moneda)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`gap-1 ${statusConfig[payment.status]?.color}`}
+                            >
+                              <StatusIcon className="h-3 w-3" />
+                              {statusConfig[payment.status]?.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {payment.fecha_pago
+                              ? format(new Date(payment.fecha_pago), "dd MMM yyyy", { locale: es })
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  •••
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleViewDetail(payment)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver Detalle
+                                </DropdownMenuItem>
+                                {!payment.isProjected && (
+                                  <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Editar Pago
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit Payment Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
@@ -769,6 +830,32 @@ export default function CalendarioPagos() {
                   </p>
                 </div>
               )}
+
+              {(() => {
+                const notifStatus = getPaymentNotificationStatus(
+                  detailPayment.fecha_vencimiento,
+                  detailPayment.status
+                );
+                if (notifStatus.shouldNotify) {
+                  return (
+                    <div 
+                      className="border rounded-md p-3 flex items-center gap-2"
+                      style={{ 
+                        backgroundColor: `${notifStatus.color}15`,
+                        borderColor: notifStatus.color 
+                      }}
+                    >
+                      <Bell className="h-4 w-4" style={{ color: notifStatus.color }} />
+                      <p className="text-sm" style={{ color: notifStatus.color }}>
+                        {notifStatus.type === "before_due" 
+                          ? "Este pago está próximo a vencer" 
+                          : "Este pago está vencido"}
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               <Separator />
 
