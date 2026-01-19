@@ -102,6 +102,8 @@ interface Profile {
   email: string;
   phone?: string | null;
   role?: AppRole;
+  puesto?: string | null;
+  asignar_supervision?: boolean;
 }
 
 interface CarteraStats {
@@ -215,10 +217,10 @@ const Carteras = () => {
   };
 
   const fetchProfiles = async () => {
-    // Fetch profiles
+    // Fetch profiles with puesto and asignar_supervision
     const { data: profilesData } = await supabase
       .from("profiles")
-      .select("id, full_name, email, phone")
+      .select("id, full_name, email, phone, puesto, asignar_supervision")
       .order("full_name");
 
     // Fetch roles
@@ -337,10 +339,24 @@ const Carteras = () => {
 
     setSaving(true);
 
+    // Get the selected profile to check asignar_supervision and puesto
+    const selectedProfile = profiles.find(p => p.id === memberForm.user_id);
+    
+    // Determine the role based on asignar_supervision and puesto
+    let rolEnCartera = memberForm.rol_en_cartera;
+    if (selectedProfile?.asignar_supervision) {
+      // Check if puesto is "Gerente" for "Supervisión Gerencial"
+      if (selectedProfile.puesto?.toLowerCase() === "gerente") {
+        rolEnCartera = "Supervisión Gerencial";
+      } else {
+        rolEnCartera = "Supervisión";
+      }
+    }
+
     const { error } = await supabase.from("cartera_miembros").insert({
       cartera_id: selectedCartera.id,
       user_id: memberForm.user_id,
-      rol_en_cartera: memberForm.rol_en_cartera,
+      rol_en_cartera: rolEnCartera,
     });
 
     if (error) {
