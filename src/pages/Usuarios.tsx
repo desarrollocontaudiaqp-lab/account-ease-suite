@@ -292,13 +292,14 @@ const Usuarios = () => {
     }
   };
 
-  const handleEditPersonal = async (id: string, data: { dni: string; full_name: string; puesto: string; phone: string }) => {
+  const handleEditPersonal = async (id: string, data: { dni: string; full_name: string; puesto: string; email: string; phone: string }) => {
     setActionLoading(true);
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: data.full_name,
+          email: data.email,
           phone: data.phone,
           dni: data.dni,
           puesto: data.puesto,
