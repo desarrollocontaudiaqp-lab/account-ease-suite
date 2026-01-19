@@ -52,6 +52,7 @@ interface WorkFlowItem {
   orden: number;
   conexiones?: string[];
   subColumna?: number; // For proceso items: 0, 1, or 2
+  parentId?: string; // For inputs: links to actividad; for tareas: links to input
 }
 
 interface MiembroCartera {
@@ -223,6 +224,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         orden: item.orden,
         conexiones: item.conexiones || null,
         subColumna: item.subColumna ?? null,
+        parentId: item.parentId || null,
       }));
       
       const { error } = await supabase
@@ -245,7 +247,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     setSaving(false);
   };
 
-  const addItem = (tipo: string, rol?: string, subColumna?: number) => {
+  const addItem = (tipo: string, rol?: string, subColumna?: number, parentId?: string) => {
     if (!newItemTitle.trim()) {
       toast.error("Ingresa un título");
       return;
@@ -256,9 +258,10 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
       tipo: tipo as any,
       titulo: newItemTitle,
       completado: false,
-      orden: items.filter(i => i.tipo === tipo && i.rol === rol).length,
+      orden: items.filter(i => i.tipo === tipo && i.rol === rol && i.parentId === parentId).length,
       rol,
       subColumna,
+      parentId,
     };
 
     setItems([...items, newItem]);
@@ -327,13 +330,24 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     return miembros.filter(m => m.rol_en_cartera.toLowerCase() === rol.toLowerCase());
   };
 
-  const getItemsByTipo = (tipo: string) => {
-    return items.filter(item => item.tipo === tipo).sort((a, b) => a.orden - b.orden);
+  const getItemsByTipo = (tipo: string, parentId?: string) => {
+    return items.filter(item => item.tipo === tipo && item.parentId === parentId).sort((a, b) => a.orden - b.orden);
   };
 
-  const getItemsBySubColumna = (subColumna: number) => {
-    return items.filter(item => item.tipo === "tarea" && item.subColumna === subColumna)
+  const getItemsBySubColumna = (subColumna: number, parentId?: string) => {
+    return items.filter(item => item.tipo === "tarea" && item.subColumna === subColumna && item.parentId === parentId)
       .sort((a, b) => a.orden - b.orden);
+  };
+
+  // Get inputs for an activity
+  const getInputsForActivity = (activityId: string) => {
+    return items.filter(item => item.tipo === "input" && item.parentId === activityId)
+      .sort((a, b) => a.orden - b.orden);
+  };
+
+  // Get all activities
+  const getActividades = () => {
+    return items.filter(item => item.tipo === "actividad").sort((a, b) => a.orden - b.orden);
   };
 
   const setItemRef = useCallback((id: string, el: HTMLDivElement | null) => {
@@ -615,57 +629,345 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid h-full" style={{ gridTemplateColumns: `1fr 1fr ${subColumnCount}fr 1fr 1fr` }}>
-            {/* Actividades Column */}
-            <div className="border-r p-3 bg-sky-50/50 dark:bg-sky-950/20">
-              <ScrollArea className="h-full">
-                <div className="space-y-2">
-                  {getItemsByTipo("actividad").map(item => (
-                    <WorkFlowItemCard
-                      key={item.id}
-                      item={item}
-                      onToggle={() => toggleComplete(item.id)}
-                      onDelete={() => deleteItem(item.id)}
-                      onEdit={() => setEditingItem(item.id)}
-                      isEditing={editingItem === item.id}
-                      onSaveEdit={(title) => {
-                        updateItem(item.id, { titulo: title });
-                        setEditingItem(null);
-                      }}
-                      onCancelEdit={() => setEditingItem(null)}
-                      variant="oval"
-                      onStartConnection={() => startConnection(item.id)}
-                      onCompleteConnection={() => completeConnection(item.id)}
-                      isConnecting={!!connectingFrom}
-                      isConnectingFrom={connectingFrom === item.id}
-                      onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
-                      hasConnections={(item.conexiones?.length || 0) > 0}
-                      setRef={(el) => setItemRef(item.id, el)}
-                      connectionLabels={getConnectionLabels(item.id)}
-                    />
-                  ))}
+          <ScrollArea className="h-full">
+            <div className="min-h-full">
+              {/* Row-based layout: Each activity creates a row group */}
+              {getActividades().map((actividad, actIndex) => {
+                const inputsForActivity = getInputsForActivity(actividad.id);
+                
+                return (
+                  <div key={actividad.id} className="relative">
+                    {/* Activity Row */}
+                    <div className="grid" style={{ gridTemplateColumns: `1fr 1fr ${subColumnCount}fr 1fr 1fr` }}>
+                      {/* Actividad Cell */}
+                      <div className="border-r p-2 bg-sky-50/50 dark:bg-sky-950/20 min-h-[70px]">
+                        <WorkFlowItemCard
+                          item={actividad}
+                          onToggle={() => toggleComplete(actividad.id)}
+                          onDelete={() => deleteItem(actividad.id)}
+                          onEdit={() => setEditingItem(actividad.id)}
+                          isEditing={editingItem === actividad.id}
+                          onSaveEdit={(title) => {
+                            updateItem(actividad.id, { titulo: title });
+                            setEditingItem(null);
+                          }}
+                          onCancelEdit={() => setEditingItem(null)}
+                          variant="oval"
+                          onStartConnection={() => startConnection(actividad.id)}
+                          onCompleteConnection={() => completeConnection(actividad.id)}
+                          isConnecting={!!connectingFrom}
+                          isConnectingFrom={connectingFrom === actividad.id}
+                          onRemoveConnections={() => updateItem(actividad.id, { conexiones: [] })}
+                          hasConnections={(actividad.conexiones?.length || 0) > 0}
+                          setRef={(el) => setItemRef(actividad.id, el)}
+                          connectionLabels={getConnectionLabels(actividad.id)}
+                        />
+                      </div>
+                      {/* Empty Input Cell for Activity Row */}
+                      <div className="border-r bg-emerald-50/50 dark:bg-emerald-950/20 min-h-[70px]" />
+                      {/* Empty Proceso Cells */}
+                      <div className="border-r bg-amber-50/50 dark:bg-amber-950/20 min-h-[70px]">
+                        <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${subColumnCount}, 1fr)` }}>
+                          {uniqueRoles.map((_, idx) => (
+                            <div key={idx} className="border-r last:border-r-0" />
+                          ))}
+                        </div>
+                      </div>
+                      {/* Empty Output Cell */}
+                      <div className="border-r bg-purple-50/50 dark:bg-purple-950/20 min-h-[70px]" />
+                      {/* Empty Supervision Cell */}
+                      <div className="bg-red-50/50 dark:bg-red-950/20 min-h-[70px]" />
+                    </div>
+
+                    {/* Input Rows for this Activity */}
+                    {inputsForActivity.map((input, inputIndex) => {
+                      return (
+                        <div key={input.id} className="grid" style={{ gridTemplateColumns: `1fr 1fr ${subColumnCount}fr 1fr 1fr` }}>
+                          {/* Empty Actividad Cell */}
+                          <div className="border-r bg-sky-50/50 dark:bg-sky-950/20 min-h-[70px]" />
+                          {/* Input Cell */}
+                          <div className="border-r p-2 bg-emerald-50/50 dark:bg-emerald-950/20 min-h-[70px]">
+                            <WorkFlowItemCard
+                              item={input}
+                              onToggle={() => toggleComplete(input.id)}
+                              onDelete={() => deleteItem(input.id)}
+                              onEdit={() => setEditingItem(input.id)}
+                              isEditing={editingItem === input.id}
+                              onSaveEdit={(title) => {
+                                updateItem(input.id, { titulo: title });
+                                setEditingItem(null);
+                              }}
+                              onCancelEdit={() => setEditingItem(null)}
+                              variant="diamond"
+                              onStartConnection={() => startConnection(input.id)}
+                              onCompleteConnection={() => completeConnection(input.id)}
+                              isConnecting={!!connectingFrom}
+                              isConnectingFrom={connectingFrom === input.id}
+                              onRemoveConnections={() => updateItem(input.id, { conexiones: [] })}
+                              hasConnections={(input.conexiones?.length || 0) > 0}
+                              setRef={(el) => setItemRef(input.id, el)}
+                              connectionLabels={getConnectionLabels(input.id)}
+                            />
+                          </div>
+                          {/* Proceso Cells for this Input */}
+                          <div className="border-r bg-amber-50/50 dark:bg-amber-950/20 min-h-[70px]">
+                            <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${subColumnCount}, 1fr)` }}>
+                              {uniqueRoles.map((rol, subColIndex) => {
+                                const rolMiembros = getMiembrosByRol(rol);
+                                const tareasForInput = getItemsBySubColumna(subColIndex, input.id);
+                                
+                                return (
+                                  <div key={rol} className="border-r last:border-r-0 p-1">
+                                    <div className="space-y-1">
+                                      {tareasForInput.map(tarea => (
+                                        <WorkFlowItemCard
+                                          key={tarea.id}
+                                          item={tarea}
+                                          onToggle={() => toggleComplete(tarea.id)}
+                                          onDelete={() => deleteItem(tarea.id)}
+                                          onEdit={() => setEditingItem(tarea.id)}
+                                          isEditing={editingItem === tarea.id}
+                                          onSaveEdit={(title) => {
+                                            updateItem(tarea.id, { titulo: title });
+                                            setEditingItem(null);
+                                          }}
+                                          onCancelEdit={() => setEditingItem(null)}
+                                          variant="default"
+                                          miembros={rolMiembros}
+                                          selectedAsignado={tarea.asignado_a}
+                                          onAsignar={(userId) => updateItem(tarea.id, { asignado_a: userId })}
+                                          onStartConnection={() => startConnection(tarea.id)}
+                                          onCompleteConnection={() => completeConnection(tarea.id)}
+                                          isConnecting={!!connectingFrom}
+                                          isConnectingFrom={connectingFrom === tarea.id}
+                                          onRemoveConnections={() => updateItem(tarea.id, { conexiones: [] })}
+                                          hasConnections={(tarea.conexiones?.length || 0) > 0}
+                                          setRef={(el) => setItemRef(tarea.id, el)}
+                                          connectionLabels={getConnectionLabels(tarea.id)}
+                                        />
+                                      ))}
+                                      {newItemColumn === `tarea-${subColIndex}-${input.id}` ? (
+                                        <div className="flex gap-1">
+                                          <Input
+                                            value={newItemTitle}
+                                            onChange={(e) => setNewItemTitle(e.target.value)}
+                                            placeholder="Nueva tarea..."
+                                            className="h-6 text-[10px]"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === "Enter") addItem("tarea", rol, subColIndex, input.id);
+                                              if (e.key === "Escape") setNewItemColumn(null);
+                                            }}
+                                          />
+                                          <Button size="sm" className="h-6 px-1" onClick={() => addItem("tarea", rol, subColIndex, input.id)}>
+                                            <Plus className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="w-full justify-center gap-1 text-muted-foreground text-[10px] h-5"
+                                          onClick={() => setNewItemColumn(`tarea-${subColIndex}-${input.id}`)}
+                                        >
+                                          <Plus className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {/* Output Cell for this row */}
+                          <div className="border-r p-2 bg-purple-50/50 dark:bg-purple-950/20 min-h-[70px]">
+                            {getItemsByTipo("output", input.id).map(output => (
+                              <WorkFlowItemCard
+                                key={output.id}
+                                item={output}
+                                onToggle={() => toggleComplete(output.id)}
+                                onDelete={() => deleteItem(output.id)}
+                                onEdit={() => setEditingItem(output.id)}
+                                isEditing={editingItem === output.id}
+                                onSaveEdit={(title) => {
+                                  updateItem(output.id, { titulo: title });
+                                  setEditingItem(null);
+                                }}
+                                onCancelEdit={() => setEditingItem(null)}
+                                variant="rounded"
+                                onStartConnection={() => startConnection(output.id)}
+                                onCompleteConnection={() => completeConnection(output.id)}
+                                isConnecting={!!connectingFrom}
+                                isConnectingFrom={connectingFrom === output.id}
+                                onRemoveConnections={() => updateItem(output.id, { conexiones: [] })}
+                                hasConnections={(output.conexiones?.length || 0) > 0}
+                                setRef={(el) => setItemRef(output.id, el)}
+                                connectionLabels={getConnectionLabels(output.id)}
+                              />
+                            ))}
+                            {newItemColumn === `output-${input.id}` ? (
+                              <div className="flex gap-1 mt-1">
+                                <Input
+                                  value={newItemTitle}
+                                  onChange={(e) => setNewItemTitle(e.target.value)}
+                                  placeholder="Entregable..."
+                                  className="h-6 text-[10px]"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") addItem("output", undefined, undefined, input.id);
+                                    if (e.key === "Escape") setNewItemColumn(null);
+                                  }}
+                                />
+                                <Button size="sm" className="h-6 px-1" onClick={() => addItem("output", undefined, undefined, input.id)}>
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-center gap-1 text-muted-foreground text-[10px] h-5 mt-1"
+                                onClick={() => setNewItemColumn(`output-${input.id}`)}
+                              >
+                                <Plus className="h-3 w-3" />
+                                Agregar
+                              </Button>
+                            )}
+                          </div>
+                          {/* Supervision Cell for this row */}
+                          <div className="p-2 bg-red-50/50 dark:bg-red-950/20 min-h-[70px]">
+                            {getItemsByTipo("supervision", input.id).map(supervision => (
+                              <WorkFlowItemCard
+                                key={supervision.id}
+                                item={supervision}
+                                onToggle={() => toggleComplete(supervision.id)}
+                                onDelete={() => deleteItem(supervision.id)}
+                                onEdit={() => setEditingItem(supervision.id)}
+                                isEditing={editingItem === supervision.id}
+                                onSaveEdit={(title) => {
+                                  updateItem(supervision.id, { titulo: title });
+                                  setEditingItem(null);
+                                }}
+                                onCancelEdit={() => setEditingItem(null)}
+                                variant="oval"
+                                supervisores={supervisores}
+                                selectedAsignado={supervision.asignado_a}
+                                onAsignar={(userId) => updateItem(supervision.id, { asignado_a: userId })}
+                                onStartConnection={() => startConnection(supervision.id)}
+                                onCompleteConnection={() => completeConnection(supervision.id)}
+                                isConnecting={!!connectingFrom}
+                                isConnectingFrom={connectingFrom === supervision.id}
+                                onRemoveConnections={() => updateItem(supervision.id, { conexiones: [] })}
+                                hasConnections={(supervision.conexiones?.length || 0) > 0}
+                                setRef={(el) => setItemRef(supervision.id, el)}
+                                connectionLabels={getConnectionLabels(supervision.id)}
+                              />
+                            ))}
+                            {newItemColumn === `supervision-${input.id}` ? (
+                              <div className="flex gap-1 mt-1">
+                                <Input
+                                  value={newItemTitle}
+                                  onChange={(e) => setNewItemTitle(e.target.value)}
+                                  placeholder="Supervisión..."
+                                  className="h-6 text-[10px]"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") addItem("supervision", undefined, undefined, input.id);
+                                    if (e.key === "Escape") setNewItemColumn(null);
+                                  }}
+                                />
+                                <Button size="sm" className="h-6 px-1" onClick={() => addItem("supervision", undefined, undefined, input.id)}>
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-center gap-1 text-muted-foreground text-[10px] h-5 mt-1"
+                                onClick={() => setNewItemColumn(`supervision-${input.id}`)}
+                              >
+                                <Plus className="h-3 w-3" />
+                                Agregar
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Add Input Button Row */}
+                    <div className="grid" style={{ gridTemplateColumns: `1fr 1fr ${subColumnCount}fr 1fr 1fr` }}>
+                      <div className="border-r bg-sky-50/50 dark:bg-sky-950/20 min-h-[40px]" />
+                      <div className="border-r p-2 bg-emerald-50/50 dark:bg-emerald-950/20 min-h-[40px]">
+                        {newItemColumn === `input-${actividad.id}` ? (
+                          <div className="flex gap-1">
+                            <Input
+                              value={newItemTitle}
+                              onChange={(e) => setNewItemTitle(e.target.value)}
+                              placeholder="Nuevo input..."
+                              className="h-6 text-[10px]"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") addItem("input", undefined, undefined, actividad.id);
+                                if (e.key === "Escape") setNewItemColumn(null);
+                              }}
+                            />
+                            <Button size="sm" className="h-6 px-1" onClick={() => addItem("input", undefined, undefined, actividad.id)}>
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start gap-1 text-muted-foreground text-xs h-6"
+                            onClick={() => setNewItemColumn(`input-${actividad.id}`)}
+                          >
+                            <Plus className="h-3 w-3" />
+                            Agregar
+                          </Button>
+                        )}
+                      </div>
+                      <div className="border-r bg-amber-50/50 dark:bg-amber-950/20 min-h-[40px]">
+                        <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${subColumnCount}, 1fr)` }}>
+                          {uniqueRoles.map((_, idx) => (
+                            <div key={idx} className="border-r last:border-r-0" />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="border-r bg-purple-50/50 dark:bg-purple-950/20 min-h-[40px]" />
+                      <div className="bg-red-50/50 dark:bg-red-950/20 min-h-[40px]" />
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add Activity Button Row */}
+              <div className="grid border-t" style={{ gridTemplateColumns: `1fr 1fr ${subColumnCount}fr 1fr 1fr` }}>
+                <div className="border-r p-2 bg-sky-50/50 dark:bg-sky-950/20 min-h-[50px]">
                   {newItemColumn === "actividad" ? (
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
                       <Input
                         value={newItemTitle}
                         onChange={(e) => setNewItemTitle(e.target.value)}
                         placeholder="Nueva actividad..."
-                        className="h-8 text-sm"
+                        className="h-7 text-xs"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === "Enter") addItem("actividad");
                           if (e.key === "Escape") setNewItemColumn(null);
                         }}
                       />
-                      <Button size="sm" className="h-8" onClick={() => addItem("actividad")}>
-                        <Plus className="h-4 w-4" />
+                      <Button size="sm" className="h-7 px-2" onClick={() => addItem("actividad")}>
+                        <Plus className="h-3 w-3" />
                       </Button>
                     </div>
                   ) : (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full justify-start gap-2 text-muted-foreground"
+                      className="w-full justify-start gap-1 text-muted-foreground"
                       onClick={() => setNewItemColumn("actividad")}
                     >
                       <Plus className="h-4 w-4" />
@@ -673,265 +975,19 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                     </Button>
                   )}
                 </div>
-              </ScrollArea>
-            </div>
-
-            {/* Inputs Column */}
-            <div className="border-r p-3 bg-emerald-50/50 dark:bg-emerald-950/20">
-              <ScrollArea className="h-full">
-                <div className="space-y-2">
-                  {getItemsByTipo("input").map(item => (
-                    <WorkFlowItemCard
-                      key={item.id}
-                      item={item}
-                      onToggle={() => toggleComplete(item.id)}
-                      onDelete={() => deleteItem(item.id)}
-                      onEdit={() => setEditingItem(item.id)}
-                      isEditing={editingItem === item.id}
-                      onSaveEdit={(title) => {
-                        updateItem(item.id, { titulo: title });
-                        setEditingItem(null);
-                      }}
-                      onCancelEdit={() => setEditingItem(null)}
-                      variant="diamond"
-                      onStartConnection={() => startConnection(item.id)}
-                      onCompleteConnection={() => completeConnection(item.id)}
-                      isConnecting={!!connectingFrom}
-                      isConnectingFrom={connectingFrom === item.id}
-                      onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
-                      hasConnections={(item.conexiones?.length || 0) > 0}
-                      setRef={(el) => setItemRef(item.id, el)}
-                      connectionLabels={getConnectionLabels(item.id)}
-                    />
-                  ))}
-                  {newItemColumn === "input" ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={newItemTitle}
-                        onChange={(e) => setNewItemTitle(e.target.value)}
-                        placeholder="Nuevo input..."
-                        className="h-8 text-sm"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") addItem("input");
-                          if (e.key === "Escape") setNewItemColumn(null);
-                        }}
-                      />
-                      <Button size="sm" className="h-8" onClick={() => addItem("input")}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start gap-2 text-muted-foreground"
-                      onClick={() => setNewItemColumn("input")}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Agregar
-                    </Button>
-                  )}
+                <div className="border-r bg-emerald-50/50 dark:bg-emerald-950/20 min-h-[50px]" />
+                <div className="border-r bg-amber-50/50 dark:bg-amber-950/20 min-h-[50px]">
+                  <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${subColumnCount}, 1fr)` }}>
+                    {uniqueRoles.map((_, idx) => (
+                      <div key={idx} className="border-r last:border-r-0" />
+                    ))}
+                  </div>
                 </div>
-              </ScrollArea>
-            </div>
-
-            {/* Procesos Column - dynamic sub-columns based on member count */}
-            <div className="border-r bg-amber-50/50 dark:bg-amber-950/20">
-              <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${subColumnCount}, 1fr)` }}>
-                {uniqueRoles.map((rol, subColIndex) => {
-                  const rolMiembros = getMiembrosByRol(rol);
-                  const subColItems = getItemsBySubColumna(subColIndex);
-                  
-                  return (
-                    <div key={rol} className="border-r last:border-r-0 p-2">
-                      <ScrollArea className="h-full">
-                        <div className="space-y-2">
-                          {subColItems.map(item => (
-                            <WorkFlowItemCard
-                              key={item.id}
-                              item={item}
-                              onToggle={() => toggleComplete(item.id)}
-                              onDelete={() => deleteItem(item.id)}
-                              onEdit={() => setEditingItem(item.id)}
-                              isEditing={editingItem === item.id}
-                              onSaveEdit={(title) => {
-                                updateItem(item.id, { titulo: title });
-                                setEditingItem(null);
-                              }}
-                              onCancelEdit={() => setEditingItem(null)}
-                              variant="default"
-                              miembros={rolMiembros}
-                              selectedAsignado={item.asignado_a}
-                              onAsignar={(userId) => updateItem(item.id, { asignado_a: userId })}
-                              onStartConnection={() => startConnection(item.id)}
-                              onCompleteConnection={() => completeConnection(item.id)}
-                              isConnecting={!!connectingFrom}
-                              isConnectingFrom={connectingFrom === item.id}
-                              onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
-                              hasConnections={(item.conexiones?.length || 0) > 0}
-                              setRef={(el) => setItemRef(item.id, el)}
-                              connectionLabels={getConnectionLabels(item.id)}
-                            />
-                          ))}
-                          {newItemColumn === `tarea-${subColIndex}` ? (
-                            <div className="flex gap-1">
-                              <Input
-                                value={newItemTitle}
-                                onChange={(e) => setNewItemTitle(e.target.value)}
-                                placeholder="Nueva tarea..."
-                                className="h-7 text-xs"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") addItem("tarea", rol, subColIndex);
-                                  if (e.key === "Escape") setNewItemColumn(null);
-                                }}
-                              />
-                              <Button size="sm" className="h-7 px-2" onClick={() => addItem("tarea", rol, subColIndex)}>
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="w-full justify-center gap-1 text-muted-foreground text-xs h-7"
-                              onClick={() => setNewItemColumn(`tarea-${subColIndex}`)}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  );
-                })}
+                <div className="border-r bg-purple-50/50 dark:bg-purple-950/20 min-h-[50px]" />
+                <div className="bg-red-50/50 dark:bg-red-950/20 min-h-[50px]" />
               </div>
             </div>
-
-            {/* Outputs Column */}
-            <div className="border-r p-3 bg-purple-50/50 dark:bg-purple-950/20">
-              <ScrollArea className="h-full">
-                <div className="space-y-2">
-                  {getItemsByTipo("output").map(item => (
-                    <WorkFlowItemCard
-                      key={item.id}
-                      item={item}
-                      onToggle={() => toggleComplete(item.id)}
-                      onDelete={() => deleteItem(item.id)}
-                      onEdit={() => setEditingItem(item.id)}
-                      isEditing={editingItem === item.id}
-                      onSaveEdit={(title) => {
-                        updateItem(item.id, { titulo: title });
-                        setEditingItem(null);
-                      }}
-                      onCancelEdit={() => setEditingItem(null)}
-                      variant="rounded"
-                      onStartConnection={() => startConnection(item.id)}
-                      onCompleteConnection={() => completeConnection(item.id)}
-                      isConnecting={!!connectingFrom}
-                      isConnectingFrom={connectingFrom === item.id}
-                      onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
-                      hasConnections={(item.conexiones?.length || 0) > 0}
-                      setRef={(el) => setItemRef(item.id, el)}
-                      connectionLabels={getConnectionLabels(item.id)}
-                    />
-                  ))}
-                  {newItemColumn === "output" ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={newItemTitle}
-                        onChange={(e) => setNewItemTitle(e.target.value)}
-                        placeholder="Nuevo producto..."
-                        className="h-8 text-sm"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") addItem("output");
-                          if (e.key === "Escape") setNewItemColumn(null);
-                        }}
-                      />
-                      <Button size="sm" className="h-8" onClick={() => addItem("output")}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start gap-2 text-muted-foreground"
-                      onClick={() => setNewItemColumn("output")}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Agregar
-                    </Button>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-
-            {/* Supervision Column */}
-            <div className="p-3 bg-red-50/50 dark:bg-red-950/20">
-              <ScrollArea className="h-full">
-                <div className="space-y-2">
-                  {getItemsByTipo("supervision").map(item => (
-                    <WorkFlowItemCard
-                      key={item.id}
-                      item={item}
-                      onToggle={() => toggleComplete(item.id)}
-                      onDelete={() => deleteItem(item.id)}
-                      onEdit={() => setEditingItem(item.id)}
-                      isEditing={editingItem === item.id}
-                      onSaveEdit={(title) => {
-                        updateItem(item.id, { titulo: title });
-                        setEditingItem(null);
-                      }}
-                      onCancelEdit={() => setEditingItem(null)}
-                      variant="oval"
-                      supervisores={supervisores}
-                      selectedAsignado={item.asignado_a}
-                      onAsignar={(userId) => updateItem(item.id, { asignado_a: userId })}
-                      onStartConnection={() => startConnection(item.id)}
-                      onCompleteConnection={() => completeConnection(item.id)}
-                      isConnecting={!!connectingFrom}
-                      isConnectingFrom={connectingFrom === item.id}
-                      onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
-                      hasConnections={(item.conexiones?.length || 0) > 0}
-                      setRef={(el) => setItemRef(item.id, el)}
-                      connectionLabels={getConnectionLabels(item.id)}
-                    />
-                  ))}
-                  {newItemColumn === "supervision" ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={newItemTitle}
-                        onChange={(e) => setNewItemTitle(e.target.value)}
-                        placeholder="Nueva supervisión..."
-                        className="h-8 text-sm"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") addItem("supervision");
-                          if (e.key === "Escape") setNewItemColumn(null);
-                        }}
-                      />
-                      <Button size="sm" className="h-8" onClick={() => addItem("supervision")}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start gap-2 text-muted-foreground"
-                      onClick={() => setNewItemColumn("supervision")}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Agregar
-                    </Button>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          </div>
+          </ScrollArea>
         )}
       </div>
 
