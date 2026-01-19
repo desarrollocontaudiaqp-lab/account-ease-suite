@@ -977,28 +977,56 @@ const Carteras = () => {
                   {availableProfiles.map((profile) => (
                     <SelectItem key={profile.id} value={profile.id}>
                       {profile.full_name || profile.email}
+                      {profile.asignar_supervision && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          (Supervisión)
+                        </span>
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Rol en la Cartera</Label>
-              <Select
-                value={memberForm.rol_en_cartera}
-                onValueChange={(value) => setMemberForm((prev) => ({ ...prev, rol_en_cartera: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="asistente">Asistente</SelectItem>
-                  <SelectItem value="auxiliar">Auxiliar</SelectItem>
-                  <SelectItem value="practicante">Practicante</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {(() => {
+              const selectedProfile = profiles.find(p => p.id === memberForm.user_id);
+              const isSupervision = selectedProfile?.asignar_supervision;
+              const supervisionRole = selectedProfile?.puesto?.toLowerCase() === "gerente" 
+                ? "Supervisión Gerencial" 
+                : "Supervisión";
+              
+              return (
+                <div className="space-y-2">
+                  <Label>Rol en la Cartera</Label>
+                  {isSupervision ? (
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        value={supervisionRole} 
+                        disabled 
+                        className="bg-muted"
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        (Asignado automáticamente)
+                      </span>
+                    </div>
+                  ) : (
+                    <Select
+                      value={memberForm.rol_en_cartera}
+                      onValueChange={(value) => setMemberForm((prev) => ({ ...prev, rol_en_cartera: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asistente">Asistente</SelectItem>
+                        <SelectItem value="auxiliar">Auxiliar</SelectItem>
+                        <SelectItem value="practicante">Practicante</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           <DialogFooter>
