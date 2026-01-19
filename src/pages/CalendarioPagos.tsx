@@ -702,20 +702,6 @@ export default function CalendarioPagos() {
                                 </Tooltip>
 
                                 {!payment.isProjected && (
-                                  <>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          onClick={() => handleEditPayment(payment)}
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Editar</TooltipContent>
-                                    </Tooltip>
 
                                     <Tooltip>
                                       <TooltipTrigger asChild>
@@ -736,7 +722,6 @@ export default function CalendarioPagos() {
                                         {payment.status === "pagado" ? "Editar Pago" : "Registrar Pago"}
                                       </TooltipContent>
                                     </Tooltip>
-                                  </>
                                 )}
                               </div>
                             </TooltipProvider>
