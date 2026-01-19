@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -16,6 +16,7 @@ import {
   DollarSign,
   TrendingUp,
   Building2,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,13 +76,40 @@ interface Payment {
   };
 }
 
+// Unified payment item for display (includes both real payments and projected)
+interface UnifiedPayment {
+  id: string;
+  contrato_id: string;
+  monto: number;
+  fecha_vencimiento: string;
+  fecha_pago: string | null;
+  status: "pendiente" | "pagado" | "vencido" | "parcial" | "proyectado";
+  metodo_pago: string | null;
+  referencia: string | null;
+  notas: string | null;
+  servicio: string | null;
+  cuota: number | null;
+  isProjected: boolean;
+  contrato: {
+    numero: string;
+    moneda: string;
+    status: string;
+    cliente: {
+      razon_social: string;
+      codigo: string;
+    };
+  };
+}
+
 interface PaymentStats {
   total: number;
   pendientes: number;
   pagados: number;
   vencidos: number;
+  proyectados: number;
   montoPendiente: number;
   montoPagado: number;
+  montoProyectado: number;
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
@@ -89,25 +117,30 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   pagado: { label: "Pagado", color: "bg-green-100 text-green-800 border-green-200", icon: CheckCircle },
   vencido: { label: "Vencido", color: "bg-red-100 text-red-800 border-red-200", icon: AlertTriangle },
   parcial: { label: "Parcial", color: "bg-blue-100 text-blue-800 border-blue-200", icon: TrendingUp },
+  proyectado: { label: "Proyectado", color: "bg-purple-100 text-purple-800 border-purple-200", icon: FileText },
 };
 
 export default function CalendarioPagos() {
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [realPayments, setRealPayments] = useState<Payment[]>([]);
+  const [unifiedPayments, setUnifiedPayments] = useState<UnifiedPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [sourceFilter, setSourceFilter] = useState<string>("todos");
   const [stats, setStats] = useState<PaymentStats>({
     total: 0,
     pendientes: 0,
     pagados: 0,
     vencidos: 0,
+    proyectados: 0,
     montoPendiente: 0,
     montoPagado: 0,
+    montoProyectado: 0,
   });
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<UnifiedPayment | null>(null);
   const [editForm, setEditForm] = useState({
     status: "",
     fecha_pago: "",
@@ -119,7 +152,7 @@ export default function CalendarioPagos() {
 
   // Detail dialog state
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [detailPayment, setDetailPayment] = useState<Payment | null>(null);
+  const [detailPayment, setDetailPayment] = useState<UnifiedPayment | null>(null);
 
   useEffect(() => {
     fetchPayments();
@@ -128,69 +161,174 @@ export default function CalendarioPagos() {
   const fetchPayments = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
+    // Fetch real payments from pagos table
+    const { data: pagosData, error: pagosError } = await supabase
       .from("pagos")
       .select(`
         *,
         contrato:contratos(
           numero,
           moneda,
+          status,
           cliente:clientes(razon_social, codigo)
         )
       `)
       .order("fecha_vencimiento", { ascending: true });
 
-    if (error) {
-      console.error("Error fetching payments:", error);
+    // Fetch all contracts with their payment schedules
+    const { data: contratosData, error: contratosError } = await supabase
+      .from("contratos")
+      .select(`
+        id,
+        numero,
+        moneda,
+        status,
+        datos_plantilla,
+        cliente:clientes(razon_social, codigo)
+      `)
+      .not("datos_plantilla", "is", null);
+
+    if (pagosError || contratosError) {
+      console.error("Error fetching data:", pagosError || contratosError);
       toast.error("Error al cargar los pagos");
-    } else if (data) {
-      // Check for overdue payments and update status
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const updatedPayments = data.map((payment) => {
-        const dueDate = new Date(payment.fecha_vencimiento);
-        dueDate.setHours(0, 0, 0, 0);
-        
-        if (payment.status === "pendiente" && dueDate < today) {
-          return { ...payment, status: "vencido" as const };
-        }
-        return payment;
-      });
-
-      setPayments(updatedPayments as Payment[]);
-
-      // Calculate stats
-      const statsData: PaymentStats = {
-        total: updatedPayments.length,
-        pendientes: updatedPayments.filter((p) => p.status === "pendiente").length,
-        pagados: updatedPayments.filter((p) => p.status === "pagado").length,
-        vencidos: updatedPayments.filter((p) => p.status === "vencido").length,
-        montoPendiente: updatedPayments
-          .filter((p) => p.status !== "pagado")
-          .reduce((sum, p) => sum + (p.monto || 0), 0),
-        montoPagado: updatedPayments
-          .filter((p) => p.status === "pagado")
-          .reduce((sum, p) => sum + (p.monto || 0), 0),
-      };
-      setStats(statsData);
+      setLoading(false);
+      return;
     }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Process real payments
+    const realPaymentsProcessed: UnifiedPayment[] = (pagosData || []).map((payment) => {
+      const dueDate = new Date(payment.fecha_vencimiento);
+      dueDate.setHours(0, 0, 0, 0);
+      
+      let status = payment.status as UnifiedPayment["status"];
+      if (status === "pendiente" && dueDate < today) {
+        status = "vencido";
+      }
+
+      return {
+        id: payment.id,
+        contrato_id: payment.contrato_id,
+        monto: payment.monto,
+        fecha_vencimiento: payment.fecha_vencimiento,
+        fecha_pago: payment.fecha_pago,
+        status,
+        metodo_pago: payment.metodo_pago,
+        referencia: payment.referencia,
+        notas: payment.notas,
+        servicio: null,
+        cuota: null,
+        isProjected: false,
+        contrato: {
+          numero: payment.contrato?.numero || "",
+          moneda: payment.contrato?.moneda || "PEN",
+          status: payment.contrato?.status || "",
+          cliente: {
+            razon_social: payment.contrato?.cliente?.razon_social || "",
+            codigo: payment.contrato?.cliente?.codigo || "",
+          },
+        },
+      };
+    });
+
+    // Get IDs of contracts that already have real payments
+    const contractsWithRealPayments = new Set(realPaymentsProcessed.map(p => p.contrato_id));
+
+    // Process projected payments from contracts that don't have real payments yet
+    const projectedPayments: UnifiedPayment[] = [];
+    
+    (contratosData || []).forEach((contrato: any) => {
+      // Skip contracts that already have real payments
+      if (contractsWithRealPayments.has(contrato.id)) return;
+      
+      // Skip if no payment schedule
+      const paymentSchedule = contrato.datos_plantilla?.payment_schedule;
+      if (!paymentSchedule || !Array.isArray(paymentSchedule)) return;
+
+      paymentSchedule.forEach((scheduleItem: any, index: number) => {
+        const fechaVencimiento = scheduleItem.fecha ? new Date(scheduleItem.fecha).toISOString().split("T")[0] : null;
+        if (!fechaVencimiento) return;
+
+        projectedPayments.push({
+          id: `proj-${contrato.id}-${index}`,
+          contrato_id: contrato.id,
+          monto: scheduleItem.monto || 0,
+          fecha_vencimiento: fechaVencimiento,
+          fecha_pago: null,
+          status: "proyectado",
+          metodo_pago: null,
+          referencia: null,
+          notas: null,
+          servicio: scheduleItem.servicio || null,
+          cuota: scheduleItem.cuota || index + 1,
+          isProjected: true,
+          contrato: {
+            numero: contrato.numero || "",
+            moneda: contrato.moneda || "PEN",
+            status: contrato.status || "",
+            cliente: {
+              razon_social: contrato.cliente?.razon_social || "",
+              codigo: contrato.cliente?.codigo || "",
+            },
+          },
+        });
+      });
+    });
+
+    // Combine and sort all payments
+    const allPayments = [...realPaymentsProcessed, ...projectedPayments].sort((a, b) => 
+      new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime()
+    );
+
+    setRealPayments(pagosData as Payment[]);
+    setUnifiedPayments(allPayments);
+
+    // Calculate stats
+    const statsData: PaymentStats = {
+      total: allPayments.length,
+      pendientes: allPayments.filter((p) => p.status === "pendiente").length,
+      pagados: allPayments.filter((p) => p.status === "pagado").length,
+      vencidos: allPayments.filter((p) => p.status === "vencido").length,
+      proyectados: allPayments.filter((p) => p.status === "proyectado").length,
+      montoPendiente: allPayments
+        .filter((p) => p.status === "pendiente" || p.status === "vencido")
+        .reduce((sum, p) => sum + (p.monto || 0), 0),
+      montoPagado: allPayments
+        .filter((p) => p.status === "pagado")
+        .reduce((sum, p) => sum + (p.monto || 0), 0),
+      montoProyectado: allPayments
+        .filter((p) => p.status === "proyectado")
+        .reduce((sum, p) => sum + (p.monto || 0), 0),
+    };
+    setStats(statsData);
 
     setLoading(false);
   };
 
-  const filteredPayments = payments.filter((payment) => {
+  const filteredPayments = unifiedPayments.filter((payment) => {
     const matchesSearch =
       payment.contrato?.numero?.toLowerCase().includes(search.toLowerCase()) ||
       payment.contrato?.cliente?.razon_social?.toLowerCase().includes(search.toLowerCase()) ||
-      payment.contrato?.cliente?.codigo?.toLowerCase().includes(search.toLowerCase());
+      payment.contrato?.cliente?.codigo?.toLowerCase().includes(search.toLowerCase()) ||
+      payment.servicio?.toLowerCase().includes(search.toLowerCase());
 
     const matchesStatus = statusFilter === "todos" || payment.status === statusFilter;
+    
+    const matchesSource = 
+      sourceFilter === "todos" || 
+      (sourceFilter === "reales" && !payment.isProjected) ||
+      (sourceFilter === "proyectados" && payment.isProjected);
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesSource;
   });
 
-  const handleEditPayment = (payment: Payment) => {
+  const handleEditPayment = (payment: UnifiedPayment) => {
+    if (payment.isProjected) {
+      toast.info("Los pagos proyectados no se pueden editar. Primero apruebe el contrato.");
+      return;
+    }
     setSelectedPayment(payment);
     setEditForm({
       status: payment.status,
@@ -202,7 +340,7 @@ export default function CalendarioPagos() {
     setEditDialogOpen(true);
   };
 
-  const handleViewDetail = (payment: Payment) => {
+  const handleViewDetail = (payment: UnifiedPayment) => {
     setDetailPayment(payment);
     setDetailDialogOpen(true);
   };
@@ -267,7 +405,7 @@ export default function CalendarioPagos() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -314,6 +452,20 @@ export default function CalendarioPagos() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
+                <p className="text-sm text-muted-foreground">Proyectados</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.proyectados}</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm text-muted-foreground">Monto Pendiente</p>
                 <p className="text-2xl font-bold">S/ {stats.montoPendiente.toFixed(2)}</p>
               </div>
@@ -332,7 +484,7 @@ export default function CalendarioPagos() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por contrato, cliente o RUC..."
+                placeholder="Buscar por contrato, cliente, RUC o servicio..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -344,11 +496,23 @@ export default function CalendarioPagos() {
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="todos">Todos los estados</SelectItem>
                 <SelectItem value="pendiente">Pendiente</SelectItem>
                 <SelectItem value="pagado">Pagado</SelectItem>
                 <SelectItem value="vencido">Vencido</SelectItem>
                 <SelectItem value="parcial">Parcial</SelectItem>
+                <SelectItem value="proyectado">Proyectado</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-[180px]">
+                <FileText className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Fuente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas las fuentes</SelectItem>
+                <SelectItem value="reales">Pagos Reales</SelectItem>
+                <SelectItem value="proyectados">Proyecciones</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -360,7 +524,7 @@ export default function CalendarioPagos() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Pagos Registrados
+            Calendario de Pagos Consolidado
             <Badge variant="secondary" className="ml-2">
               {filteredPayments.length}
             </Badge>
@@ -380,6 +544,7 @@ export default function CalendarioPagos() {
                   <TableRow>
                     <TableHead>Contrato</TableHead>
                     <TableHead>Cliente</TableHead>
+                    <TableHead>Servicio / Cuota</TableHead>
                     <TableHead>Vencimiento</TableHead>
                     <TableHead className="text-right">Monto</TableHead>
                     <TableHead>Estado</TableHead>
@@ -391,9 +556,16 @@ export default function CalendarioPagos() {
                   {filteredPayments.map((payment) => {
                     const StatusIcon = statusConfig[payment.status]?.icon || Clock;
                     return (
-                      <TableRow key={payment.id}>
+                      <TableRow key={payment.id} className={payment.isProjected ? "bg-muted/30" : ""}>
                         <TableCell className="font-medium">
-                          {payment.contrato?.numero}
+                          <div className="flex items-center gap-2">
+                            {payment.isProjected && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200">
+                                Proy.
+                              </Badge>
+                            )}
+                            {payment.contrato?.numero}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
@@ -403,6 +575,18 @@ export default function CalendarioPagos() {
                             <span className="text-xs text-muted-foreground">
                               {payment.contrato?.cliente?.codigo}
                             </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-sm truncate max-w-[150px]" title={payment.servicio || "-"}>
+                              {payment.servicio || "-"}
+                            </span>
+                            {payment.cuota && (
+                              <span className="text-xs text-muted-foreground">
+                                Cuota {payment.cuota}
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -437,10 +621,12 @@ export default function CalendarioPagos() {
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ver Detalle
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Editar Pago
-                              </DropdownMenuItem>
+                              {!payment.isProjected && (
+                                <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar Pago
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -576,6 +762,14 @@ export default function CalendarioPagos() {
                 </div>
               </div>
 
+              {detailPayment.isProjected && (
+                <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                  <p className="text-sm text-purple-700">
+                    Este es un pago proyectado. Se convertirá en pago real cuando el contrato sea aprobado.
+                  </p>
+                </div>
+              )}
+
               <Separator />
 
               <div className="space-y-2">
@@ -590,6 +784,21 @@ export default function CalendarioPagos() {
               </div>
 
               <Separator />
+
+              {detailPayment.servicio && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Servicio</p>
+                    <p className="font-medium">{detailPayment.servicio}</p>
+                  </div>
+                  {detailPayment.cuota && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cuota</p>
+                      <p className="font-medium">Cuota {detailPayment.cuota}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -642,13 +851,15 @@ export default function CalendarioPagos() {
             <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
               Cerrar
             </Button>
-            <Button onClick={() => {
-              setDetailDialogOpen(false);
-              if (detailPayment) handleEditPayment(detailPayment);
-            }}>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
+            {detailPayment && !detailPayment.isProjected && (
+              <Button onClick={() => {
+                setDetailDialogOpen(false);
+                if (detailPayment) handleEditPayment(detailPayment);
+              }}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
