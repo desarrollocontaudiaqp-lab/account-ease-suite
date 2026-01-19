@@ -23,6 +23,8 @@ import {
   Unlink,
   ArrowRight,
   ArrowLeft,
+  ExternalLink,
+  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +55,7 @@ interface WorkFlowItem {
   conexiones?: string[];
   subColumna?: number; // For proceso items: 0, 1, or 2
   parentId?: string; // For inputs: links to actividad; for tareas: links to input
+  enlaceSharepoint?: string; // SharePoint document link for inputs
 }
 
 interface MiembroCartera {
@@ -118,6 +121,12 @@ const roleColors: Record<string, string> = {
 
 // Ya no usamos exclusión por puesto, ahora usamos el campo asignar_supervision
 
+interface WorkflowData {
+  id: string;
+  codigo: string;
+  fecha_creacion: string;
+}
+
 export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFlowModalProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -127,6 +136,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const [newItemTitle, setNewItemTitle] = useState("");
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [supervisores, setSupervisores] = useState<SupervisorProfile[]>([]);
+  const [workflowData, setWorkflowData] = useState<WorkflowData | null>(null);
   const [, forceUpdate] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -184,17 +194,39 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const loadWorkflow = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("contratos")
-        .select("datos_plantilla")
-        .eq("id", contrato.id)
+      // First check if workflow exists in workflows table
+      const { data: existingWorkflow, error: wfError } = await supabase
+        .from("workflows")
+        .select("id, codigo, fecha_creacion, items")
+        .eq("contrato_id", contrato.id)
         .maybeSingle();
 
-      if (error) throw error;
+      if (wfError && wfError.code !== 'PGRST116') throw wfError;
 
-      const datosPlantilla = data?.datos_plantilla as Record<string, any> || {};
-      const workflowItems = datosPlantilla.workflow_items || [];
-      setItems(workflowItems);
+      if (existingWorkflow) {
+        // Load from workflows table
+        setWorkflowData({
+          id: existingWorkflow.id,
+          codigo: existingWorkflow.codigo,
+          fecha_creacion: existingWorkflow.fecha_creacion,
+        });
+        const workflowItems = (existingWorkflow.items as unknown as WorkFlowItem[]) || [];
+        setItems(workflowItems);
+      } else {
+        // Fallback: Load from contratos.datos_plantilla (legacy)
+        const { data, error } = await supabase
+          .from("contratos")
+          .select("datos_plantilla")
+          .eq("id", contrato.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        const datosPlantilla = data?.datos_plantilla as Record<string, any> || {};
+        const workflowItems = datosPlantilla.workflow_items || [];
+        setItems(workflowItems);
+        setWorkflowData(null);
+      }
     } catch (error) {
       console.error("Error loading workflow:", error);
       toast.error("Error al cargar el workflow");
@@ -205,13 +237,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const saveWorkflow = async () => {
     setSaving(true);
     try {
-      const { data: contratoData } = await supabase
-        .from("contratos")
-        .select("datos_plantilla")
-        .eq("id", contrato.id)
-        .maybeSingle();
-
-      const datosPlantilla = (contratoData?.datos_plantilla as Record<string, any>) || {};
+      const { data: userData } = await supabase.auth.getUser();
       
       const workflowItemsJson = items.map(item => ({
         id: item.id,
@@ -225,9 +251,59 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         conexiones: item.conexiones || null,
         subColumna: item.subColumna ?? null,
         parentId: item.parentId || null,
+        enlaceSharepoint: item.enlaceSharepoint || null,
       }));
+
+      if (workflowData?.id) {
+        // Update existing workflow
+        const { error } = await supabase
+          .from("workflows")
+          .update({
+            items: workflowItemsJson as any,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", workflowData.id);
+
+        if (error) throw error;
+      } else {
+        // Create new workflow with code
+        const { data: codeData, error: codeError } = await supabase
+          .rpc("get_next_workflow_code");
+
+        if (codeError) throw codeError;
+
+        const newCodigo = codeData as string;
+
+        const { data: newWorkflow, error: insertError } = await supabase
+          .from("workflows")
+          .insert({
+            codigo: newCodigo,
+            contrato_id: contrato.id,
+            items: workflowItemsJson as any,
+            created_by: userData?.user?.id,
+          })
+          .select("id, codigo, fecha_creacion")
+          .single();
+
+        if (insertError) throw insertError;
+
+        setWorkflowData({
+          id: newWorkflow.id,
+          codigo: newWorkflow.codigo,
+          fecha_creacion: newWorkflow.fecha_creacion,
+        });
+      }
+
+      // Also update legacy datos_plantilla for backwards compatibility
+      const { data: contratoData } = await supabase
+        .from("contratos")
+        .select("datos_plantilla")
+        .eq("id", contrato.id)
+        .maybeSingle();
+
+      const datosPlantilla = (contratoData?.datos_plantilla as Record<string, any>) || {};
       
-      const { error } = await supabase
+      await supabase
         .from("contratos")
         .update({
           datos_plantilla: {
@@ -238,7 +314,6 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         })
         .eq("id", contrato.id);
 
-      if (error) throw error;
       toast.success("WorkFlow guardado correctamente");
     } catch (error) {
       console.error("Error saving workflow:", error);
@@ -538,12 +613,19 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
           </div>
           
           <div className="flex items-center gap-4">
+            {workflowData && (
+              <Badge variant="secondary" className="gap-1.5 text-sm font-mono">
+                <Hash className="h-3.5 w-3.5" />
+                {workflowData.codigo}
+              </Badge>
+            )}
             <div className="text-right text-sm">
               <p className="text-muted-foreground">Fecha WorkFlow</p>
               <p className="font-medium">
-                {diasTranscurridos > 0 ? `${diasTranscurridos} días transcurridos` : "Inicio hoy"}
-                {diasVencidos > 0 && (
-                  <span className="text-red-500 ml-2">/ {diasVencidos} días vencidos</span>
+                {workflowData ? (
+                  format(new Date(workflowData.fecha_creacion), "dd MMM yyyy, HH:mm", { locale: es })
+                ) : (
+                  <span className="text-muted-foreground italic">Sin guardar</span>
                 )}
               </p>
             </div>
@@ -693,12 +775,13 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                               onDelete={() => deleteItem(input.id)}
                               onEdit={() => setEditingItem(input.id)}
                               isEditing={editingItem === input.id}
-                              onSaveEdit={(title) => {
-                                updateItem(input.id, { titulo: title });
+                              onSaveEdit={(title, enlaceSharepoint) => {
+                                updateItem(input.id, { titulo: title, enlaceSharepoint: enlaceSharepoint || undefined });
                                 setEditingItem(null);
                               }}
                               onCancelEdit={() => setEditingItem(null)}
                               variant="diamond"
+                              showSharepointLink={true}
                               onStartConnection={() => startConnection(input.id)}
                               onCompleteConnection={() => completeConnection(input.id)}
                               isConnecting={!!connectingFrom}
@@ -1015,7 +1098,7 @@ interface WorkFlowItemCardProps {
   onDelete: () => void;
   onEdit: () => void;
   isEditing: boolean;
-  onSaveEdit: (title: string) => void;
+  onSaveEdit: (title: string, enlaceSharepoint?: string) => void;
   onCancelEdit: () => void;
   variant?: "default" | "diamond" | "rounded" | "oval";
   miembros?: MiembroCartera[];
@@ -1030,6 +1113,7 @@ interface WorkFlowItemCardProps {
   hasConnections: boolean;
   setRef: (el: HTMLDivElement | null) => void;
   connectionLabels: { outgoing: string[]; incoming: string[] };
+  showSharepointLink?: boolean;
 }
 
 function WorkFlowItemCard({
@@ -1053,10 +1137,15 @@ function WorkFlowItemCard({
   hasConnections,
   setRef,
   connectionLabels,
+  showSharepointLink = false,
 }: WorkFlowItemCardProps) {
   const [editTitle, setEditTitle] = useState(item.titulo);
+  const [editSharepointLink, setEditSharepointLink] = useState(item.enlaceSharepoint || "");
 
   const getInitials = (name: string | null | undefined) => {
+    if (!name) return "?";
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  };
     if (!name) return "?";
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
@@ -1089,16 +1178,29 @@ function WorkFlowItemCard({
           onChange={(e) => setEditTitle(e.target.value)}
           className="h-7 text-sm mb-2"
           autoFocus
+          placeholder="Título..."
           onKeyDown={(e) => {
-            if (e.key === "Enter") onSaveEdit(editTitle);
+            if (e.key === "Enter" && !showSharepointLink) onSaveEdit(editTitle, editSharepointLink);
             if (e.key === "Escape") onCancelEdit();
           }}
         />
+        {showSharepointLink && (
+          <Input
+            value={editSharepointLink}
+            onChange={(e) => setEditSharepointLink(e.target.value)}
+            className="h-7 text-sm mb-2"
+            placeholder="Enlace SharePoint (opcional)..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSaveEdit(editTitle, editSharepointLink);
+              if (e.key === "Escape") onCancelEdit();
+            }}
+          />
+        )}
         <div className="flex gap-1 justify-end">
           <Button size="sm" variant="ghost" className="h-6 px-2" onClick={onCancelEdit}>
             Cancelar
           </Button>
-          <Button size="sm" className="h-6 px-2" onClick={() => onSaveEdit(editTitle)}>
+          <Button size="sm" className="h-6 px-2" onClick={() => onSaveEdit(editTitle, editSharepointLink)}>
             Guardar
           </Button>
         </div>
@@ -1172,12 +1274,26 @@ function WorkFlowItemCard({
           )}
         </button>
         <div className="flex-1 min-w-0">
-          <p className={cn(
-            "text-xs font-medium line-clamp-2",
-            item.completado && "line-through text-muted-foreground"
-          )}>
-            {item.titulo}
-          </p>
+          <div className="flex items-center gap-1">
+            <p className={cn(
+              "text-xs font-medium line-clamp-2 flex-1",
+              item.completado && "line-through text-muted-foreground"
+            )}>
+              {item.titulo}
+            </p>
+            {item.enlaceSharepoint && (
+              <a
+                href={item.enlaceSharepoint}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex-shrink-0 text-blue-500 hover:text-blue-700"
+                title="Abrir documento en SharePoint"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+          </div>
           {miembros && onAsignar && (
             <div className="mt-1">
               <Select value={selectedAsignado || ""} onValueChange={onAsignar}>
