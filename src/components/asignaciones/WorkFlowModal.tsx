@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -8,16 +8,19 @@ import {
   Loader2,
   Calendar,
   Users,
-  GripVertical,
   CheckCircle2,
   Circle,
-  ArrowRight,
   Building2,
   FileCheck,
   Save,
   Edit2,
-  ChevronDown,
-  ChevronUp,
+  Activity,
+  Database,
+  Settings,
+  Package,
+  ShieldCheck,
+  Link2,
+  Unlink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +28,6 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -47,6 +49,7 @@ interface WorkFlowItem {
   completado: boolean;
   orden: number;
   conexiones?: string[];
+  subColumna?: number; // For proceso items: 0, 1, or 2
 }
 
 interface MiembroCartera {
@@ -84,11 +87,11 @@ interface WorkFlowModalProps {
 }
 
 const columnConfig = [
-  { id: "actividades", label: "Actividades", shortLabel: "A", color: "bg-sky-500", tipo: "actividad" },
-  { id: "inputs", label: "Inputs", shortLabel: "I", color: "bg-emerald-500", tipo: "input" },
-  { id: "procesos", label: "Procesos", shortLabel: "P", color: "bg-amber-500", tipo: "tarea", hasRoles: true },
-  { id: "outputs", label: "Outputs", shortLabel: "O", color: "bg-purple-500", tipo: "output" },
-  { id: "supervision", label: "Supervisión", shortLabel: "S", color: "bg-red-500", tipo: "supervision" },
+  { id: "actividades", label: "Actividades", shortLabel: "A", color: "bg-sky-500", tipo: "actividad", icon: Activity },
+  { id: "inputs", label: "Inputs", shortLabel: "I", color: "bg-emerald-500", tipo: "input", icon: Database },
+  { id: "procesos", label: "Procesos", shortLabel: "P", color: "bg-amber-500", tipo: "tarea", hasRoles: true, icon: Settings },
+  { id: "outputs", label: "Outputs", shortLabel: "O", color: "bg-purple-500", tipo: "output", icon: Package },
+  { id: "supervision", label: "Supervisión", shortLabel: "S", color: "bg-red-500", tipo: "supervision", icon: ShieldCheck },
 ];
 
 const roleColors: Record<string, string> = {
@@ -109,19 +112,27 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [newItemColumn, setNewItemColumn] = useState<string | null>(null);
   const [newItemTitle, setNewItemTitle] = useState("");
-  const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({});
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Calculate workflow dates and progress
   const fechaInicio = new Date(contrato.fecha_inicio);
   const fechaFin = contrato.fecha_fin ? new Date(contrato.fecha_fin) : null;
   const hoy = new Date();
   const diasTranscurridos = differenceInDays(hoy, fechaInicio);
-  const diasTotales = fechaFin ? differenceInDays(fechaFin, fechaInicio) : null;
   const diasVencidos = fechaFin && hoy > fechaFin ? differenceInDays(hoy, fechaFin) : 0;
   
   const completados = items.filter(i => i.completado).length;
   const total = items.length;
   const progressPercent = total > 0 ? Math.round((completados / total) * 100) : 0;
+
+  // Get unique roles from team members for process column sub-columns
+  const uniqueRoles = [...new Set(miembros.map(m => m.rol_en_cartera))].slice(0, 3);
+  // Pad to always have 3 sub-columns
+  while (uniqueRoles.length < 3) {
+    uniqueRoles.push(`Rol ${uniqueRoles.length + 1}`);
+  }
 
   useEffect(() => {
     if (open) {
@@ -132,7 +143,6 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const loadWorkflow = async () => {
     setLoading(true);
     try {
-      // Load workflow data from contrato datos_plantilla
       const { data, error } = await supabase
         .from("contratos")
         .select("datos_plantilla")
@@ -162,7 +172,6 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
 
       const datosPlantilla = (contratoData?.datos_plantilla as Record<string, any>) || {};
       
-      // Convert items to JSON-compatible format
       const workflowItemsJson = items.map(item => ({
         id: item.id,
         tipo: item.tipo,
@@ -173,6 +182,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         completado: item.completado,
         orden: item.orden,
         conexiones: item.conexiones || null,
+        subColumna: item.subColumna ?? null,
       }));
       
       const { error } = await supabase
@@ -195,7 +205,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     setSaving(false);
   };
 
-  const addItem = (tipo: string, rol?: string) => {
+  const addItem = (tipo: string, rol?: string, subColumna?: number) => {
     if (!newItemTitle.trim()) {
       toast.error("Ingresa un título");
       return;
@@ -208,6 +218,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
       completado: false,
       orden: items.filter(i => i.tipo === tipo && i.rol === rol).length,
       rol,
+      subColumna,
     };
 
     setItems([...items, newItem]);
@@ -222,13 +233,49 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   };
 
   const deleteItem = (id: string) => {
-    setItems(items.filter(item => item.id !== id));
+    // Also remove any connections to this item
+    setItems(items.filter(item => item.id !== id).map(item => ({
+      ...item,
+      conexiones: item.conexiones?.filter(c => c !== id) || [],
+    })));
   };
 
   const toggleComplete = (id: string) => {
     setItems(items.map(item => 
       item.id === id ? { ...item, completado: !item.completado } : item
     ));
+  };
+
+  const startConnection = (fromId: string) => {
+    setConnectingFrom(fromId);
+  };
+
+  const completeConnection = (toId: string) => {
+    if (connectingFrom && connectingFrom !== toId) {
+      setItems(items.map(item => {
+        if (item.id === connectingFrom) {
+          const currentConnections = item.conexiones || [];
+          if (!currentConnections.includes(toId)) {
+            return { ...item, conexiones: [...currentConnections, toId] };
+          }
+        }
+        return item;
+      }));
+      toast.success("Conexión creada");
+    }
+    setConnectingFrom(null);
+  };
+
+  const removeConnection = (fromId: string, toId: string) => {
+    setItems(items.map(item => {
+      if (item.id === fromId) {
+        return { 
+          ...item, 
+          conexiones: (item.conexiones || []).filter(c => c !== toId) 
+        };
+      }
+      return item;
+    }));
   };
 
   const getInitials = (name: string | null | undefined) => {
@@ -240,21 +287,67 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     return miembros.filter(m => m.rol_en_cartera.toLowerCase() === rol.toLowerCase());
   };
 
-  const getItemsByTipoAndRol = (tipo: string, rol?: string) => {
-    return items.filter(item => {
-      if (tipo === "tarea" && rol) {
-        return item.tipo === tipo && item.rol === rol;
+  const getItemsByTipo = (tipo: string) => {
+    return items.filter(item => item.tipo === tipo).sort((a, b) => a.orden - b.orden);
+  };
+
+  const getItemsBySubColumna = (subColumna: number) => {
+    return items.filter(item => item.tipo === "tarea" && item.subColumna === subColumna)
+      .sort((a, b) => a.orden - b.orden);
+  };
+
+  const setItemRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) {
+      itemRefs.current.set(id, el);
+    } else {
+      itemRefs.current.delete(id);
+    }
+  }, []);
+
+  // Calculate arrow positions
+  const renderConnections = () => {
+    const connections: JSX.Element[] = [];
+    
+    items.forEach(item => {
+      if (item.conexiones && item.conexiones.length > 0) {
+        const fromEl = itemRefs.current.get(item.id);
+        
+        item.conexiones.forEach(toId => {
+          const toEl = itemRefs.current.get(toId);
+          
+          if (fromEl && toEl && containerRef.current) {
+            const containerRect = containerRef.current.getBoundingClientRect();
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+            
+            const fromX = fromRect.right - containerRect.left;
+            const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
+            const toX = toRect.left - containerRect.left;
+            const toY = toRect.top + toRect.height / 2 - containerRect.top;
+            
+            // Create a curved path
+            const midX = (fromX + toX) / 2;
+            const path = `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
+            
+            connections.push(
+              <g key={`${item.id}-${toId}`}>
+                <path
+                  d={path}
+                  fill="none"
+                  stroke="#3b82f6"
+                  strokeWidth="2"
+                  markerEnd="url(#arrowhead)"
+                  className="transition-all duration-300"
+                />
+              </g>
+            );
+          }
+        });
       }
-      return item.tipo === tipo;
-    }).sort((a, b) => a.orden - b.orden);
+    });
+    
+    return connections;
   };
-
-  const toggleRoleExpanded = (rol: string) => {
-    setExpandedRoles(prev => ({ ...prev, [rol]: !prev[rol] }));
-  };
-
-  // Get unique roles from team members for process column
-  const uniqueRoles = [...new Set(miembros.map(m => m.rol_en_cartera))];
 
   if (!open) return null;
 
@@ -289,6 +382,20 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                 )}
               </p>
             </div>
+            {connectingFrom && (
+              <Badge variant="secondary" className="gap-2 animate-pulse">
+                <Link2 className="h-4 w-4" />
+                Selecciona el destino
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-5 px-1"
+                  onClick={() => setConnectingFrom(null)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
             <Button variant="outline" size="sm" onClick={saveWorkflow} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Guardar
@@ -300,48 +407,81 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         </div>
       </div>
 
-      {/* Column Headers */}
-      <div className="grid grid-cols-5 border-b">
-        {columnConfig.map(col => (
-          <div key={col.id} className={cn("p-3 text-center text-white font-bold", col.color)}>
-            <span className="text-2xl">{col.shortLabel}</span>
-            <p className="text-sm font-normal">{col.label}</p>
-          </div>
-        ))}
+      {/* Column Headers - Grid with Procesos taking 3x space */}
+      <div className="grid border-b" style={{ gridTemplateColumns: "1fr 1fr 3fr 1fr 1fr" }}>
+        {columnConfig.map(col => {
+          const Icon = col.icon;
+          return (
+            <div 
+              key={col.id} 
+              className={cn(
+                "p-3 text-center text-white font-bold flex flex-col items-center gap-1", 
+                col.color
+              )}
+            >
+              <Icon className="h-6 w-6" />
+              <span className="text-2xl">{col.shortLabel}</span>
+              <p className="text-sm font-normal">{col.label}</p>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Sub-headers for Procesos column */}
-      <div className="grid grid-cols-5 border-b bg-muted/30">
-        <div className="col-span-2" /> {/* Empty space for A and I columns */}
+      {/* Sub-headers for Procesos column - 3 sub-columns based on roles */}
+      <div className="grid border-b bg-muted/30" style={{ gridTemplateColumns: "1fr 1fr 3fr 1fr 1fr" }}>
+        <div /> {/* Empty space for A column */}
+        <div /> {/* Empty space for I column */}
         <div className="border-x">
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${Math.max(uniqueRoles.length, 1)}, 1fr)` }}>
-            {uniqueRoles.length > 0 ? uniqueRoles.map(rol => (
-              <div key={rol} className="p-2 text-center text-xs font-medium border-r last:border-r-0 capitalize">
-                {rol}
+          <div className="grid grid-cols-3">
+            {uniqueRoles.map((rol, index) => (
+              <div key={rol} className="p-2 text-center border-r last:border-r-0">
+                <Badge 
+                  variant="outline" 
+                  className={cn("text-xs capitalize", roleColors[rol.toLowerCase()] || "bg-gray-100")}
+                >
+                  {rol}
+                </Badge>
               </div>
-            )) : (
-              <div className="p-2 text-center text-xs text-muted-foreground">
-                Sin roles asignados
-              </div>
-            )}
+            ))}
           </div>
         </div>
-        <div className="col-span-2" /> {/* Empty space for O and S columns */}
+        <div /> {/* Empty space for O column */}
+        <div /> {/* Empty space for S column */}
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative" ref={containerRef}>
+        {/* SVG for connection arrows */}
+        <svg 
+          className="absolute inset-0 w-full h-full pointer-events-none z-10"
+          style={{ overflow: 'visible' }}
+        >
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
+            </marker>
+          </defs>
+          {renderConnections()}
+        </svg>
+
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid grid-cols-5 h-full">
+          <div className="grid h-full" style={{ gridTemplateColumns: "1fr 1fr 3fr 1fr 1fr" }}>
             {/* Actividades Column */}
             <div className="border-r p-3 bg-sky-50/50 dark:bg-sky-950/20">
               <ScrollArea className="h-full">
                 <div className="space-y-2">
-                  {getItemsByTipoAndRol("actividad").map(item => (
+                  {getItemsByTipo("actividad").map(item => (
                     <WorkFlowItemCard
                       key={item.id}
                       item={item}
@@ -354,6 +494,14 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                         setEditingItem(null);
                       }}
                       onCancelEdit={() => setEditingItem(null)}
+                      variant="oval"
+                      onStartConnection={() => startConnection(item.id)}
+                      onCompleteConnection={() => completeConnection(item.id)}
+                      isConnecting={!!connectingFrom}
+                      isConnectingFrom={connectingFrom === item.id}
+                      onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
+                      hasConnections={(item.conexiones?.length || 0) > 0}
+                      setRef={(el) => setItemRef(item.id, el)}
                     />
                   ))}
                   {newItemColumn === "actividad" ? (
@@ -381,7 +529,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       onClick={() => setNewItemColumn("actividad")}
                     >
                       <Plus className="h-4 w-4" />
-                      Agregar Actividad
+                      Agregar
                     </Button>
                   )}
                 </div>
@@ -392,7 +540,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
             <div className="border-r p-3 bg-emerald-50/50 dark:bg-emerald-950/20">
               <ScrollArea className="h-full">
                 <div className="space-y-2">
-                  {getItemsByTipoAndRol("input").map(item => (
+                  {getItemsByTipo("input").map(item => (
                     <WorkFlowItemCard
                       key={item.id}
                       item={item}
@@ -406,6 +554,13 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       }}
                       onCancelEdit={() => setEditingItem(null)}
                       variant="diamond"
+                      onStartConnection={() => startConnection(item.id)}
+                      onCompleteConnection={() => completeConnection(item.id)}
+                      isConnecting={!!connectingFrom}
+                      isConnectingFrom={connectingFrom === item.id}
+                      onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
+                      hasConnections={(item.conexiones?.length || 0) > 0}
+                      setRef={(el) => setItemRef(item.id, el)}
                     />
                   ))}
                   {newItemColumn === "input" ? (
@@ -433,117 +588,90 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       onClick={() => setNewItemColumn("input")}
                     >
                       <Plus className="h-4 w-4" />
-                      Agregar Input
+                      Agregar
                     </Button>
                   )}
                 </div>
               </ScrollArea>
             </div>
 
-            {/* Procesos Column (with roles) */}
-            <div className="border-r p-3 bg-amber-50/50 dark:bg-amber-950/20">
-              <ScrollArea className="h-full">
-                <div className="space-y-4">
-                  {uniqueRoles.length > 0 ? uniqueRoles.map(rol => {
-                    const rolItems = getItemsByTipoAndRol("tarea", rol);
-                    const rolMiembros = getMiembrosByRol(rol);
-                    const isExpanded = expandedRoles[rol] !== false;
-                    
-                    return (
-                      <div key={rol} className="space-y-2">
-                        <button
-                          onClick={() => toggleRoleExpanded(rol)}
-                          className="flex items-center justify-between w-full p-2 rounded-lg bg-white dark:bg-gray-800 border shadow-sm hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Badge className={cn("capitalize", roleColors[rol.toLowerCase()] || "bg-gray-100 text-gray-800")}>
-                              {rol}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {rolItems.length} tareas
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex -space-x-1">
-                              {rolMiembros.slice(0, 3).map(m => (
-                                <Avatar key={m.user_id} className="h-5 w-5 border border-background">
-                                  <AvatarFallback className="text-[8px]">
-                                    {getInitials(m.profile?.full_name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                              ))}
-                            </div>
-                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                          </div>
-                        </button>
-                        
-                        {isExpanded && (
-                          <div className="pl-2 space-y-2">
-                            {rolItems.map(item => (
-                              <WorkFlowItemCard
-                                key={item.id}
-                                item={item}
-                                onToggle={() => toggleComplete(item.id)}
-                                onDelete={() => deleteItem(item.id)}
-                                onEdit={() => setEditingItem(item.id)}
-                                isEditing={editingItem === item.id}
-                                onSaveEdit={(title) => {
-                                  updateItem(item.id, { titulo: title });
-                                  setEditingItem(null);
+            {/* Procesos Column - 3 sub-columns */}
+            <div className="border-r bg-amber-50/50 dark:bg-amber-950/20">
+              <div className="grid grid-cols-3 h-full">
+                {uniqueRoles.map((rol, subColIndex) => {
+                  const rolMiembros = getMiembrosByRol(rol);
+                  const subColItems = getItemsBySubColumna(subColIndex);
+                  
+                  return (
+                    <div key={rol} className="border-r last:border-r-0 p-2">
+                      <ScrollArea className="h-full">
+                        <div className="space-y-2">
+                          {subColItems.map(item => (
+                            <WorkFlowItemCard
+                              key={item.id}
+                              item={item}
+                              onToggle={() => toggleComplete(item.id)}
+                              onDelete={() => deleteItem(item.id)}
+                              onEdit={() => setEditingItem(item.id)}
+                              isEditing={editingItem === item.id}
+                              onSaveEdit={(title) => {
+                                updateItem(item.id, { titulo: title });
+                                setEditingItem(null);
+                              }}
+                              onCancelEdit={() => setEditingItem(null)}
+                              variant="default"
+                              miembros={rolMiembros}
+                              selectedAsignado={item.asignado_a}
+                              onAsignar={(userId) => updateItem(item.id, { asignado_a: userId })}
+                              onStartConnection={() => startConnection(item.id)}
+                              onCompleteConnection={() => completeConnection(item.id)}
+                              isConnecting={!!connectingFrom}
+                              isConnectingFrom={connectingFrom === item.id}
+                              onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
+                              hasConnections={(item.conexiones?.length || 0) > 0}
+                              setRef={(el) => setItemRef(item.id, el)}
+                            />
+                          ))}
+                          {newItemColumn === `tarea-${subColIndex}` ? (
+                            <div className="flex gap-1">
+                              <Input
+                                value={newItemTitle}
+                                onChange={(e) => setNewItemTitle(e.target.value)}
+                                placeholder="Nueva tarea..."
+                                className="h-7 text-xs"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") addItem("tarea", rol, subColIndex);
+                                  if (e.key === "Escape") setNewItemColumn(null);
                                 }}
-                                onCancelEdit={() => setEditingItem(null)}
-                                miembros={rolMiembros}
-                                selectedAsignado={item.asignado_a}
-                                onAsignar={(userId) => updateItem(item.id, { asignado_a: userId })}
                               />
-                            ))}
-                            {newItemColumn === `tarea-${rol}` ? (
-                              <div className="flex gap-2">
-                                <Input
-                                  value={newItemTitle}
-                                  onChange={(e) => setNewItemTitle(e.target.value)}
-                                  placeholder="Nueva tarea..."
-                                  className="h-8 text-sm"
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") addItem("tarea", rol);
-                                    if (e.key === "Escape") setNewItemColumn(null);
-                                  }}
-                                />
-                                <Button size="sm" className="h-8" onClick={() => addItem("tarea", rol)}>
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full justify-start gap-2 text-muted-foreground text-xs"
-                                onClick={() => setNewItemColumn(`tarea-${rol}`)}
-                              >
+                              <Button size="sm" className="h-7 px-2" onClick={() => addItem("tarea", rol, subColIndex)}>
                                 <Plus className="h-3 w-3" />
-                                Agregar Tarea
                               </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No hay miembros en la cartera</p>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full justify-center gap-1 text-muted-foreground text-xs h-7"
+                              onClick={() => setNewItemColumn(`tarea-${subColIndex}`)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </ScrollArea>
                     </div>
-                  )}
-                </div>
-              </ScrollArea>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Outputs Column */}
             <div className="border-r p-3 bg-purple-50/50 dark:bg-purple-950/20">
               <ScrollArea className="h-full">
                 <div className="space-y-2">
-                  {getItemsByTipoAndRol("output").map(item => (
+                  {getItemsByTipo("output").map(item => (
                     <WorkFlowItemCard
                       key={item.id}
                       item={item}
@@ -557,6 +685,13 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       }}
                       onCancelEdit={() => setEditingItem(null)}
                       variant="rounded"
+                      onStartConnection={() => startConnection(item.id)}
+                      onCompleteConnection={() => completeConnection(item.id)}
+                      isConnecting={!!connectingFrom}
+                      isConnectingFrom={connectingFrom === item.id}
+                      onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
+                      hasConnections={(item.conexiones?.length || 0) > 0}
+                      setRef={(el) => setItemRef(item.id, el)}
                     />
                   ))}
                   {newItemColumn === "output" ? (
@@ -584,7 +719,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       onClick={() => setNewItemColumn("output")}
                     >
                       <Plus className="h-4 w-4" />
-                      Agregar Producto
+                      Agregar
                     </Button>
                   )}
                 </div>
@@ -595,7 +730,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
             <div className="p-3 bg-red-50/50 dark:bg-red-950/20">
               <ScrollArea className="h-full">
                 <div className="space-y-2">
-                  {getItemsByTipoAndRol("supervision").map(item => (
+                  {getItemsByTipo("supervision").map(item => (
                     <WorkFlowItemCard
                       key={item.id}
                       item={item}
@@ -609,6 +744,13 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       }}
                       onCancelEdit={() => setEditingItem(null)}
                       variant="oval"
+                      onStartConnection={() => startConnection(item.id)}
+                      onCompleteConnection={() => completeConnection(item.id)}
+                      isConnecting={!!connectingFrom}
+                      isConnectingFrom={connectingFrom === item.id}
+                      onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
+                      hasConnections={(item.conexiones?.length || 0) > 0}
+                      setRef={(el) => setItemRef(item.id, el)}
                     />
                   ))}
                   {newItemColumn === "supervision" ? (
@@ -636,7 +778,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       onClick={() => setNewItemColumn("supervision")}
                     >
                       <Plus className="h-4 w-4" />
-                      Agregar Supervisión
+                      Agregar
                     </Button>
                   )}
                 </div>
@@ -676,6 +818,13 @@ interface WorkFlowItemCardProps {
   miembros?: MiembroCartera[];
   selectedAsignado?: string;
   onAsignar?: (userId: string) => void;
+  onStartConnection: () => void;
+  onCompleteConnection: () => void;
+  isConnecting: boolean;
+  isConnectingFrom: boolean;
+  onRemoveConnections: () => void;
+  hasConnections: boolean;
+  setRef: (el: HTMLDivElement | null) => void;
 }
 
 function WorkFlowItemCard({
@@ -690,6 +839,13 @@ function WorkFlowItemCard({
   miembros,
   selectedAsignado,
   onAsignar,
+  onStartConnection,
+  onCompleteConnection,
+  isConnecting,
+  isConnectingFrom,
+  onRemoveConnections,
+  hasConnections,
+  setRef,
 }: WorkFlowItemCardProps) {
   const [editTitle, setEditTitle] = useState(item.titulo);
 
@@ -700,17 +856,27 @@ function WorkFlowItemCard({
 
   const shapeClasses = {
     default: "rounded-lg",
-    diamond: "rounded-lg", // We'll use a different visual for diamond
+    diamond: "rounded-lg rotate-0", 
     rounded: "rounded-2xl",
-    oval: "rounded-full px-4",
+    oval: "rounded-full px-3",
+  };
+
+  const borderStyles = {
+    default: "border-blue-400",
+    diamond: "border-emerald-400",
+    rounded: "border-purple-400",
+    oval: "border-blue-400",
   };
 
   if (isEditing) {
     return (
-      <div className={cn(
-        "p-2 bg-white dark:bg-gray-800 border-2 border-primary shadow-sm",
-        shapeClasses[variant]
-      )}>
+      <div 
+        ref={setRef}
+        className={cn(
+          "p-2 bg-white dark:bg-gray-800 border-2 border-primary shadow-sm",
+          shapeClasses[variant]
+        )}
+      >
         <Input
           value={editTitle}
           onChange={(e) => setEditTitle(e.target.value)}
@@ -735,11 +901,19 @@ function WorkFlowItemCard({
 
   return (
     <div
+      ref={setRef}
+      onClick={() => {
+        if (isConnecting && !isConnectingFrom) {
+          onCompleteConnection();
+        }
+      }}
       className={cn(
-        "group relative p-2 bg-white dark:bg-gray-800 border shadow-sm hover:shadow-md transition-all cursor-pointer",
-        item.completado && "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800",
+        "group relative p-2 bg-white dark:bg-gray-800 border-2 shadow-sm hover:shadow-md transition-all",
+        item.completado && "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-700",
+        !item.completado && borderStyles[variant],
         shapeClasses[variant],
-        variant === "diamond" && "transform rotate-0" // Diamond style
+        isConnecting && !isConnectingFrom && "cursor-pointer ring-2 ring-blue-300 ring-offset-1",
+        isConnectingFrom && "ring-2 ring-primary ring-offset-2"
       )}
     >
       <div className="flex items-start gap-2">
@@ -758,7 +932,7 @@ function WorkFlowItemCard({
         </button>
         <div className="flex-1 min-w-0">
           <p className={cn(
-            "text-sm font-medium line-clamp-2",
+            "text-xs font-medium line-clamp-2",
             item.completado && "line-through text-muted-foreground"
           )}>
             {item.titulo}
@@ -766,8 +940,8 @@ function WorkFlowItemCard({
           {miembros && onAsignar && (
             <div className="mt-1">
               <Select value={selectedAsignado || ""} onValueChange={onAsignar}>
-                <SelectTrigger className="h-6 text-xs">
-                  <SelectValue placeholder="Asignar a..." />
+                <SelectTrigger className="h-5 text-[10px]">
+                  <SelectValue placeholder="Asignar..." />
                 </SelectTrigger>
                 <SelectContent>
                   {miembros.map(m => (
@@ -778,7 +952,7 @@ function WorkFlowItemCard({
                             {getInitials(m.profile?.full_name)}
                           </AvatarFallback>
                         </Avatar>
-                        {m.profile?.full_name || m.profile?.email}
+                        <span className="text-xs">{m.profile?.full_name || m.profile?.email}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -790,11 +964,37 @@ function WorkFlowItemCard({
       </div>
       
       {/* Action buttons on hover */}
-      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+      <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 bg-white dark:bg-gray-800 rounded-lg shadow-md p-0.5 border">
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6"
+          className="h-5 w-5"
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartConnection();
+          }}
+          title="Crear conexión"
+        >
+          <Link2 className="h-3 w-3 text-blue-500" />
+        </Button>
+        {hasConnections && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemoveConnections();
+            }}
+            title="Eliminar conexiones"
+          >
+            <Unlink className="h-3 w-3 text-orange-500" />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5"
           onClick={(e) => {
             e.stopPropagation();
             onEdit();
@@ -805,7 +1005,7 @@ function WorkFlowItemCard({
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-destructive hover:text-destructive"
+          className="h-5 w-5 text-destructive hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
