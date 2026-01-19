@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   Link2,
   Unlink,
+  ArrowRight,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -304,7 +306,19 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     }
   }, []);
 
-  // Calculate arrow positions
+  // Get column index for an item based on its type
+  const getColumnIndex = (item: WorkFlowItem): number => {
+    switch (item.tipo) {
+      case "actividad": return 0;
+      case "input": return 1;
+      case "tarea": return 2;
+      case "output": return 3;
+      case "supervision": return 4;
+      default: return -1;
+    }
+  };
+
+  // Calculate connection lines with improved routing
   const renderConnections = () => {
     const connections: JSX.Element[] = [];
     
@@ -312,31 +326,91 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
       if (item.conexiones && item.conexiones.length > 0) {
         const fromEl = itemRefs.current.get(item.id);
         
-        item.conexiones.forEach(toId => {
+        item.conexiones.forEach((toId, connIndex) => {
           const toEl = itemRefs.current.get(toId);
+          const toItem = items.find(i => i.id === toId);
           
-          if (fromEl && toEl && containerRef.current) {
+          if (fromEl && toEl && containerRef.current && toItem) {
             const containerRect = containerRef.current.getBoundingClientRect();
             const fromRect = fromEl.getBoundingClientRect();
             const toRect = toEl.getBoundingClientRect();
             
-            const fromX = fromRect.right - containerRect.left;
-            const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
-            const toX = toRect.left - containerRect.left;
-            const toY = toRect.top + toRect.height / 2 - containerRect.top;
+            const fromColIndex = getColumnIndex(item);
+            const toColIndex = getColumnIndex(toItem);
+            const isSameColumn = fromColIndex === toColIndex;
             
-            // Create a curved path
-            const midX = (fromX + toX) / 2;
-            const path = `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
+            let path = "";
+            const offset = 15 + (connIndex * 5); // Offset for multiple connections
+            
+            if (isSameColumn) {
+              // Same column: route through left side to avoid crossing boxes
+              const fromX = fromRect.left - containerRect.left;
+              const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
+              const toX = toRect.left - containerRect.left;
+              const toY = toRect.top + toRect.height / 2 - containerRect.top;
+              
+              const leftOffset = -offset;
+              
+              path = `M ${fromX} ${fromY} 
+                      L ${fromX + leftOffset} ${fromY}
+                      L ${toX + leftOffset} ${toY}
+                      L ${toX} ${toY}`;
+            } else if (toColIndex < fromColIndex) {
+              // Going backwards: route around the top or bottom
+              const fromX = fromRect.left - containerRect.left;
+              const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
+              const toX = toRect.right - containerRect.left;
+              const toY = toRect.top + toRect.height / 2 - containerRect.top;
+              
+              const verticalOffset = fromY < toY ? -30 - offset : 30 + offset;
+              
+              path = `M ${fromX} ${fromY}
+                      L ${fromX - offset} ${fromY}
+                      L ${fromX - offset} ${fromY + verticalOffset}
+                      L ${toX + offset} ${fromY + verticalOffset}
+                      L ${toX + offset} ${toY}
+                      L ${toX} ${toY}`;
+            } else {
+              // Normal left-to-right flow
+              const fromX = fromRect.right - containerRect.left;
+              const fromY = fromRect.top + fromRect.height / 2 - containerRect.top;
+              const toX = toRect.left - containerRect.left;
+              const toY = toRect.top + toRect.height / 2 - containerRect.top;
+              
+              const midX = (fromX + toX) / 2;
+              
+              // Use orthogonal routing to avoid crossing boxes
+              path = `M ${fromX} ${fromY}
+                      L ${midX} ${fromY}
+                      L ${midX} ${toY}
+                      L ${toX} ${toY}`;
+            }
             
             connections.push(
               <g key={`${item.id}-${toId}`}>
                 <path
                   d={path}
                   fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="2"
-                  markerEnd="url(#arrowhead)"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="transition-all duration-300"
+                  style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.15))" }}
+                />
+                {/* Connection dots at endpoints */}
+                <circle
+                  cx={isSameColumn ? fromRect.left - containerRect.left : fromRect.right - containerRect.left}
+                  cy={fromRect.top + fromRect.height / 2 - containerRect.top}
+                  r="4"
+                  fill="hsl(var(--primary))"
+                  className="transition-all duration-300"
+                />
+                <circle
+                  cx={toColIndex < fromColIndex || isSameColumn ? toRect.left - containerRect.left : toRect.left - containerRect.left}
+                  cy={toRect.top + toRect.height / 2 - containerRect.top}
+                  r="4"
+                  fill="hsl(var(--primary))"
                   className="transition-all duration-300"
                 />
               </g>
@@ -347,6 +421,30 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     });
     
     return connections;
+  };
+
+  // Get connection labels for an item
+  const getConnectionLabels = (itemId: string): { outgoing: string[]; incoming: string[] } => {
+    const outgoing: string[] = [];
+    const incoming: string[] = [];
+    
+    const currentItem = items.find(i => i.id === itemId);
+    if (currentItem?.conexiones) {
+      currentItem.conexiones.forEach(toId => {
+        const toItem = items.find(i => i.id === toId);
+        if (toItem) {
+          outgoing.push(toItem.titulo.substring(0, 15) + (toItem.titulo.length > 15 ? "..." : ""));
+        }
+      });
+    }
+    
+    items.forEach(i => {
+      if (i.conexiones?.includes(itemId)) {
+        incoming.push(i.titulo.substring(0, 15) + (i.titulo.length > 15 ? "..." : ""));
+      }
+    });
+    
+    return { outgoing, incoming };
   };
 
   if (!open) return null;
@@ -451,23 +549,11 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden relative" ref={containerRef}>
-        {/* SVG for connection arrows */}
+        {/* SVG for connection lines (no arrows) */}
         <svg 
           className="absolute inset-0 w-full h-full pointer-events-none z-10"
           style={{ overflow: 'visible' }}
         >
-          <defs>
-            <marker
-              id="arrowhead"
-              markerWidth="10"
-              markerHeight="7"
-              refX="9"
-              refY="3.5"
-              orient="auto"
-            >
-              <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
-            </marker>
-          </defs>
           {renderConnections()}
         </svg>
 
@@ -502,6 +588,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
                       hasConnections={(item.conexiones?.length || 0) > 0}
                       setRef={(el) => setItemRef(item.id, el)}
+                      connectionLabels={getConnectionLabels(item.id)}
                     />
                   ))}
                   {newItemColumn === "actividad" ? (
@@ -561,6 +648,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
                       hasConnections={(item.conexiones?.length || 0) > 0}
                       setRef={(el) => setItemRef(item.id, el)}
+                      connectionLabels={getConnectionLabels(item.id)}
                     />
                   ))}
                   {newItemColumn === "input" ? (
@@ -630,6 +718,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                               onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
                               hasConnections={(item.conexiones?.length || 0) > 0}
                               setRef={(el) => setItemRef(item.id, el)}
+                              connectionLabels={getConnectionLabels(item.id)}
                             />
                           ))}
                           {newItemColumn === `tarea-${subColIndex}` ? (
@@ -692,6 +781,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
                       hasConnections={(item.conexiones?.length || 0) > 0}
                       setRef={(el) => setItemRef(item.id, el)}
+                      connectionLabels={getConnectionLabels(item.id)}
                     />
                   ))}
                   {newItemColumn === "output" ? (
@@ -751,6 +841,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                       onRemoveConnections={() => updateItem(item.id, { conexiones: [] })}
                       hasConnections={(item.conexiones?.length || 0) > 0}
                       setRef={(el) => setItemRef(item.id, el)}
+                      connectionLabels={getConnectionLabels(item.id)}
                     />
                   ))}
                   {newItemColumn === "supervision" ? (
@@ -825,6 +916,7 @@ interface WorkFlowItemCardProps {
   onRemoveConnections: () => void;
   hasConnections: boolean;
   setRef: (el: HTMLDivElement | null) => void;
+  connectionLabels: { outgoing: string[]; incoming: string[] };
 }
 
 function WorkFlowItemCard({
@@ -846,6 +938,7 @@ function WorkFlowItemCard({
   onRemoveConnections,
   hasConnections,
   setRef,
+  connectionLabels,
 }: WorkFlowItemCardProps) {
   const [editTitle, setEditTitle] = useState(item.titulo);
 
@@ -899,6 +992,8 @@ function WorkFlowItemCard({
     );
   }
 
+  const hasLabels = connectionLabels.outgoing.length > 0 || connectionLabels.incoming.length > 0;
+
   return (
     <div
       ref={setRef}
@@ -916,6 +1011,38 @@ function WorkFlowItemCard({
         isConnectingFrom && "ring-2 ring-primary ring-offset-2"
       )}
     >
+      {/* Connection labels - Incoming */}
+      {connectionLabels.incoming.length > 0 && (
+        <div className="absolute -left-1 top-1/2 -translate-y-1/2 -translate-x-full flex flex-col gap-0.5 max-w-[80px]">
+          {connectionLabels.incoming.map((label, idx) => (
+            <div 
+              key={idx}
+              className="flex items-center gap-0.5 text-[9px] bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded-sm whitespace-nowrap overflow-hidden"
+              title={label}
+            >
+              <ArrowRight className="h-2.5 w-2.5 flex-shrink-0" />
+              <span className="truncate">{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Connection labels - Outgoing */}
+      {connectionLabels.outgoing.length > 0 && (
+        <div className="absolute -right-1 top-1/2 -translate-y-1/2 translate-x-full flex flex-col gap-0.5 max-w-[80px]">
+          {connectionLabels.outgoing.map((label, idx) => (
+            <div 
+              key={idx}
+              className="flex items-center gap-0.5 text-[9px] bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-1 py-0.5 rounded-sm whitespace-nowrap overflow-hidden"
+              title={label}
+            >
+              <span className="truncate">{label}</span>
+              <ArrowLeft className="h-2.5 w-2.5 flex-shrink-0" />
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-start gap-2">
         <button
           onClick={(e) => {
@@ -964,7 +1091,7 @@ function WorkFlowItemCard({
       </div>
       
       {/* Action buttons on hover */}
-      <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 bg-white dark:bg-gray-800 rounded-lg shadow-md p-0.5 border">
+      <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 bg-white dark:bg-gray-800 rounded-lg shadow-md p-0.5 border z-20">
         <Button
           variant="ghost"
           size="icon"
