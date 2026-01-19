@@ -26,8 +26,6 @@ interface UserProfile {
   email: string;
   full_name: string | null;
   phone: string | null;
-  dni: string | null;
-  puesto: string | null;
   avatar_url: string | null;
   created_at: string;
   role: AppRole;
@@ -113,8 +111,6 @@ const Usuarios = () => {
             email: profile.email,
             full_name: profile.full_name,
             phone: profile.phone,
-            dni: profile.dni,
-            puesto: profile.puesto,
             avatar_url: profile.avatar_url,
             created_at: profile.created_at,
             role: userRole?.role || 'asesor',
@@ -150,17 +146,12 @@ const Usuarios = () => {
   }, []);
 
   // User handlers
-  const handleEditUser = async (userId: string, data: { full_name: string; phone: string; dni: string; puesto: string; role: AppRole }) => {
+  const handleEditUser = async (userId: string, data: { full_name: string; phone: string; role: AppRole }) => {
     setActionLoading(true);
     try {
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ 
-          full_name: data.full_name, 
-          phone: data.phone,
-          dni: data.dni,
-          puesto: data.puesto,
-        })
+        .update({ full_name: data.full_name, phone: data.phone })
         .eq('id', userId);
 
       if (profileError) throw profileError;
