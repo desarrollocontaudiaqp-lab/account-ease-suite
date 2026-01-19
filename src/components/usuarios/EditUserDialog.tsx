@@ -22,20 +22,18 @@ interface EditUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: UserProfile | null;
-  onSave: (userId: string, data: { full_name: string; phone: string; role: AppRole }) => Promise<void>;
+  onSave: (userId: string, data: { full_name: string; role: AppRole }) => Promise<void>;
   loading: boolean;
 }
 
 const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserDialogProps) => {
   const { roles: availableRoles } = useRolePermisos();
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<AppRole>('asesor');
 
   useEffect(() => {
     if (user) {
       setFullName(user.full_name || '');
-      setPhone(user.phone || '');
       setRole(user.role);
     }
   }, [user]);
@@ -43,7 +41,7 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (user) {
-      await onSave(user.id, { full_name: fullName, phone, role });
+      await onSave(user.id, { full_name: fullName, role });
     }
   };
 
@@ -65,16 +63,6 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Nombre del usuario"
-              className="input-focus"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Teléfono</Label>
-            <Input
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Número de teléfono"
               className="input-focus"
             />
           </div>
