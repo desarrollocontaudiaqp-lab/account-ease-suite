@@ -160,7 +160,6 @@ export function RegisterPaymentDialog({
   const [saving, setSaving] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
-  const [showSummary, setShowSummary] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -220,7 +219,6 @@ export function RegisterPaymentDialog({
         observaciones_contables: "",
         glosa: defaultGlosa,
       });
-      setShowSummary(false);
       setIsRegistered(false);
       setCalendarMonth(new Date(payment.fecha_vencimiento));
     }
@@ -383,7 +381,6 @@ export function RegisterPaymentDialog({
     } else {
       toast.success("Pago registrado correctamente");
       setIsRegistered(true);
-      setShowSummary(true);
       onSuccess();
     }
 
@@ -520,177 +517,250 @@ export function RegisterPaymentDialog({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" />
-            Registrar Pago
+            {isRegistered ? "Detalle del Pago Registrado" : "Registrar Pago"}
           </DialogTitle>
           <DialogDescription>
-            Complete los datos del comprobante y pago para generar el registro de ventas
+            {isRegistered
+              ? "Vista corporativa del pago registrado"
+              : "Complete los datos del comprobante y pago para generar el registro de ventas"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pr-2">
-          {showSummary && isRegistered ? (
-            // Vista Resumen Corporativa
+          {isRegistered ? (
+            // Vista Corporativa Completa del Pago Registrado
             <div className="space-y-4">
-              <div ref={summaryRef} className="bg-white p-6 rounded-lg border-2 border-primary/20">
-                <div className="flex items-center justify-between border-b pb-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
-                      <CheckCircle2 className="h-6 w-6 text-white" />
+              <div ref={summaryRef} className="bg-white p-8 rounded-lg border-2 border-primary/20 shadow-sm">
+                {/* Header Corporativo */}
+                <div className="flex items-center justify-between border-b-2 border-primary/20 pb-6 mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center shadow-lg">
+                      <CheckCircle2 className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-primary">PAGO REGISTRADO</h2>
-                      <p className="text-sm text-muted-foreground">Comprobante de Registro</p>
+                      <h2 className="text-2xl font-bold text-primary">COMPROBANTE DE PAGO</h2>
+                      <p className="text-muted-foreground">Registro Contable Verificado</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Fecha de Registro</p>
-                    <p className="font-semibold">
-                      {format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: es })}
+                  <div className="text-right bg-primary/5 p-4 rounded-lg">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Fecha de Registro</p>
+                    <p className="text-lg font-bold text-primary">
+                      {format(new Date(), "dd/MM/yyyy")}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(), "HH:mm", { locale: es })} hrs
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6 mb-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                        Datos del Cliente
-                      </h3>
-                      <div className="bg-muted/30 p-3 rounded-lg space-y-1">
+                {/* Grid de Información */}
+                <div className="grid grid-cols-3 gap-6 mb-6">
+                  {/* Datos del Cliente */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-primary/30 pb-2">
+                      Datos del Cliente
+                    </h3>
+                    <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Razón Social</p>
                         <p className="font-semibold">{payment.contrato.cliente.razon_social}</p>
-                        <p className="text-sm">RUC: {payment.contrato.cliente.codigo}</p>
-                        {payment.contrato.cliente.direccion && (
-                          <p className="text-sm text-muted-foreground">{payment.contrato.cliente.direccion}</p>
-                        )}
                       </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">RUC</p>
+                        <p className="font-medium">{payment.contrato.cliente.codigo}</p>
+                      </div>
+                      {payment.contrato.cliente.direccion && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Dirección</p>
+                          <p className="text-sm">{payment.contrato.cliente.direccion}</p>
+                        </div>
+                      )}
                     </div>
+                  </div>
 
-                    <div>
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                        Referencia del Contrato
-                      </h3>
-                      <div className="bg-muted/30 p-3 rounded-lg space-y-1">
-                        <p className="font-semibold">Contrato N° {payment.contrato.numero}</p>
-                        <p className="text-sm">{form.glosa}</p>
+                  {/* Datos del Comprobante */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-primary/30 pb-2">
+                      Datos del Comprobante
+                    </h3>
+                    <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Tipo:</span>
+                        <Badge variant="secondary">
+                          {tiposComprobante.find((t) => t.value === form.tipo_comprobante)?.label}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Número:</span>
+                        <span className="font-bold">
+                          {form.serie_comprobante ? `${form.serie_comprobante}-` : ""}{form.numero_comprobante}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Fecha Emisión:</span>
+                        <span className="font-medium">
+                          {format(new Date(form.fecha_emision), "dd/MM/yyyy")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Tipo IGV:</span>
+                        <span className="font-medium">
+                          {tiposIGV.find((t) => t.value === form.tipo_igv)?.label}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                        Datos del Comprobante
-                      </h3>
-                      <div className="bg-muted/30 p-3 rounded-lg space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Tipo:</span>
-                          <span className="font-medium">
-                            {tiposComprobante.find((t) => t.value === form.tipo_comprobante)?.label}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Número:</span>
-                          <span className="font-medium">
-                            {form.serie_comprobante}-{form.numero_comprobante}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Fecha Emisión:</span>
-                          <span className="font-medium">
-                            {format(new Date(form.fecha_emision), "dd/MM/yyyy")}
-                          </span>
-                        </div>
+                  {/* Datos del Pago */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-primary/30 pb-2">
+                      Datos del Pago
+                    </h3>
+                    <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Estado:</span>
+                        <Badge className="bg-green-600">{form.status.toUpperCase()}</Badge>
                       </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                        Datos de Pago
-                      </h3>
-                      <div className="bg-muted/30 p-3 rounded-lg space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Método:</span>
-                          <span className="font-medium">
-                            {metodosPago.find((m) => m.value === form.metodo_pago)?.label}
-                          </span>
-                        </div>
-                        {form.banco && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Banco:</span>
-                            <span className="font-medium">
-                              {bancos.find((b) => b.value === form.banco)?.label}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Fecha Pago:</span>
-                          <span className="font-medium">
-                            {format(new Date(form.fecha_pago), "dd/MM/yyyy")}
-                          </span>
-                        </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Fecha Pago:</span>
+                        <span className="font-medium">
+                          {format(new Date(form.fecha_pago), "dd/MM/yyyy")}
+                        </span>
                       </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Método:</span>
+                        <span className="font-medium">
+                          {metodosPago.find((m) => m.value === form.metodo_pago)?.label}
+                        </span>
+                      </div>
+                      {form.banco && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Banco:</span>
+                          <span className="font-medium">
+                            {bancos.find((b) => b.value === form.banco)?.label}
+                          </span>
+                        </div>
+                      )}
+                      {form.cuenta_bancaria && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Cuenta:</span>
+                          <span className="font-medium text-xs">{form.cuenta_bancaria}</span>
+                        </div>
+                      )}
+                      {form.referencia && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Referencia:</span>
+                          <span className="font-medium text-xs">{form.referencia}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                {/* Referencia del Contrato y Glosa */}
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-primary/30 pb-2">
+                      Referencia del Contrato
+                    </h3>
+                    <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Contrato N°:</span>
+                        <span className="font-bold">{payment.contrato.numero}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Fecha Vencimiento:</span>
+                        <span className="font-medium">
+                          {format(new Date(payment.fecha_vencimiento), "dd/MM/yyyy")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-primary/30 pb-2">
+                      Glosa / Descripción
+                    </h3>
+                    <div className="bg-muted/30 p-4 rounded-lg">
+                      <p className="text-sm">{form.glosa || "Sin descripción"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detalle de Montos */}
+                <div className="border-t-2 border-primary/20 pt-6">
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-4">
                     Detalle de Montos
                   </h3>
-                  <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-4 rounded-lg">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Subtotal:</span>
-                          <span>{formatCurrency(form.subtotal, payment.contrato.moneda)}</span>
+                  <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 p-6 rounded-xl">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Subtotal:</span>
+                          <span className="font-medium text-lg">{formatCurrency(form.subtotal, payment.contrato.moneda)}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span>IGV ({form.tipo_igv}):</span>
-                          <span>{formatCurrency(form.igv, payment.contrato.moneda)}</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">IGV ({form.tipo_igv}):</span>
+                          <span className="font-medium text-lg">{formatCurrency(form.igv, payment.contrato.moneda)}</span>
                         </div>
-                        <div className="flex justify-between font-semibold border-t pt-2">
-                          <span>Total Comprobante:</span>
-                          <span>{formatCurrency(form.monto, payment.contrato.moneda)}</span>
+                        <Separator />
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold">Total Comprobante:</span>
+                          <span className="font-bold text-xl">{formatCurrency(form.monto, payment.contrato.moneda)}</span>
                         </div>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {form.detraccion_monto > 0 && (
-                          <div className="flex justify-between text-sm text-orange-600">
+                          <div className="flex justify-between items-center text-orange-600">
                             <span>Detracción ({form.detraccion_porcentaje}%):</span>
-                            <span>-{formatCurrency(form.detraccion_monto, payment.contrato.moneda)}</span>
+                            <span className="font-medium">-{formatCurrency(form.detraccion_monto, payment.contrato.moneda)}</span>
                           </div>
                         )}
                         {form.retencion_monto > 0 && (
-                          <div className="flex justify-between text-sm text-orange-600">
+                          <div className="flex justify-between items-center text-orange-600">
                             <span>Retención ({form.retencion_porcentaje}%):</span>
-                            <span>-{formatCurrency(form.retencion_monto, payment.contrato.moneda)}</span>
+                            <span className="font-medium">-{formatCurrency(form.retencion_monto, payment.contrato.moneda)}</span>
                           </div>
                         )}
-                        <div className="flex justify-between font-bold text-lg text-primary border-t pt-2">
-                          <span>Monto Neto Recibido:</span>
-                          <span>{formatCurrency(form.monto_neto, payment.contrato.moneda)}</span>
+                        {(form.detraccion_monto > 0 || form.retencion_monto > 0) && <Separator />}
+                        <div className="flex justify-between items-center bg-primary/10 p-3 rounded-lg">
+                          <span className="font-bold text-primary">MONTO NETO RECIBIDO:</span>
+                          <span className="font-bold text-2xl text-primary">{formatCurrency(form.monto_neto, payment.contrato.moneda)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {form.observaciones_contables && (
-                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm font-medium text-amber-800">Observaciones Contables:</p>
-                    <p className="text-sm text-amber-700">{form.observaciones_contables}</p>
+                {/* Notas y Observaciones */}
+                {(form.notas || form.observaciones_contables) && (
+                  <div className="mt-6 grid grid-cols-2 gap-4">
+                    {form.notas && (
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Notas</p>
+                        <p className="text-sm">{form.notas}</p>
+                      </div>
+                    )}
+                    {form.observaciones_contables && (
+                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-xs font-semibold text-amber-800 uppercase mb-2">Observaciones Contables</p>
+                        <p className="text-sm text-amber-700">{form.observaciones_contables}</p>
+                      </div>
+                    )}
                   </div>
                 )}
+
+                {/* Footer Corporativo */}
+                <div className="mt-6 pt-4 border-t border-dashed border-muted-foreground/30 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    Documento generado por el Sistema de Gestión Contable • Contadores & Auditores Arequipa
+                  </p>
+                </div>
               </div>
 
               <div className="flex justify-center gap-3">
-                <Button variant="outline" onClick={() => setShowSummary(false)}>
-                  <ChevronLeft className="h-4 w-4 mr-2" />
-                  Volver al Formulario
-                </Button>
-                <Button onClick={exportSummaryPDF} className="gap-2">
+                <Button onClick={exportSummaryPDF} variant="outline" className="gap-2">
                   <Printer className="h-4 w-4" />
-                  Exportar Resumen PDF
+                  Exportar PDF
                 </Button>
               </div>
             </div>
@@ -1238,11 +1308,17 @@ export function RegisterPaymentDialog({
         </div>
 
         <DialogFooter className="flex-shrink-0 gap-2 pt-4 border-t">
-          {showSummary && isRegistered ? (
-            <Button onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4 mr-2" />
-              Cerrar
-            </Button>
+          {isRegistered ? (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                <X className="h-4 w-4 mr-2" />
+                Cerrar
+              </Button>
+              <Button onClick={() => setIsRegistered(false)} className="gap-2">
+                <FileText className="h-4 w-4" />
+                Editar Pago
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
