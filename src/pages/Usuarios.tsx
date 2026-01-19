@@ -146,12 +146,12 @@ const Usuarios = () => {
   }, []);
 
   // User handlers
-  const handleEditUser = async (userId: string, data: { full_name: string; phone: string; role: AppRole }) => {
+  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole }) => {
     setActionLoading(true);
     try {
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ full_name: data.full_name, phone: data.phone })
+        .update({ full_name: data.full_name })
         .eq('id', userId);
 
       if (profileError) throw profileError;
