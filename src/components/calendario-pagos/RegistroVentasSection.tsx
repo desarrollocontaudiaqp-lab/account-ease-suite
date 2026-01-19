@@ -433,9 +433,6 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
   };
 
   const handlePrint = () => {
-    const printContent = printRef.current;
-    if (!printContent) return;
-
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
@@ -443,7 +440,50 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
       ? `${MONTHS[selectedMonth]} ${selectedYear}`
       : `${dateRange.from ? format(dateRange.from, "dd/MM/yyyy") : ""} - ${dateRange.to ? format(dateRange.to, "dd/MM/yyyy") : ""}`;
 
-    printWindow.document.write(`
+    const formatNumber = (num: number) => {
+      return num.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const getComprobanteLabel = (tipo: string) => {
+      const labels: Record<string, string> = {
+        factura: "FAC",
+        boleta: "BOL",
+        recibo_interno: "R.I.",
+        nota_credito: "N/C",
+        nota_debito: "N/D",
+      };
+      return labels[tipo] || tipo?.toUpperCase()?.substring(0, 3) || "-";
+    };
+
+    // Generate table rows
+    const tableRows = filteredRecords.map((record, index) => {
+      const fechaEmision = record.fecha_emision 
+        ? format(parseISO(record.fecha_emision), "dd/MM/yyyy") 
+        : "-";
+      
+      return `
+        <tr>
+          <td class="text-center">${index + 1}</td>
+          <td>${fechaEmision}</td>
+          <td>${getComprobanteLabel(record.tipo_comprobante)}</td>
+          <td>${record.serie_comprobante || "-"}</td>
+          <td>${record.numero_comprobante || "-"}</td>
+          <td>${record.cliente_ruc || "-"}</td>
+          <td>${record.cliente_razon_social || "-"}</td>
+          <td>${record.glosa || "-"}</td>
+          <td class="text-right">${formatNumber(record.base_imponible)}</td>
+          <td class="text-right">${formatNumber(record.igv)}</td>
+          <td class="text-right">${formatNumber(record.total)}</td>
+          <td>${record.cta_ingreso || "-"}</td>
+          <td>${record.cta_igv || "-"}</td>
+          <td>${record.cta_otros_tributos || "-"}</td>
+          <td>${record.cta_por_cobrar || "-"}</td>
+          <td>${record.centro_costo || "-"}</td>
+        </tr>
+      `;
+    }).join("");
+
+    const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -459,12 +499,12 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
             .header { 
               text-align: center; 
               margin-bottom: 20px;
-              border-bottom: 2px solid #c41e3a;
+              border-bottom: 2px solid #A34139;
               padding-bottom: 15px;
             }
             .header h1 { 
               font-size: 16pt; 
-              color: #c41e3a;
+              color: #A34139;
               margin-bottom: 5px;
             }
             .header .period { 
@@ -483,7 +523,7 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
               font-size: 8pt;
             }
             th { 
-              background: #c41e3a; 
+              background: #A34139; 
               color: white; 
               padding: 8px 4px; 
               text-align: left;
@@ -502,11 +542,11 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
             .totals-row { 
               background: #fef3f3 !important; 
               font-weight: bold;
-              border-top: 2px solid #c41e3a;
+              border-top: 2px solid #A34139;
             }
             .totals-row td { 
               padding: 10px 4px;
-              color: #c41e3a;
+              color: #A34139;
             }
             .footer {
               margin-top: 30px;
@@ -535,7 +575,7 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
             .summary-value {
               font-size: 12pt;
               font-weight: bold;
-              color: #c41e3a;
+              color: #A34139;
             }
             @media print {
               body { padding: 10mm; }
@@ -575,31 +615,12 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
               </tr>
             </thead>
             <tbody>
-              \${filteredRecords.map((record, index) => \`
-                <tr>
-                  <td class="text-center">\${index + 1}</td>
-                  <td>\${record.fecha_emision ? format(parseISO(record.fecha_emision), "dd/MM/yyyy") : "-"}</td>
-                  <td>\${getComprobanteLabel(record.tipo_comprobante)}</td>
-                  <td>\${record.serie_comprobante || "-"}</td>
-                  <td>\${record.numero_comprobante || "-"}</td>
-                  <td>\${record.cliente_ruc}</td>
-                  <td>\${record.cliente_razon_social}</td>
-                  <td>\${record.glosa || "-"}</td>
-                  <td class="text-right">\${formatNumber(record.base_imponible)}</td>
-                  <td class="text-right">\${formatNumber(record.igv)}</td>
-                  <td class="text-right">\${formatNumber(record.total)}</td>
-                  <td>\${record.cta_ingreso || "-"}</td>
-                  <td>\${record.cta_igv || "-"}</td>
-                  <td>\${record.cta_otros_tributos || "-"}</td>
-                  <td>\${record.cta_por_cobrar || "-"}</td>
-                  <td>\${record.centro_costo || "-"}</td>
-                </tr>
-              \`).join("")}
+              ${tableRows}
               <tr class="totals-row">
                 <td colspan="8" class="text-right">TOTALES:</td>
-                <td class="text-right">\${formatNumber(totals.base_imponible)}</td>
-                <td class="text-right">\${formatNumber(totals.igv)}</td>
-                <td class="text-right">\${formatNumber(totals.total)}</td>
+                <td class="text-right">${formatNumber(totals.base_imponible)}</td>
+                <td class="text-right">${formatNumber(totals.igv)}</td>
+                <td class="text-right">${formatNumber(totals.total)}</td>
                 <td colspan="5"></td>
               </tr>
             </tbody>
@@ -625,8 +646,9 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
           </div>
         </body>
       </html>
-    `);
+    `;
 
+    printWindow.document.write(htmlContent);
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => {
