@@ -17,7 +17,7 @@ interface EditPersonalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   person: PersonalProfile | null;
-  onSave: (id: string, data: { dni: string; full_name: string; puesto: string; phone: string }) => void;
+  onSave: (id: string, data: { dni: string; full_name: string; puesto: string; email: string; phone: string }) => void;
   loading: boolean;
 }
 
@@ -25,6 +25,7 @@ const EditPersonalDialog = ({ open, onOpenChange, person, onSave, loading }: Edi
   const [dni, setDni] = useState('');
   const [fullName, setFullName] = useState('');
   const [puesto, setPuesto] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
 
   useEffect(() => {
@@ -32,6 +33,7 @@ const EditPersonalDialog = ({ open, onOpenChange, person, onSave, loading }: Edi
       setDni(person.dni || '');
       setFullName(person.full_name || '');
       setPuesto(person.puesto || '');
+      setEmail(person.email || '');
       setPhone(person.phone || '');
     }
   }, [person]);
@@ -39,7 +41,7 @@ const EditPersonalDialog = ({ open, onOpenChange, person, onSave, loading }: Edi
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (person) {
-      onSave(person.id, { dni, full_name: fullName, puesto, phone });
+      onSave(person.id, { dni, full_name: fullName, puesto, email, phone });
     }
   };
 
@@ -57,9 +59,10 @@ const EditPersonalDialog = ({ open, onOpenChange, person, onSave, loading }: Edi
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
-              value={person?.email || ''}
-              disabled
-              className="bg-muted"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ejemplo@correo.com"
             />
           </div>
           <div className="space-y-2">
