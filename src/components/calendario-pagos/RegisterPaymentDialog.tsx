@@ -161,6 +161,7 @@ export function RegisterPaymentDialog({
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [isRegistered, setIsRegistered] = useState(false);
+  const [wasAlreadyPaid, setWasAlreadyPaid] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -190,38 +191,88 @@ export function RegisterPaymentDialog({
   });
 
   useEffect(() => {
-    if (payment && open) {
-      const subtotal = payment.monto / 1.18;
-      const igv = payment.monto - subtotal;
-      const defaultGlosa = `${payment.servicio || payment.contrato.descripcion || "Servicio"} - Cuota ${payment.cuota || 1}`;
+    const loadPaymentData = async () => {
+      if (!payment || !open) return;
 
-      setForm({
-        status: "pagado",
-        fecha_pago: format(new Date(), "yyyy-MM-dd"),
-        tipo_comprobante: "factura",
-        serie_comprobante: "",
-        numero_comprobante: "",
-        fecha_emision: format(new Date(), "yyyy-MM-dd"),
-        subtotal: parseFloat(subtotal.toFixed(2)),
-        tipo_igv: "gravado",
-        igv: parseFloat(igv.toFixed(2)),
-        monto: payment.monto,
-        detraccion_porcentaje: 0,
-        detraccion_monto: 0,
-        retencion_porcentaje: 0,
-        retencion_monto: 0,
-        monto_neto: payment.monto,
-        metodo_pago: payment.metodo_pago || "transferencia",
-        banco: "",
-        cuenta_bancaria: "",
-        referencia: payment.referencia || "",
-        notas: payment.notas || "",
-        observaciones_contables: "",
-        glosa: defaultGlosa,
-      });
-      setIsRegistered(false);
+      const defaultGlosa = `${payment.servicio || payment.contrato.descripcion || "Servicio"} - Cuota ${payment.cuota || 1}`;
+      const isAlreadyPaid = payment.status === "pagado";
+      setWasAlreadyPaid(isAlreadyPaid);
+
+      if (isAlreadyPaid) {
+        // Load existing payment data from database
+        const { data: existingPayment, error } = await supabase
+          .from("pagos")
+          .select("*")
+          .eq("id", payment.id)
+          .single();
+
+        if (!error && existingPayment) {
+          // Extract glosa from notas if it exists (glosa is stored as first part of notas)
+          const notasParts = (existingPayment.notas || "").split("\n");
+          const glosa = notasParts[0] || defaultGlosa;
+          const notas = notasParts.slice(1).join("\n");
+
+          setForm({
+            status: existingPayment.status || "pagado",
+            fecha_pago: existingPayment.fecha_pago || format(new Date(), "yyyy-MM-dd"),
+            tipo_comprobante: existingPayment.tipo_comprobante || "factura",
+            serie_comprobante: existingPayment.serie_comprobante || "",
+            numero_comprobante: existingPayment.numero_comprobante || "",
+            fecha_emision: existingPayment.fecha_emision || format(new Date(), "yyyy-MM-dd"),
+            subtotal: existingPayment.subtotal || parseFloat((payment.monto / 1.18).toFixed(2)),
+            tipo_igv: existingPayment.tipo_igv || "gravado",
+            igv: existingPayment.igv || parseFloat((payment.monto - payment.monto / 1.18).toFixed(2)),
+            monto: existingPayment.monto || payment.monto,
+            detraccion_porcentaje: existingPayment.detraccion_porcentaje || 0,
+            detraccion_monto: existingPayment.detraccion_monto || 0,
+            retencion_porcentaje: existingPayment.retencion_porcentaje || 0,
+            retencion_monto: existingPayment.retencion_monto || 0,
+            monto_neto: existingPayment.monto_neto || payment.monto,
+            metodo_pago: existingPayment.metodo_pago || "transferencia",
+            banco: existingPayment.banco || "",
+            cuenta_bancaria: existingPayment.cuenta_bancaria || "",
+            referencia: existingPayment.referencia || "",
+            notas: notas,
+            observaciones_contables: existingPayment.observaciones_contables || "",
+            glosa: glosa,
+          });
+          setIsRegistered(true); // Show the corporate view for already paid payments
+        }
+      } else {
+        // New payment registration
+        const subtotal = payment.monto / 1.18;
+        const igv = payment.monto - subtotal;
+
+        setForm({
+          status: "pagado",
+          fecha_pago: format(new Date(), "yyyy-MM-dd"),
+          tipo_comprobante: "factura",
+          serie_comprobante: "",
+          numero_comprobante: "",
+          fecha_emision: format(new Date(), "yyyy-MM-dd"),
+          subtotal: parseFloat(subtotal.toFixed(2)),
+          tipo_igv: "gravado",
+          igv: parseFloat(igv.toFixed(2)),
+          monto: payment.monto,
+          detraccion_porcentaje: 0,
+          detraccion_monto: 0,
+          retencion_porcentaje: 0,
+          retencion_monto: 0,
+          monto_neto: payment.monto,
+          metodo_pago: payment.metodo_pago || "transferencia",
+          banco: "",
+          cuenta_bancaria: "",
+          referencia: payment.referencia || "",
+          notas: payment.notas || "",
+          observaciones_contables: "",
+          glosa: defaultGlosa,
+        });
+        setIsRegistered(false);
+      }
       setCalendarMonth(new Date(payment.fecha_vencimiento));
-    }
+    };
+
+    loadPaymentData();
   }, [payment, open]);
 
   const isReciboInterno = form.tipo_comprobante === "recibo_interno";
@@ -517,12 +568,18 @@ export function RegisterPaymentDialog({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" />
-            {isRegistered ? "Detalle del Pago Registrado" : "Registrar Pago"}
+            {isRegistered 
+              ? "Detalle del Pago Registrado" 
+              : wasAlreadyPaid 
+                ? "Editar Pago"
+                : "Registrar Pago"}
           </DialogTitle>
           <DialogDescription>
             {isRegistered
               ? "Vista corporativa del pago registrado"
-              : "Complete los datos del comprobante y pago para generar el registro de ventas"}
+              : wasAlreadyPaid
+                ? "Modifique los datos del pago registrado"
+                : "Complete los datos del comprobante y pago para generar el registro de ventas"}
           </DialogDescription>
         </DialogHeader>
 
@@ -1329,6 +1386,11 @@ export function RegisterPaymentDialog({
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Guardando...
+                  </>
+                ) : wasAlreadyPaid ? (
+                  <>
+                    <FileText className="h-4 w-4" />
+                    Guardar Cambios
                   </>
                 ) : (
                   <>
