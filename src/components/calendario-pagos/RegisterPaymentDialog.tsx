@@ -67,6 +67,7 @@ interface UnifiedPayment {
   notas: string | null;
   servicio: string | null;
   cuota: number | null;
+  glosa: string | null;
   isProjected: boolean;
   contrato: {
     numero: string;
@@ -194,7 +195,8 @@ export function RegisterPaymentDialog({
     const loadPaymentData = async () => {
       if (!payment || !open) return;
 
-      const defaultGlosa = `${payment.servicio || payment.contrato.descripcion || "Servicio"} - Cuota ${payment.cuota || 1}`;
+      // Use the glosa from payment (already calculated with descripcion + cuota)
+      const defaultGlosa = payment.glosa || `${payment.contrato.descripcion || payment.servicio || "Servicio"} - Cuota ${payment.cuota || 1}`;
       const isAlreadyPaid = payment.status === "pagado";
       setWasAlreadyPaid(isAlreadyPaid);
 
@@ -207,10 +209,8 @@ export function RegisterPaymentDialog({
           .single();
 
         if (!error && existingPayment) {
-          // Extract glosa from notas if it exists (glosa is stored as first part of notas)
-          const notasParts = (existingPayment.notas || "").split("\n");
-          const glosa = notasParts[0] || defaultGlosa;
-          const notas = notasParts.slice(1).join("\n");
+          // Use observaciones_contables as glosa if stored there, fallback to defaultGlosa
+          const storedGlosa = existingPayment.observaciones_contables || defaultGlosa;
 
           setForm({
             status: existingPayment.status || "pagado",
@@ -232,9 +232,9 @@ export function RegisterPaymentDialog({
             banco: existingPayment.banco || "",
             cuenta_bancaria: existingPayment.cuenta_bancaria || "",
             referencia: existingPayment.referencia || "",
-            notas: notas,
-            observaciones_contables: existingPayment.observaciones_contables || "",
-            glosa: glosa,
+            notas: existingPayment.notas || "",
+            observaciones_contables: "",
+            glosa: storedGlosa,
           });
           setIsRegistered(true); // Show the corporate view for already paid payments
         }
@@ -420,8 +420,8 @@ export function RegisterPaymentDialog({
       banco: form.banco || null,
       cuenta_bancaria: form.cuenta_bancaria || null,
       referencia: form.referencia || null,
-      notas: `${form.glosa}\n${form.notas}`.trim() || null,
-      observaciones_contables: form.observaciones_contables || null,
+      notas: form.notas || null,
+      observaciones_contables: form.glosa || null, // Store glosa in observaciones_contables
     };
 
     const { error } = await supabase.from("pagos").update(updateData).eq("id", payment.id);

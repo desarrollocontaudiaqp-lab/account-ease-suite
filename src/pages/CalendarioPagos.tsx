@@ -98,11 +98,13 @@ interface UnifiedPayment {
   notas: string | null;
   servicio: string | null;
   cuota: number | null;
+  glosa: string | null;
   isProjected: boolean;
   contrato: {
     numero: string;
     moneda: string;
     status: string;
+    descripcion: string;
     cliente: {
       razon_social: string;
       codigo: string;
@@ -195,6 +197,7 @@ export default function CalendarioPagos() {
           numero,
           moneda,
           status,
+          descripcion,
           cliente:clientes(razon_social, codigo)
         )
       `)
@@ -208,6 +211,7 @@ export default function CalendarioPagos() {
         numero,
         moneda,
         status,
+        descripcion,
         datos_plantilla,
         cliente:clientes(razon_social, codigo)
       `)
@@ -233,6 +237,21 @@ export default function CalendarioPagos() {
         status = "vencido";
       }
 
+      // Find the corresponding contract to get datos_plantilla for cuota info
+      const contratoInfo = (contratosData || []).find((c: any) => c.id === payment.contrato_id);
+      const datosPlantilla = contratoInfo?.datos_plantilla as Record<string, any> | null;
+      const paymentSchedule = datosPlantilla?.payment_schedule || [];
+      
+      // Find the payment in the schedule by matching fecha_vencimiento
+      const scheduleIndex = (paymentSchedule as any[]).findIndex((s: any) => {
+        const scheduleDate = s.fecha ? new Date(s.fecha).toISOString().split("T")[0] : null;
+        return scheduleDate === payment.fecha_vencimiento;
+      });
+      
+      const cuotaNumber = scheduleIndex >= 0 ? scheduleIndex + 1 : 1;
+      const descripcionContrato = payment.contrato?.descripcion || "";
+      const glosaGenerada = `${descripcionContrato}${descripcionContrato ? " - " : ""}Cuota ${cuotaNumber}`;
+
       return {
         id: payment.id,
         contrato_id: payment.contrato_id,
@@ -243,13 +262,15 @@ export default function CalendarioPagos() {
         metodo_pago: payment.metodo_pago,
         referencia: payment.referencia,
         notas: payment.notas,
-        servicio: null,
-        cuota: null,
+        servicio: descripcionContrato || null,
+        cuota: cuotaNumber,
+        glosa: glosaGenerada,
         isProjected: false,
         contrato: {
           numero: payment.contrato?.numero || "",
           moneda: payment.contrato?.moneda || "PEN",
           status: payment.contrato?.status || "",
+          descripcion: descripcionContrato,
           cliente: {
             razon_social: payment.contrato?.cliente?.razon_social || "",
             codigo: payment.contrato?.cliente?.codigo || "",
@@ -276,6 +297,10 @@ export default function CalendarioPagos() {
         const fechaVencimiento = scheduleItem.fecha ? new Date(scheduleItem.fecha).toISOString().split("T")[0] : null;
         if (!fechaVencimiento) return;
 
+        const cuotaNumber = scheduleItem.cuota || index + 1;
+        const descripcionContrato = contrato.descripcion || "";
+        const glosaGenerada = `${descripcionContrato}${descripcionContrato ? " - " : ""}Cuota ${cuotaNumber}`;
+
         projectedPayments.push({
           id: `proj-${contrato.id}-${index}`,
           contrato_id: contrato.id,
@@ -286,13 +311,15 @@ export default function CalendarioPagos() {
           metodo_pago: null,
           referencia: null,
           notas: null,
-          servicio: scheduleItem.servicio || null,
-          cuota: scheduleItem.cuota || index + 1,
+          servicio: descripcionContrato || null,
+          cuota: cuotaNumber,
+          glosa: glosaGenerada,
           isProjected: true,
           contrato: {
             numero: contrato.numero || "",
             moneda: contrato.moneda || "PEN",
             status: contrato.status || "",
+            descripcion: descripcionContrato,
             cliente: {
               razon_social: contrato.cliente?.razon_social || "",
               codigo: contrato.cliente?.codigo || "",
@@ -655,14 +682,9 @@ export default function CalendarioPagos() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="text-sm truncate max-w-[150px]" title={payment.servicio || "-"}>
-                                {payment.servicio || "-"}
+                              <span className="text-sm truncate max-w-[200px]" title={payment.glosa || payment.servicio || "-"}>
+                                {payment.glosa || payment.servicio || "-"}
                               </span>
-                              {payment.cuota && (
-                                <span className="text-xs text-muted-foreground">
-                                  Cuota {payment.cuota}
-                                </span>
-                              )}
                             </div>
                           </TableCell>
                           <TableCell>

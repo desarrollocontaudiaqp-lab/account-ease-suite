@@ -25,11 +25,13 @@ interface UnifiedPayment {
   notas: string | null;
   servicio: string | null;
   cuota: number | null;
+  glosa: string | null;
   isProjected: boolean;
   contrato: {
     numero: string;
     moneda: string;
     status: string;
+    descripcion: string;
     cliente: {
       razon_social: string;
       codigo: string;
