@@ -720,15 +720,21 @@ export default function CalendarioPagos() {
                                     <Tooltip>
                                       <TooltipTrigger asChild>
                                         <Button
-                                          variant="default"
+                                          variant={payment.status === "pagado" ? "secondary" : "default"}
                                           size="icon"
                                           className="h-8 w-8"
                                           onClick={() => handleRegisterPayment(payment)}
                                         >
-                                          <Receipt className="h-4 w-4" />
+                                          {payment.status === "pagado" ? (
+                                            <Edit className="h-4 w-4" />
+                                          ) : (
+                                            <Receipt className="h-4 w-4" />
+                                          )}
                                         </Button>
                                       </TooltipTrigger>
-                                      <TooltipContent>Registrar Pago</TooltipContent>
+                                      <TooltipContent>
+                                        {payment.status === "pagado" ? "Editar Pago" : "Registrar Pago"}
+                                      </TooltipContent>
                                     </Tooltip>
                                   </>
                                 )}
