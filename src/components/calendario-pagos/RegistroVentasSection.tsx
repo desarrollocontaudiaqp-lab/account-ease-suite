@@ -12,6 +12,9 @@ import {
   Building2,
   X,
   Receipt,
+  Save,
+  Loader2,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,6 +104,7 @@ const CENTRO_COSTO_SUGERENCIAS = [
 
 interface SalesRecord {
   id: string;
+  pago_id: string | null;
   fecha_emision: string;
   tipo_comprobante: string;
   serie_comprobante: string;
@@ -111,12 +115,14 @@ interface SalesRecord {
   igv: number;
   total: number;
   moneda: string;
+  glosa: string;
   cta_ingreso: string;
   cta_igv: string;
   cta_otros_tributos: string;
   cta_por_cobrar: string;
   centro_costo: string;
   estado: string;
+  isFromDB: boolean;
 }
 
 interface RegistroVentasSectionProps {
@@ -146,9 +152,10 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
   const [salesRecords, setSalesRecords] = useState<SalesRecord[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Account editing state
+  // Account and glosa editing state
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [accountValues, setAccountValues] = useState<Record<string, Record<string, string>>>({});
+  const [saving, setSaving] = useState(false);
 
   // Fetch sales records from paid payments
   useEffect(() => {
@@ -160,18 +167,40 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
     try {
       let startDate: string;
       let endDate: string;
+      let periodoMes: number;
+      let periodoAnio: number;
 
       if (filterMode === "month") {
         const monthStart = new Date(selectedYear, selectedMonth, 1);
         const monthEnd = endOfMonth(monthStart);
         startDate = format(monthStart, "yyyy-MM-dd");
         endDate = format(monthEnd, "yyyy-MM-dd");
+        periodoMes = selectedMonth + 1;
+        periodoAnio = selectedYear;
       } else {
         startDate = dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : format(startOfMonth(new Date()), "yyyy-MM-dd");
         endDate = dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : format(endOfMonth(new Date()), "yyyy-MM-dd");
+        periodoMes = dateRange.from ? dateRange.from.getMonth() + 1 : new Date().getMonth() + 1;
+        periodoAnio = dateRange.from ? dateRange.from.getFullYear() : new Date().getFullYear();
       }
 
-      const { data, error } = await supabase
+      // First, fetch existing records from registro_ventas table
+      const { data: existingRecords, error: existingError } = await supabase
+        .from("registro_ventas")
+        .select("*")
+        .gte("fecha_emision", startDate)
+        .lte("fecha_emision", endDate)
+        .order("fecha_emision", { ascending: true });
+
+      if (existingError) throw existingError;
+
+      // Create a map of pago_id to existing records
+      const existingByPagoId = new Map(
+        (existingRecords || []).map((r: any) => [r.pago_id, r])
+      );
+
+      // Fetch paid payments that might not be in registro_ventas yet
+      const { data: pagosData, error: pagosError } = await supabase
         .from("pagos")
         .select(`
           id,
@@ -183,8 +212,10 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
           subtotal,
           igv,
           monto,
+          observaciones_contables,
           status,
           contrato:contratos(
+            descripcion,
             moneda,
             cliente:clientes(
               razon_social,
@@ -197,27 +228,97 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
         .lte("fecha_emision", endDate)
         .order("fecha_emision", { ascending: true });
 
-      if (error) throw error;
+      if (pagosError) throw pagosError;
 
-      const records: SalesRecord[] = (data || []).map((pago: any) => ({
-        id: pago.id,
-        fecha_emision: pago.fecha_emision || pago.fecha_pago,
-        tipo_comprobante: pago.tipo_comprobante || "factura",
-        serie_comprobante: pago.serie_comprobante || "",
-        numero_comprobante: pago.numero_comprobante || "",
-        cliente_razon_social: pago.contrato?.cliente?.razon_social || "",
-        cliente_ruc: pago.contrato?.cliente?.codigo || "",
-        base_imponible: Number(pago.subtotal) || Number(pago.monto) / (1 + (config?.igv_percentage || 18) / 100),
-        igv: Number(pago.igv) || Number(pago.monto) * ((config?.igv_percentage || 18) / 100) / (1 + (config?.igv_percentage || 18) / 100),
-        total: Number(pago.monto),
-        moneda: pago.contrato?.moneda || "PEN",
-        cta_ingreso: accountValues[pago.id]?.cta_ingreso || "7041",
-        cta_igv: accountValues[pago.id]?.cta_igv || "40111",
-        cta_otros_tributos: accountValues[pago.id]?.cta_otros_tributos || "",
-        cta_por_cobrar: accountValues[pago.id]?.cta_por_cobrar || "1212",
-        centro_costo: accountValues[pago.id]?.centro_costo || "CC001",
-        estado: "registrado",
-      }));
+      const records: SalesRecord[] = [];
+
+      // Process each pago
+      for (const pago of pagosData || []) {
+        const existing = existingByPagoId.get(pago.id);
+        
+        if (existing) {
+          // Use the saved registro_ventas record
+          records.push({
+            id: existing.id,
+            pago_id: existing.pago_id,
+            fecha_emision: existing.fecha_emision,
+            tipo_comprobante: existing.tipo_comprobante,
+            serie_comprobante: existing.serie_comprobante || "",
+            numero_comprobante: existing.numero_comprobante || "",
+            cliente_razon_social: existing.cliente_razon_social,
+            cliente_ruc: existing.cliente_ruc,
+            base_imponible: Number(existing.base_imponible),
+            igv: Number(existing.igv),
+            total: Number(existing.total),
+            moneda: existing.moneda,
+            glosa: existing.glosa || "",
+            cta_ingreso: existing.cta_ingreso || "7041",
+            cta_igv: existing.cta_igv || "40111",
+            cta_otros_tributos: existing.cta_otros_tributos || "",
+            cta_por_cobrar: existing.cta_por_cobrar || "1212",
+            centro_costo: existing.centro_costo || "CC001",
+            estado: existing.estado,
+            isFromDB: true,
+          });
+          existingByPagoId.delete(pago.id);
+        } else {
+          // Create a new record from pago data
+          const baseImponible = Number(pago.subtotal) || Number(pago.monto) / (1 + (config?.igv_percentage || 18) / 100);
+          const igvAmount = Number(pago.igv) || Number(pago.monto) * ((config?.igv_percentage || 18) / 100) / (1 + (config?.igv_percentage || 18) / 100);
+          
+          records.push({
+            id: pago.id, // Use pago.id temporarily
+            pago_id: pago.id,
+            fecha_emision: pago.fecha_emision || pago.fecha_pago,
+            tipo_comprobante: pago.tipo_comprobante || "factura",
+            serie_comprobante: pago.serie_comprobante || "",
+            numero_comprobante: pago.numero_comprobante || "",
+            cliente_razon_social: pago.contrato?.cliente?.razon_social || "",
+            cliente_ruc: pago.contrato?.cliente?.codigo || "",
+            base_imponible: baseImponible,
+            igv: igvAmount,
+            total: Number(pago.monto),
+            moneda: pago.contrato?.moneda || "PEN",
+            glosa: pago.observaciones_contables || pago.contrato?.descripcion || "",
+            cta_ingreso: "7041",
+            cta_igv: "40111",
+            cta_otros_tributos: "",
+            cta_por_cobrar: "1212",
+            centro_costo: "CC001",
+            estado: "pendiente",
+            isFromDB: false,
+          });
+        }
+      }
+
+      // Add any remaining existing records (orphaned - no matching pago)
+      for (const [, existing] of existingByPagoId) {
+        records.push({
+          id: existing.id,
+          pago_id: existing.pago_id,
+          fecha_emision: existing.fecha_emision,
+          tipo_comprobante: existing.tipo_comprobante,
+          serie_comprobante: existing.serie_comprobante || "",
+          numero_comprobante: existing.numero_comprobante || "",
+          cliente_razon_social: existing.cliente_razon_social,
+          cliente_ruc: existing.cliente_ruc,
+          base_imponible: Number(existing.base_imponible),
+          igv: Number(existing.igv),
+          total: Number(existing.total),
+          moneda: existing.moneda,
+          glosa: existing.glosa || "",
+          cta_ingreso: existing.cta_ingreso || "7041",
+          cta_igv: existing.cta_igv || "40111",
+          cta_otros_tributos: existing.cta_otros_tributos || "",
+          cta_por_cobrar: existing.cta_por_cobrar || "1212",
+          centro_costo: existing.centro_costo || "CC001",
+          estado: existing.estado,
+          isFromDB: true,
+        });
+      }
+
+      // Sort by date
+      records.sort((a, b) => new Date(a.fecha_emision).getTime() - new Date(b.fecha_emision).getTime());
 
       setSalesRecords(records);
     } catch (error) {
@@ -234,7 +335,8 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
       record.cliente_razon_social.toLowerCase().includes(searchLower) ||
       record.cliente_ruc.includes(search) ||
       record.numero_comprobante.includes(search) ||
-      record.serie_comprobante.includes(search)
+      record.serie_comprobante.includes(search) ||
+      (record.glosa && record.glosa.toLowerCase().includes(searchLower))
     );
   });
 
@@ -248,6 +350,13 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
     { base_imponible: 0, igv: 0, total: 0 }
   );
 
+  // Update record field (for glosa and accounts)
+  const handleFieldChange = (recordId: string, field: string, value: string) => {
+    setSalesRecords(prev => prev.map(record => 
+      record.id === recordId ? { ...record, [field]: value } : record
+    ));
+  };
+
   const handleAccountChange = (recordId: string, field: string, value: string) => {
     setAccountValues(prev => ({
       ...prev,
@@ -256,7 +365,71 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
         [field]: value,
       },
     }));
+    // Also update the record directly
+    handleFieldChange(recordId, field, value);
     setEditingCell(null);
+  };
+
+  // Save all records to database
+  const handleSaveAll = async () => {
+    setSaving(true);
+    try {
+      const periodoMes = filterMode === "month" ? selectedMonth + 1 : (dateRange.from ? dateRange.from.getMonth() + 1 : new Date().getMonth() + 1);
+      const periodoAnio = filterMode === "month" ? selectedYear : (dateRange.from ? dateRange.from.getFullYear() : new Date().getFullYear());
+
+      for (const record of salesRecords) {
+        const recordData = {
+          pago_id: record.pago_id,
+          fecha_emision: record.fecha_emision,
+          tipo_comprobante: record.tipo_comprobante,
+          serie_comprobante: record.serie_comprobante || null,
+          numero_comprobante: record.numero_comprobante || null,
+          cliente_ruc: record.cliente_ruc,
+          cliente_razon_social: record.cliente_razon_social,
+          base_imponible: record.base_imponible,
+          igv: record.igv,
+          total: record.total,
+          moneda: record.moneda,
+          glosa: record.glosa || null,
+          cta_ingreso: accountValues[record.id]?.cta_ingreso || record.cta_ingreso,
+          cta_igv: accountValues[record.id]?.cta_igv || record.cta_igv,
+          cta_otros_tributos: accountValues[record.id]?.cta_otros_tributos || record.cta_otros_tributos || null,
+          cta_por_cobrar: accountValues[record.id]?.cta_por_cobrar || record.cta_por_cobrar,
+          centro_costo: accountValues[record.id]?.centro_costo || record.centro_costo,
+          periodo_mes: periodoMes,
+          periodo_anio: periodoAnio,
+          estado: "registrado",
+        };
+
+        if (record.isFromDB) {
+          // Update existing record
+          const { error } = await supabase
+            .from("registro_ventas")
+            .update(recordData)
+            .eq("id", record.id);
+          if (error) throw error;
+        } else {
+          // Insert new record
+          const { error } = await supabase
+            .from("registro_ventas")
+            .insert(recordData);
+          if (error) throw error;
+        }
+      }
+
+      // Refetch to get updated data
+      await fetchSalesRecords();
+      
+      // Show success message
+      const { toast } = await import("sonner");
+      toast.success("Registro de ventas guardado correctamente");
+    } catch (error) {
+      console.error("Error saving sales records:", error);
+      const { toast } = await import("sonner");
+      toast.error("Error al guardar el registro de ventas");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePrint = () => {
@@ -390,6 +563,7 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
                 <th>Número</th>
                 <th>RUC Cliente</th>
                 <th>Razón Social</th>
+                <th>Glosa</th>
                 <th class="text-right">Base Imp.</th>
                 <th class="text-right">IGV</th>
                 <th class="text-right">Total</th>
@@ -401,30 +575,31 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
               </tr>
             </thead>
             <tbody>
-              ${filteredRecords.map((record, index) => `
+              \${filteredRecords.map((record, index) => \`
                 <tr>
-                  <td class="text-center">${index + 1}</td>
-                  <td>${record.fecha_emision ? format(parseISO(record.fecha_emision), "dd/MM/yyyy") : "-"}</td>
-                  <td>${getComprobanteLabel(record.tipo_comprobante)}</td>
-                  <td>${record.serie_comprobante || "-"}</td>
-                  <td>${record.numero_comprobante || "-"}</td>
-                  <td>${record.cliente_ruc}</td>
-                  <td>${record.cliente_razon_social}</td>
-                  <td class="text-right">${formatNumber(record.base_imponible)}</td>
-                  <td class="text-right">${formatNumber(record.igv)}</td>
-                  <td class="text-right">${formatNumber(record.total)}</td>
-                  <td>${record.cta_ingreso || "-"}</td>
-                  <td>${record.cta_igv || "-"}</td>
-                  <td>${record.cta_otros_tributos || "-"}</td>
-                  <td>${record.cta_por_cobrar || "-"}</td>
-                  <td>${record.centro_costo || "-"}</td>
+                  <td class="text-center">\${index + 1}</td>
+                  <td>\${record.fecha_emision ? format(parseISO(record.fecha_emision), "dd/MM/yyyy") : "-"}</td>
+                  <td>\${getComprobanteLabel(record.tipo_comprobante)}</td>
+                  <td>\${record.serie_comprobante || "-"}</td>
+                  <td>\${record.numero_comprobante || "-"}</td>
+                  <td>\${record.cliente_ruc}</td>
+                  <td>\${record.cliente_razon_social}</td>
+                  <td>\${record.glosa || "-"}</td>
+                  <td class="text-right">\${formatNumber(record.base_imponible)}</td>
+                  <td class="text-right">\${formatNumber(record.igv)}</td>
+                  <td class="text-right">\${formatNumber(record.total)}</td>
+                  <td>\${record.cta_ingreso || "-"}</td>
+                  <td>\${record.cta_igv || "-"}</td>
+                  <td>\${record.cta_otros_tributos || "-"}</td>
+                  <td>\${record.cta_por_cobrar || "-"}</td>
+                  <td>\${record.centro_costo || "-"}</td>
                 </tr>
-              `).join("")}
+              \`).join("")}
               <tr class="totals-row">
-                <td colspan="7" class="text-right">TOTALES:</td>
-                <td class="text-right">${formatNumber(totals.base_imponible)}</td>
-                <td class="text-right">${formatNumber(totals.igv)}</td>
-                <td class="text-right">${formatNumber(totals.total)}</td>
+                <td colspan="8" class="text-right">TOTALES:</td>
+                <td class="text-right">\${formatNumber(totals.base_imponible)}</td>
+                <td class="text-right">\${formatNumber(totals.igv)}</td>
+                <td class="text-right">\${formatNumber(totals.total)}</td>
                 <td colspan="5"></td>
               </tr>
             </tbody>
@@ -551,6 +726,24 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={handleSaveAll}
+              disabled={saving || salesRecords.length === 0}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar Registro
+                </>
+              )}
+            </Button>
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
@@ -741,7 +934,8 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
                   <TableHead className="w-[70px] font-semibold">Serie</TableHead>
                   <TableHead className="w-[80px] font-semibold">Número</TableHead>
                   <TableHead className="w-[100px] font-semibold">RUC</TableHead>
-                  <TableHead className="min-w-[180px] font-semibold">Razón Social</TableHead>
+                  <TableHead className="min-w-[150px] font-semibold">Razón Social</TableHead>
+                  <TableHead className="min-w-[180px] font-semibold">Glosa</TableHead>
                   <TableHead className="w-[100px] text-right font-semibold">Base Imp.</TableHead>
                   <TableHead className="w-[80px] text-right font-semibold">IGV</TableHead>
                   <TableHead className="w-[100px] text-right font-semibold">Total</TableHead>
@@ -755,7 +949,7 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={15} className="h-32 text-center">
+                    <TableCell colSpan={16} className="h-32 text-center">
                       <div className="flex items-center justify-center gap-2 text-muted-foreground">
                         <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
                         Cargando registros...
@@ -764,7 +958,7 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
                   </TableRow>
                 ) : filteredRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={15} className="h-32 text-center">
+                    <TableCell colSpan={16} className="h-32 text-center">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <FileSpreadsheet className="h-10 w-10 opacity-30" />
                         <p>No hay registros de ventas para el período seleccionado</p>
@@ -791,8 +985,16 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
                         <TableCell className="font-mono text-sm">{record.serie_comprobante || "-"}</TableCell>
                         <TableCell className="font-mono text-sm">{record.numero_comprobante || "-"}</TableCell>
                         <TableCell className="font-mono text-sm">{record.cliente_ruc}</TableCell>
-                        <TableCell className="max-w-[200px] truncate text-sm" title={record.cliente_razon_social}>
+                        <TableCell className="max-w-[150px] truncate text-sm" title={record.cliente_razon_social}>
                           {record.cliente_razon_social}
+                        </TableCell>
+                        <TableCell className="p-1 min-w-[180px]">
+                          <Input
+                            value={record.glosa || ""}
+                            onChange={(e) => handleFieldChange(record.id, "glosa", e.target.value)}
+                            placeholder="Descripción del servicio..."
+                            className="h-7 text-xs"
+                          />
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {formatNumber(record.base_imponible)}
@@ -852,7 +1054,7 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
                     ))}
                     {/* Totals Row */}
                     <TableRow className="bg-primary/5 border-t-2 border-primary/20 font-semibold">
-                      <TableCell colSpan={7} className="text-right text-sm">
+                      <TableCell colSpan={8} className="text-right text-sm">
                         TOTALES:
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm">
