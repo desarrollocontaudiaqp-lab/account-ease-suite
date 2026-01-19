@@ -28,6 +28,7 @@ export interface PersonalProfile {
   phone: string | null;
   created_at: string;
   has_user: boolean;
+  asignar_supervision: boolean;
 }
 
 interface PersonalTableProps {

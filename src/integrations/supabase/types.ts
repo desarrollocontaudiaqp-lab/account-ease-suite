@@ -788,6 +788,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          asignar_supervision: boolean
           avatar_url: string | null
           created_at: string
           dni: string | null
@@ -799,6 +800,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          asignar_supervision?: boolean
           avatar_url?: string | null
           created_at?: string
           dni?: string | null
@@ -810,6 +812,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          asignar_supervision?: boolean
           avatar_url?: string | null
           created_at?: string
           dni?: string | null
