@@ -74,6 +74,8 @@ interface PaymentScheduleItem {
   monto: number;
 }
 
+export type ContractCondition = "Vigente" | "Terminado" | "Anulado" | "Suspendido";
+
 interface ContractDetail {
   id: string;
   numero: string;
@@ -85,6 +87,7 @@ interface ContractDetail {
   monto_total: number | null;
   moneda: string;
   status: ContractStatus;
+  condicion: ContractCondition;
   notas: string | null;
   numero_cuotas: number | null;
   dia_vencimiento: number | null;
@@ -108,6 +111,13 @@ interface ContractDetail {
     items: { descripcion: string; cantidad: number; precio_unitario: number; subtotal: number }[];
   } | null;
 }
+
+const condicionStyles: Record<ContractCondition, { bg: string; text: string; border: string }> = {
+  Vigente: { bg: "bg-green-100", text: "text-green-700", border: "border-green-300" },
+  Terminado: { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-300" },
+  Anulado: { bg: "bg-red-100", text: "text-red-700", border: "border-red-300" },
+  Suspendido: { bg: "bg-amber-100", text: "text-amber-700", border: "border-amber-300" },
+};
 
 const statusStyles: Record<ContractStatus, { bg: string; text: string; border: string }> = {
   borrador: { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300" },
@@ -182,6 +192,7 @@ export const ContractDetailModal = ({
       setContract({
         ...data,
         status: data.status as ContractStatus,
+        condicion: (data.condicion as ContractCondition) || "Vigente",
         cliente: data.cliente as ContractDetail["cliente"],
         proforma: data.proforma as ContractDetail["proforma"],
       });
@@ -489,17 +500,30 @@ export const ContractDetailModal = ({
                   </div>
                   <div className="text-right">
                     <div className="text-3xl font-bold text-primary">{contract.numero}</div>
-                    <Badge 
-                      className={cn(
-                        "mt-2 px-3 py-1 text-sm font-medium",
-                        statusStyles[contract.status].bg,
-                        statusStyles[contract.status].text,
-                        statusStyles[contract.status].border,
-                        "border"
-                      )}
-                    >
-                      {statusLabels[contract.status]}
-                    </Badge>
+                    <div className="flex items-center justify-end gap-2 mt-2">
+                      <Badge 
+                        className={cn(
+                          "px-3 py-1 text-sm font-medium",
+                          statusStyles[contract.status].bg,
+                          statusStyles[contract.status].text,
+                          statusStyles[contract.status].border,
+                          "border"
+                        )}
+                      >
+                        {statusLabels[contract.status]}
+                      </Badge>
+                      <Badge 
+                        className={cn(
+                          "px-3 py-1 text-sm font-medium",
+                          condicionStyles[contract.condicion].bg,
+                          condicionStyles[contract.condicion].text,
+                          condicionStyles[contract.condicion].border,
+                          "border"
+                        )}
+                      >
+                        {contract.condicion}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               </div>

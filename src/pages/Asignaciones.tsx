@@ -57,6 +57,8 @@ import { ContractDetailModal } from "@/components/contratos/ContractDetailModal"
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
 
+type ContractCondition = "Vigente" | "Terminado" | "Anulado" | "Suspendido";
+
 interface ContratoAsignado {
   id: string;
   numero: string;
@@ -68,6 +70,7 @@ interface ContratoAsignado {
   monto_total: number | null;
   moneda: string;
   status: string;
+  condicion: ContractCondition;
   cliente: {
     id: string;
     razon_social: string;
@@ -79,6 +82,13 @@ interface ContratoAsignado {
     especialidad: string | null;
   } | null;
 }
+
+const condicionStyles: Record<ContractCondition, string> = {
+  Vigente: "bg-green-100 text-green-800",
+  Terminado: "bg-blue-100 text-blue-800",
+  Anulado: "bg-red-100 text-red-800",
+  Suspendido: "bg-amber-100 text-amber-800",
+};
 
 interface Cartera {
   id: string;
@@ -161,7 +171,7 @@ const Asignaciones = () => {
       .from("contratos")
       .select(`
         id, numero, descripcion, tipo_servicio, fecha_inicio, fecha_fin,
-        monto_mensual, monto_total, moneda, status,
+        monto_mensual, monto_total, moneda, status, condicion,
         cliente:clientes(id, razon_social, codigo)
       `)
       .neq("status", "borrador")
@@ -545,6 +555,7 @@ const Asignaciones = () => {
                   <TableHead className="min-w-[200px]">Descripción</TableHead>
                   <TableHead>Cartera</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Condición</TableHead>
                   <TableHead>Monto</TableHead>
                   <TableHead>Vigencia</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -553,7 +564,7 @@ const Asignaciones = () => {
               <TableBody>
                 {filteredContratos.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No se encontraron contratos
                     </TableCell>
                   </TableRow>
@@ -610,6 +621,14 @@ const Asignaciones = () => {
                           className={statusStyles[contrato.status]?.className}
                         >
                           {statusStyles[contrato.status]?.label || contrato.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={condicionStyles[contrato.condicion || "Vigente"]}
+                        >
+                          {contrato.condicion || "Vigente"}
                         </Badge>
                       </TableCell>
                       <TableCell>

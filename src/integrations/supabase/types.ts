@@ -578,6 +578,7 @@ export type Database = {
       contratos: {
         Row: {
           cliente_id: string
+          condicion: Database["public"]["Enums"]["contract_condition"]
           created_at: string
           created_by: string | null
           datos_plantilla: Json | null
@@ -601,6 +602,7 @@ export type Database = {
         }
         Insert: {
           cliente_id: string
+          condicion?: Database["public"]["Enums"]["contract_condition"]
           created_at?: string
           created_by?: string | null
           datos_plantilla?: Json | null
@@ -624,6 +626,7 @@ export type Database = {
         }
         Update: {
           cliente_id?: string
+          condicion?: Database["public"]["Enums"]["contract_condition"]
           created_at?: string
           created_by?: string | null
           datos_plantilla?: Json | null
@@ -1261,6 +1264,7 @@ export type Database = {
         | "en_progreso"
         | "completada"
         | "cancelada"
+      contract_condition: "Vigente" | "Terminado" | "Anulado" | "Suspendido"
       contract_status:
         | "borrador"
         | "en_gestion"
@@ -1422,6 +1426,7 @@ export const Constants = {
         "completada",
         "cancelada",
       ],
+      contract_condition: ["Vigente", "Terminado", "Anulado", "Suspendido"],
       contract_status: [
         "borrador",
         "en_gestion",

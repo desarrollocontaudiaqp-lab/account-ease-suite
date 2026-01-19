@@ -40,6 +40,8 @@ import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { ConfirmContractFromProformaDialog } from "@/components/contratos/ConfirmContractFromProformaDialog";
 import { CreateContractDialog } from "@/components/contratos/CreateContractDialog";
 
+export type ContractCondition = "Vigente" | "Terminado" | "Anulado" | "Suspendido";
+
 interface Contract {
   id: string;
   numero: string;
@@ -56,6 +58,7 @@ interface Contract {
   monto_total: number | null;
   moneda: string;
   status: ContractStatus;
+  condicion: ContractCondition;
   notas: string | null;
   proforma_id: string | null;
 }
@@ -96,6 +99,13 @@ const typeStyles: Record<string, string> = {
   contabilidad: "bg-primary/10 text-primary",
   tramites: "bg-secondary/20 text-secondary-foreground",
   mixto: "bg-purple-100 text-purple-800",
+};
+
+const condicionStyles: Record<ContractCondition, string> = {
+  Vigente: "bg-green-100 text-green-800 border-green-200",
+  Terminado: "bg-blue-100 text-blue-800 border-blue-200",
+  Anulado: "bg-red-100 text-red-800 border-red-200",
+  Suspendido: "bg-amber-100 text-amber-800 border-amber-200",
 };
 
 const Contratos = () => {
@@ -163,6 +173,7 @@ const Contratos = () => {
         monto_total,
         moneda,
         status,
+        condicion,
         notas,
         proforma_id,
         cliente:clientes(id, razon_social, codigo)
@@ -176,6 +187,7 @@ const Contratos = () => {
       const parsed = (data || []).map((c) => ({
         ...c,
         status: c.status as ContractStatus,
+        condicion: (c.condicion || "Vigente") as ContractCondition,
         cliente: c.cliente as Contract["cliente"],
       }));
       setContracts(parsed);
@@ -497,6 +509,9 @@ const Contratos = () => {
                       <Badge variant="outline" className={statusStyles[contract.status]}>
                         {statusLabels[contract.status]}
                       </Badge>
+                      <Badge variant="outline" className={condicionStyles[contract.condicion]}>
+                        {contract.condicion}
+                      </Badge>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 text-sm mb-4">
@@ -569,6 +584,9 @@ const Contratos = () => {
                         Estado
                       </th>
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                        Condición
+                      </th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
                         Progreso
                       </th>
                       <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
@@ -616,6 +634,11 @@ const Contratos = () => {
                           <td className="px-6 py-4">
                             <Badge variant="outline" className={statusStyles[contract.status]}>
                               {statusLabels[contract.status]}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4">
+                            <Badge variant="outline" className={condicionStyles[contract.condicion]}>
+                              {contract.condicion}
                             </Badge>
                           </td>
                           <td className="px-6 py-4">
