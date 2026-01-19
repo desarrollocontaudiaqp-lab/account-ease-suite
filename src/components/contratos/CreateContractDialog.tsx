@@ -145,6 +145,7 @@ export const CreateContractDialog = ({
     descripcion: "",
     tipo_servicio: "contabilidad",
     moneda: "PEN",
+    condicion: "Vigente" as "Vigente" | "Terminado" | "Anulado" | "Suspendido",
     notas: "",
   });
   
@@ -175,6 +176,7 @@ export const CreateContractDialog = ({
       descripcion: "",
       tipo_servicio: "contabilidad",
       moneda: "PEN",
+      condicion: "Vigente",
       notas: "",
     });
     setSelectedCliente(null);
@@ -495,6 +497,7 @@ export const CreateContractDialog = ({
           descripcion: contractData.descripcion,
           tipo_servicio: contractData.tipo_servicio,
           moneda: contractData.moneda,
+          condicion: contractData.condicion,
           notas: contractData.notas || null,
           fecha_inicio: fechaInicio,
           fecha_fin: fechaFin,
@@ -776,6 +779,24 @@ export const CreateContractDialog = ({
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Condición del Contrato *</Label>
+                    <Select 
+                      value={contractData.condicion} 
+                      onValueChange={(value: "Vigente" | "Terminado" | "Anulado" | "Suspendido") => setContractData(prev => ({ ...prev, condicion: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Vigente">Vigente</SelectItem>
+                        <SelectItem value="Terminado">Terminado</SelectItem>
+                        <SelectItem value="Anulado">Anulado</SelectItem>
+                        <SelectItem value="Suspendido">Suspendido</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
