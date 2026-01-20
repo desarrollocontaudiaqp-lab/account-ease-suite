@@ -1,0 +1,402 @@
+import { useState, useEffect, useMemo } from "react";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import type { TreeNode } from "@/components/workflow/WorkFlowTreeSidebar";
+
+interface WorkFlowItem {
+  id: string;
+  tipo: "actividad" | "input" | "tarea" | "output" | "supervision";
+  titulo: string;
+  descripcion?: string;
+  asignado_a?: string;
+  rol?: string;
+  completado: boolean;
+  orden: number;
+  conexiones?: string[];
+  subColumna?: number;
+  parentId?: string;
+  enlaceSharepoint?: string;
+}
+
+interface Workflow {
+  id: string;
+  codigo: string;
+  contrato_id: string;
+  items: WorkFlowItem[];
+}
+
+interface Contrato {
+  id: string;
+  numero: string;
+  descripcion: string;
+  tipo_servicio: string;
+  fecha_inicio: string;
+  status: string;
+  cliente: {
+    id: string;
+    razon_social: string;
+    codigo: string;
+  };
+}
+
+interface Cartera {
+  id: string;
+  nombre: string;
+  especialidad: string | null;
+  descripcion: string | null;
+  miembros: any[];
+  stats: {
+    total: number;
+    en_gestion: number;
+    finalizados: number;
+  };
+  clientes: { cliente_id: string }[];
+}
+
+interface ProfileMap {
+  [key: string]: { full_name: string | null; email: string };
+}
+
+export function useWorkFlowTree() {
+  const [loading, setLoading] = useState(true);
+  const [carteras, setCarteras] = useState<Cartera[]>([]);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [carteraClientesMap, setCarteraClientesMap] = useState<Map<string, string>>(new Map());
+  const [profilesMap, setProfilesMap] = useState<ProfileMap>({});
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+
+    try {
+      // Fetch carteras with members
+      const { data: carterasData } = await supabase
+        .from("carteras")
+        .select(`
+          id, nombre, especialidad, descripcion,
+          miembros:cartera_miembros(
+            user_id,
+            rol_en_cartera,
+            profile:profiles(full_name, email)
+          ),
+          clientes:cartera_clientes(cliente_id)
+        `)
+        .eq("activa", true)
+        .order("nombre");
+
+      // Fetch contratos
+      const { data: contratosData } = await supabase
+        .from("contratos")
+        .select(`
+          id, numero, descripcion, tipo_servicio, fecha_inicio, status,
+          cliente:clientes(id, razon_social, codigo)
+        `)
+        .neq("status", "borrador")
+        .order("fecha_inicio", { ascending: false });
+
+      // Fetch all workflows
+      const { data: workflowsData } = await supabase
+        .from("workflows")
+        .select("id, codigo, contrato_id, items");
+
+      // Fetch profiles for name resolution
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name, email");
+
+      // Build cartera-cliente map
+      const ccMap = new Map<string, string>();
+      if (carterasData) {
+        carterasData.forEach((c: any) => {
+          (c.clientes || []).forEach((cc: any) => {
+            ccMap.set(cc.cliente_id, c.id);
+          });
+        });
+      }
+      setCarteraClientesMap(ccMap);
+
+      // Build profiles map
+      const pMap: ProfileMap = {};
+      if (profilesData) {
+        profilesData.forEach((p) => {
+          pMap[p.id] = { full_name: p.full_name, email: p.email };
+        });
+      }
+      setProfilesMap(pMap);
+
+      // Calculate cartera stats
+      if (carterasData && contratosData) {
+        const carterasWithStats = carterasData.map((c: any) => {
+          const clienteIds = (c.clientes || []).map((cc: any) => cc.cliente_id);
+          const carteraContratos = contratosData.filter(
+            (ct: any) => ct.cliente && clienteIds.includes(ct.cliente.id)
+          );
+
+          return {
+            id: c.id,
+            nombre: c.nombre,
+            especialidad: c.especialidad,
+            descripcion: c.descripcion,
+            miembros: (c.miembros || []).map((m: any) => ({
+              user_id: m.user_id,
+              rol_en_cartera: m.rol_en_cartera,
+              profile: m.profile,
+            })),
+            clientes: c.clientes || [],
+            stats: {
+              total: carteraContratos.length,
+              en_gestion: carteraContratos.filter((ct: any) =>
+                ["en_gestion", "aprobado", "activo"].includes(ct.status)
+              ).length,
+              finalizados: carteraContratos.filter((ct: any) => ct.status === "finalizado").length,
+            },
+          };
+        });
+        setCarteras(carterasWithStats);
+      }
+
+      if (contratosData) {
+        setContratos(contratosData.filter((c: any) => c.cliente));
+      }
+
+      if (workflowsData) {
+        setWorkflows(
+          workflowsData.map((w: any) => ({
+            id: w.id,
+            codigo: w.codigo,
+            contrato_id: w.contrato_id,
+            items: (w.items as WorkFlowItem[]) || [],
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching workflow data:", error);
+    }
+
+    setLoading(false);
+  };
+
+  // Build tree structure
+  const treeData = useMemo<TreeNode[]>(() => {
+    if (!carteras.length) return [];
+
+    return carteras.map((cartera) => {
+      // Get all clients for this cartera
+      const clienteIds = cartera.clientes.map((c) => c.cliente_id);
+      
+      // Get contratos for this cartera
+      const carteraContratos = contratos.filter(
+        (c) => c.cliente && clienteIds.includes(c.cliente.id)
+      );
+
+      // Group contratos by month
+      const contratosByMonth = new Map<string, Contrato[]>();
+      carteraContratos.forEach((contrato) => {
+        const monthKey = format(parseISO(contrato.fecha_inicio), "yyyy-MM");
+        const monthLabel = format(parseISO(contrato.fecha_inicio), "MMMM yyyy", { locale: es });
+        
+        if (!contratosByMonth.has(monthKey)) {
+          contratosByMonth.set(monthKey, []);
+        }
+        contratosByMonth.get(monthKey)!.push(contrato);
+      });
+
+      // Build month nodes
+      const monthNodes: TreeNode[] = Array.from(contratosByMonth.entries())
+        .sort((a, b) => b[0].localeCompare(a[0])) // Sort descending
+        .map(([monthKey, monthContratos]) => {
+          const monthLabel = format(parseISO(`${monthKey}-01`), "MMMM", { locale: es });
+          
+          // Build contrato nodes
+          const contratoNodes: TreeNode[] = monthContratos.map((contrato) => {
+            // Get workflow for this contrato
+            const workflow = workflows.find((w) => w.contrato_id === contrato.id);
+            
+            // Build activity nodes from workflow
+            const actividadNodes: TreeNode[] = [];
+            
+            if (workflow) {
+              const actividades = workflow.items
+                .filter((item) => item.tipo === "actividad")
+                .sort((a, b) => a.orden - b.orden);
+
+              actividades.forEach((actividad) => {
+                // Get inputs for this activity
+                const inputs = workflow.items
+                  .filter((item) => item.tipo === "input" && item.parentId === actividad.id)
+                  .sort((a, b) => a.orden - b.orden);
+
+                const inputNodes: TreeNode[] = inputs.map((input) => ({
+                  id: input.id,
+                  type: "input" as const,
+                  label: input.titulo,
+                  data: {
+                    ...input,
+                    enlaceSharepoint: input.enlaceSharepoint,
+                  },
+                  isCompleted: input.completado,
+                }));
+
+                // Get tareas (procesos)
+                const tareas = workflow.items
+                  .filter((item) => item.tipo === "tarea")
+                  .sort((a, b) => a.orden - b.orden);
+
+                const tareaNodes: TreeNode[] = tareas.map((tarea) => ({
+                  id: tarea.id,
+                  type: "tarea" as const,
+                  label: tarea.titulo,
+                  data: {
+                    ...tarea,
+                    asignado_nombre: tarea.asignado_a ? profilesMap[tarea.asignado_a]?.full_name : null,
+                  },
+                  isCompleted: tarea.completado,
+                }));
+
+                // Get outputs
+                const outputs = workflow.items
+                  .filter((item) => item.tipo === "output")
+                  .sort((a, b) => a.orden - b.orden);
+
+                const outputNodes: TreeNode[] = outputs.map((output) => ({
+                  id: output.id,
+                  type: "output" as const,
+                  label: output.titulo,
+                  data: output,
+                  isCompleted: output.completado,
+                }));
+
+                // Get supervision items
+                const supervisionItems = workflow.items
+                  .filter((item) => item.tipo === "supervision")
+                  .sort((a, b) => a.orden - b.orden);
+
+                const supervisionNodes: TreeNode[] = supervisionItems.map((sup) => ({
+                  id: sup.id,
+                  type: "supervision_item" as const,
+                  label: sup.titulo,
+                  data: {
+                    ...sup,
+                    asignado_nombre: sup.asignado_a ? profilesMap[sup.asignado_a]?.full_name : null,
+                  },
+                  isCompleted: sup.completado,
+                }));
+
+                // Build activity node with children
+                const activityChildren: TreeNode[] = [];
+
+                // Add Inputs folder
+                if (inputNodes.length > 0) {
+                  activityChildren.push(...inputNodes);
+                }
+
+                // Add Procesos folder
+                if (tareaNodes.length > 0) {
+                  activityChildren.push({
+                    id: `procesos-${actividad.id}`,
+                    type: "procesos" as const,
+                    label: "Procesos",
+                    children: tareaNodes,
+                  });
+                }
+
+                // Add Outputs folder
+                if (outputNodes.length > 0) {
+                  activityChildren.push({
+                    id: `outputs-${actividad.id}`,
+                    type: "outputs" as const,
+                    label: "Outputs",
+                    badge: outputNodes.length,
+                    children: outputNodes,
+                  });
+                }
+
+                // Add Supervision folder
+                if (supervisionNodes.length > 0) {
+                  activityChildren.push({
+                    id: `supervision-${actividad.id}`,
+                    type: "supervision" as const,
+                    label: "Supervisión",
+                    badge: supervisionNodes.length,
+                    children: supervisionNodes,
+                  });
+                }
+
+                actividadNodes.push({
+                  id: actividad.id,
+                  type: "actividad" as const,
+                  label: actividad.titulo,
+                  data: actividad,
+                  isCompleted: actividad.completado,
+                  children: activityChildren.length > 0 ? activityChildren : undefined,
+                });
+              });
+            }
+
+            return {
+              id: contrato.id,
+              type: "contrato" as const,
+              label: contrato.cliente.razon_social,
+              data: {
+                numero: contrato.numero,
+                descripcion: contrato.descripcion,
+                tipo_servicio: contrato.tipo_servicio,
+                status: contrato.status,
+                cliente: contrato.cliente.razon_social,
+              },
+              children: actividadNodes.length > 0 
+                ? [
+                    {
+                      id: `actividades-${contrato.id}`,
+                      type: "actividad" as const,
+                      label: "Actividades",
+                      children: actividadNodes,
+                    }
+                  ] 
+                : undefined,
+            };
+          });
+
+          return {
+            id: `${cartera.id}-${monthKey}`,
+            type: "mes" as const,
+            label: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
+            data: { contractCount: monthContratos.length },
+            children: contratoNodes.length > 0
+              ? [
+                  {
+                    id: `contratos-${cartera.id}-${monthKey}`,
+                    type: "contrato" as const,
+                    label: "Contratos",
+                    children: contratoNodes,
+                  }
+                ]
+              : undefined,
+          };
+        });
+
+      return {
+        id: cartera.id,
+        type: "espacio" as const,
+        label: cartera.nombre,
+        data: {
+          especialidad: cartera.especialidad,
+          miembros: cartera.miembros,
+          stats: cartera.stats,
+        },
+        children: monthNodes.length > 0 ? monthNodes : undefined,
+      };
+    });
+  }, [carteras, contratos, workflows, profilesMap]);
+
+  return {
+    loading,
+    treeData,
+    refresh: fetchData,
+  };
+}
