@@ -343,11 +343,14 @@ export function useWorkFlowTree() {
               type: "contrato" as const,
               label: contrato.cliente.razon_social,
               data: {
+                contrato_id: contrato.id,
                 numero: contrato.numero,
                 descripcion: contrato.descripcion,
                 tipo_servicio: contrato.tipo_servicio,
                 status: contrato.status,
+                fecha_inicio: contrato.fecha_inicio,
                 cliente: contrato.cliente.razon_social,
+                cliente_codigo: contrato.cliente.codigo,
               },
               children: actividadNodes.length > 0 
                 ? [
@@ -371,8 +374,21 @@ export function useWorkFlowTree() {
               ? [
                   {
                     id: `contratos-${cartera.id}-${monthKey}`,
-                    type: "contrato" as const,
+                    type: "contratos_folder" as const,
                     label: "Contratos",
+                    badge: contratoNodes.length,
+                    data: { 
+                      contratos: monthContratos.map(c => ({
+                        id: c.id,
+                        numero: c.numero,
+                        descripcion: c.descripcion,
+                        tipo_servicio: c.tipo_servicio,
+                        status: c.status,
+                        fecha_inicio: c.fecha_inicio,
+                        cliente: c.cliente.razon_social,
+                        cliente_codigo: c.cliente.codigo,
+                      }))
+                    },
                     children: contratoNodes,
                   }
                 ]

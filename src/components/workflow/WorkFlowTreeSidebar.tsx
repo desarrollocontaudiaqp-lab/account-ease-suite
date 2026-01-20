@@ -28,6 +28,7 @@ export type NodeType =
   | "espacio" 
   | "mes" 
   | "contrato" 
+  | "contratos_folder"
   | "actividad" 
   | "input" 
   | "procesos" 
@@ -59,6 +60,7 @@ const nodeIcons: Record<NodeType, React.ElementType> = {
   espacio: Briefcase,
   mes: Calendar,
   contrato: FileText,
+  contratos_folder: FolderOpen,
   actividad: Activity,
   input: Database,
   procesos: FolderOpen,
@@ -73,6 +75,7 @@ const nodeColors: Record<NodeType, string> = {
   espacio: "text-violet-600 dark:text-violet-400",
   mes: "text-blue-600 dark:text-blue-400",
   contrato: "text-amber-600 dark:text-amber-400",
+  contratos_folder: "text-amber-500 dark:text-amber-400",
   actividad: "text-green-600 dark:text-green-400",
   input: "text-emerald-600 dark:text-emerald-400",
   procesos: "text-amber-500 dark:text-amber-400",
