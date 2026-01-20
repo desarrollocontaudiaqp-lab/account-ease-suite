@@ -8,7 +8,7 @@ import {
   UserCheck,
   Briefcase,
   Calendar,
-  CalendarDays,
+  Workflow,
   BarChart3,
   Settings,
   Shield,
@@ -39,7 +39,7 @@ const menuItems: SidebarItem[] = [
   { title: "Asignaciones", icon: UserCheck, path: "/asignaciones" },
   { title: "Carteras", icon: Briefcase, path: "/carteras" },
   { title: "Calendario Pagos", icon: Calendar, path: "/calendario-pagos" },
-  { title: "Calendario Trabajo", icon: CalendarDays, path: "/calendario-trabajo" },
+  { title: "WorkFlow", icon: Workflow, path: "/calendario-trabajo" },
   {
     title: "Reportes",
     icon: BarChart3,
