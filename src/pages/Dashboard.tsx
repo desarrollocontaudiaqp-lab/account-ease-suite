@@ -5,27 +5,53 @@ import {
   DollarSign,
   TrendingUp,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentContracts } from "@/components/dashboard/RecentContracts";
 import { UpcomingPayments } from "@/components/dashboard/UpcomingPayments";
 import { TeamPerformance } from "@/components/dashboard/TeamPerformance";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { Button } from "@/components/ui/button";
+import { useSystemConfig } from "@/hooks/useSystemConfig";
 
 const Dashboard = () => {
+  const { stats, recentContracts, upcomingPayments, teamMembers, loading, userName, refetch } = useDashboardStats();
+  const { formatCurrency } = useSystemConfig();
+
+  const formatIngresos = (amount: number) => {
+    if (amount >= 1000000) {
+      return `S/ ${(amount / 1000000).toFixed(1)}M`;
+    } else if (amount >= 1000) {
+      return `S/ ${(amount / 1000).toFixed(1)}K`;
+    }
+    return `S/ ${amount.toFixed(0)}`;
+  };
+
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted-foreground">
-            Bienvenido de nuevo, Juan
+            Bienvenido de nuevo{userName ? `, ${userName}` : ""}
           </p>
           <h1 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
             Dashboard
           </h1>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refetch}
+            disabled={loading}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Actualizar
+          </Button>
           <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -40,49 +66,49 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
         <StatCard
           title="Clientes Activos"
-          value={156}
+          value={stats.clientesActivos}
           subtitle="este mes"
           icon={Users}
-          trend={{ value: 8, isPositive: true }}
+          trend={stats.clientesTrend !== 0 ? { value: Math.abs(stats.clientesTrend), isPositive: stats.clientesTrend > 0 } : undefined}
           variant="primary"
           delay={0}
         />
         <StatCard
           title="Contratos Vigentes"
-          value={89}
-          subtitle="5 por vencer"
+          value={stats.contratosVigentes}
+          subtitle={`${stats.contratosPorVencer} por vencer`}
           icon={FileCheck}
-          trend={{ value: 12, isPositive: true }}
+          trend={stats.contratosTrend !== 0 ? { value: stats.contratosTrend, isPositive: true } : undefined}
           delay={50}
         />
         <StatCard
           title="Proformas"
-          value={34}
+          value={stats.proformasEnviadas}
           subtitle="enviadas"
           icon={FileText}
-          trend={{ value: 5, isPositive: true }}
+          trend={stats.proformasTrend !== 0 ? { value: stats.proformasTrend, isPositive: true } : undefined}
           delay={100}
         />
         <StatCard
           title="Ingresos"
-          value="S/ 125.4K"
-          subtitle="Meta: S/ 150K"
+          value={formatIngresos(stats.ingresosMes)}
+          subtitle={`Meta: ${formatIngresos(stats.metaIngresos)}`}
           icon={DollarSign}
           variant="secondary"
           delay={150}
         />
         <StatCard
           title="Conversión"
-          value="68%"
+          value={`${stats.tasaConversion}%`}
           subtitle="proforma → contrato"
           icon={TrendingUp}
-          trend={{ value: 3, isPositive: true }}
+          trend={stats.conversionTrend !== 0 ? { value: stats.conversionTrend, isPositive: true } : undefined}
           delay={200}
         />
         <StatCard
           title="Pagos Vencidos"
-          value={7}
-          subtitle="S/ 15.2K"
+          value={stats.pagosVencidos}
+          subtitle={formatIngresos(stats.montoPagosVencidos)}
           icon={AlertTriangle}
           variant="warning"
           delay={250}
@@ -93,7 +119,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Recent Contracts - Takes 2 columns */}
         <div className="xl:col-span-2">
-          <RecentContracts />
+          <RecentContracts contracts={recentContracts} loading={loading} />
         </div>
 
         {/* Quick Actions */}
@@ -104,8 +130,8 @@ const Dashboard = () => {
 
       {/* Secondary Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <UpcomingPayments />
-        <TeamPerformance />
+        <UpcomingPayments payments={upcomingPayments} loading={loading} />
+        <TeamPerformance members={teamMembers} loading={loading} />
       </div>
     </div>
   );
