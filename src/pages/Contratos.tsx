@@ -620,8 +620,8 @@ const Contratos = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <Badge variant="outline" className={typeStyles[contract.tipo_servicio] || typeStyles.contabilidad}>
-                              {contract.tipo_servicio === "contabilidad" ? "Contabilidad" : "Trámites"}
+                            <Badge variant="outline" className={typeStyles[contract.tipo_servicio.toLowerCase()] || typeStyles.contabilidad}>
+                              {contract.tipo_servicio.toLowerCase() === "contabilidad" ? "Contabilidad" : "Trámites"}
                             </Badge>
                           </td>
                           <td className="px-6 py-4">
