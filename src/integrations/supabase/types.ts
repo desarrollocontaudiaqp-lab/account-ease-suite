@@ -278,7 +278,9 @@ export type Database = {
           created_by: string | null
           direccion: string | null
           email: string | null
+          fecha_suspension: string | null
           id: string
+          motivo_suspension_id: string | null
           nombre_persona_natural: string | null
           notas: string | null
           nro_trabajadores: number | null
@@ -306,7 +308,9 @@ export type Database = {
           created_by?: string | null
           direccion?: string | null
           email?: string | null
+          fecha_suspension?: string | null
           id?: string
+          motivo_suspension_id?: string | null
           nombre_persona_natural?: string | null
           notas?: string | null
           nro_trabajadores?: number | null
@@ -334,7 +338,9 @@ export type Database = {
           created_by?: string | null
           direccion?: string | null
           email?: string | null
+          fecha_suspension?: string | null
           id?: string
+          motivo_suspension_id?: string | null
           nombre_persona_natural?: string | null
           notas?: string | null
           nro_trabajadores?: number | null
@@ -348,7 +354,15 @@ export type Database = {
           updated_at?: string
           usuario_sunat?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clientes_motivo_suspension_id_fkey"
+            columns: ["motivo_suspension_id"]
+            isOneToOne: false
+            referencedRelation: "motivos_suspension"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       configuracion: {
         Row: {
@@ -722,6 +736,36 @@ export type Database = {
         Update: {
           activo?: boolean
           created_at?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      motivos_suspension: {
+        Row: {
+          activo: boolean
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
           id?: string
           nombre?: string
           orden?: number
