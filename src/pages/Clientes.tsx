@@ -27,6 +27,7 @@ import { CreateClientDialog } from "@/components/clientes/CreateClientDialog";
 import { ImportCSVDialog } from "@/components/clientes/ImportCSVDialog";
 import { EditClientDialog } from "@/components/clientes/EditClientDialog";
 import { DeleteClientDialog } from "@/components/clientes/DeleteClientDialog";
+import { SuspendClientDialog } from "@/components/clientes/SuspendClientDialog";
 import { ClientActions } from "@/components/clientes/ClientActions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -68,6 +69,7 @@ const Clientes = () => {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   const fetchClients = async () => {
@@ -87,19 +89,29 @@ const Clientes = () => {
   };
 
   const handleToggleStatus = async (client: Client) => {
-    try {
-      const newStatus = !client.activo;
-      const { error } = await supabase
-        .from("clientes")
-        .update({ activo: newStatus })
-        .eq("id", client.id);
+    if (client.activo) {
+      // Si está activo, abrir diálogo de suspensión
+      setSelectedClient(client);
+      setSuspendDialogOpen(true);
+    } else {
+      // Si está inactivo, activar directamente
+      try {
+        const { error } = await supabase
+          .from("clientes")
+          .update({ 
+            activo: true,
+            motivo_suspension_id: null,
+            fecha_suspension: null
+          })
+          .eq("id", client.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast.success(`Cliente ${newStatus ? "activado" : "suspendido"} exitosamente`);
-      fetchClients();
-    } catch (error: any) {
-      toast.error("Error al cambiar estado: " + error.message);
+        toast.success("Cliente activado exitosamente");
+        fetchClients();
+      } catch (error: any) {
+        toast.error("Error al activar cliente: " + error.message);
+      }
     }
   };
 
@@ -216,6 +228,14 @@ const Clientes = () => {
         onOpenChange={setDeleteDialogOpen}
         clientId={selectedClient?.id || null}
         clientName={selectedClient ? getClientName(selectedClient) : ""}
+        onSuccess={fetchClients}
+      />
+
+      <SuspendClientDialog
+        open={suspendDialogOpen}
+        onOpenChange={setSuspendDialogOpen}
+        clientId={selectedClient?.id || null}
+        clientName={selectedClient ? getClientName(selectedClient) || "" : ""}
         onSuccess={fetchClients}
       />
 
