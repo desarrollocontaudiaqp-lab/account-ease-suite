@@ -60,7 +60,7 @@ interface Client {
 const Clientes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [personaNaturalConEmpresaFilter, setPersonaNaturalConEmpresaFilter] = useState(false);
+  const [cardFilter, setCardFilter] = useState<"all" | "activos" | "inactivos" | "empresas" | "persona_natural" | "pn_con_empresa">("all");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,10 +144,28 @@ const Clientes = () => {
       statusFilter === "all" ||
       (statusFilter === "Activo" && client.activo) ||
       (statusFilter === "Inactivo" && !client.activo);
-    const matchesPersonaNaturalConEmpresa =
-      !personaNaturalConEmpresaFilter ||
-      (isPersonaNatural(client.tipo_cliente) && client.persona_natural_con_empresa === true);
-    return matchesSearch && matchesStatus && matchesPersonaNaturalConEmpresa;
+    
+    // Card filter logic
+    let matchesCardFilter = true;
+    switch (cardFilter) {
+      case "activos":
+        matchesCardFilter = client.activo;
+        break;
+      case "inactivos":
+        matchesCardFilter = !client.activo;
+        break;
+      case "empresas":
+        matchesCardFilter = isEmpresa(client.tipo_cliente);
+        break;
+      case "persona_natural":
+        matchesCardFilter = isPersonaNatural(client.tipo_cliente);
+        break;
+      case "pn_con_empresa":
+        matchesCardFilter = isPersonaNatural(client.tipo_cliente) && client.persona_natural_con_empresa === true;
+        break;
+    }
+    
+    return matchesSearch && matchesStatus && matchesCardFilter;
   });
 
   return (
@@ -241,8 +259,15 @@ const Clientes = () => {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-slate-100">
+        <button
+          onClick={() => setCardFilter(cardFilter === "all" ? "all" : "all")}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
+            cardFilter === "all"
+              ? "border-slate-400 bg-slate-50"
+              : "border-border hover:border-slate-300"
+          }`}
+        >
+          <div className={`p-3 rounded-lg ${cardFilter === "all" ? "bg-slate-200" : "bg-slate-100"}`}>
             <Building2 className="h-5 w-5 text-slate-700" />
           </div>
           <div>
@@ -251,9 +276,16 @@ const Clientes = () => {
             </p>
             <p className="text-sm text-muted-foreground">Total</p>
           </div>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-green-100">
+        </button>
+        <button
+          onClick={() => setCardFilter(cardFilter === "activos" ? "all" : "activos")}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
+            cardFilter === "activos"
+              ? "border-green-400 bg-green-50"
+              : "border-border hover:border-green-300"
+          }`}
+        >
+          <div className={`p-3 rounded-lg ${cardFilter === "activos" ? "bg-green-200" : "bg-green-100"}`}>
             <Building2 className="h-5 w-5 text-green-700" />
           </div>
           <div>
@@ -262,9 +294,16 @@ const Clientes = () => {
             </p>
             <p className="text-sm text-muted-foreground">Activos</p>
           </div>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-gray-100">
+        </button>
+        <button
+          onClick={() => setCardFilter(cardFilter === "inactivos" ? "all" : "inactivos")}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
+            cardFilter === "inactivos"
+              ? "border-gray-400 bg-gray-50"
+              : "border-border hover:border-gray-300"
+          }`}
+        >
+          <div className={`p-3 rounded-lg ${cardFilter === "inactivos" ? "bg-gray-200" : "bg-gray-100"}`}>
             <Building2 className="h-5 w-5 text-gray-500" />
           </div>
           <div>
@@ -273,9 +312,16 @@ const Clientes = () => {
             </p>
             <p className="text-sm text-muted-foreground">Inactivos</p>
           </div>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-blue-100">
+        </button>
+        <button
+          onClick={() => setCardFilter(cardFilter === "empresas" ? "all" : "empresas")}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
+            cardFilter === "empresas"
+              ? "border-blue-400 bg-blue-50"
+              : "border-border hover:border-blue-300"
+          }`}
+        >
+          <div className={`p-3 rounded-lg ${cardFilter === "empresas" ? "bg-blue-200" : "bg-blue-100"}`}>
             <Building2 className="h-5 w-5 text-blue-700" />
           </div>
           <div>
@@ -284,9 +330,16 @@ const Clientes = () => {
             </p>
             <p className="text-sm text-muted-foreground">Empresas</p>
           </div>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-purple-100">
+        </button>
+        <button
+          onClick={() => setCardFilter(cardFilter === "persona_natural" ? "all" : "persona_natural")}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
+            cardFilter === "persona_natural"
+              ? "border-purple-400 bg-purple-50"
+              : "border-border hover:border-purple-300"
+          }`}
+        >
+          <div className={`p-3 rounded-lg ${cardFilter === "persona_natural" ? "bg-purple-200" : "bg-purple-100"}`}>
             <User className="h-5 w-5 text-purple-700" />
           </div>
           <div>
@@ -295,23 +348,23 @@ const Clientes = () => {
             </p>
             <p className="text-sm text-muted-foreground">Personas Naturales</p>
           </div>
-        </div>
+        </button>
         <button
-          onClick={() => setPersonaNaturalConEmpresaFilter(!personaNaturalConEmpresaFilter)}
+          onClick={() => setCardFilter(cardFilter === "pn_con_empresa" ? "all" : "pn_con_empresa")}
           className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
-            personaNaturalConEmpresaFilter
+            cardFilter === "pn_con_empresa"
               ? "border-orange-400 bg-orange-50"
               : "border-border hover:border-orange-300"
           }`}
         >
-          <div className={`p-3 rounded-lg ${personaNaturalConEmpresaFilter ? "bg-orange-200" : "bg-orange-100"}`}>
+          <div className={`p-3 rounded-lg ${cardFilter === "pn_con_empresa" ? "bg-orange-200" : "bg-orange-100"}`}>
             <Building2 className="h-5 w-5 text-orange-700" />
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
               {clients.filter((c) => isPersonaNatural(c.tipo_cliente) && c.persona_natural_con_empresa === true).length}
             </p>
-            <p className="text-sm text-muted-foreground">PN con Empresa</p>
+            <p className="text-sm text-muted-foreground">Persona Natural con Empresa</p>
           </div>
         </button>
       </div>
