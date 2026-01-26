@@ -54,11 +54,13 @@ interface Client {
   clave_sunat: string | null;
   nro_trabajadores: number | null;
   activo: boolean;
+  persona_natural_con_empresa: boolean | null;
 }
 
 const Clientes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [personaNaturalConEmpresaFilter, setPersonaNaturalConEmpresaFilter] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,7 +144,10 @@ const Clientes = () => {
       statusFilter === "all" ||
       (statusFilter === "Activo" && client.activo) ||
       (statusFilter === "Inactivo" && !client.activo);
-    return matchesSearch && matchesStatus;
+    const matchesPersonaNaturalConEmpresa =
+      !personaNaturalConEmpresaFilter ||
+      (isPersonaNatural(client.tipo_cliente) && client.persona_natural_con_empresa === true);
+    return matchesSearch && matchesStatus && matchesPersonaNaturalConEmpresa;
   });
 
   return (
@@ -235,7 +240,7 @@ const Clientes = () => {
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
           <div className="p-3 rounded-lg bg-slate-100">
             <Building2 className="h-5 w-5 text-slate-700" />
@@ -291,6 +296,24 @@ const Clientes = () => {
             <p className="text-sm text-muted-foreground">Personas Naturales</p>
           </div>
         </div>
+        <button
+          onClick={() => setPersonaNaturalConEmpresaFilter(!personaNaturalConEmpresaFilter)}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
+            personaNaturalConEmpresaFilter
+              ? "border-orange-400 bg-orange-50"
+              : "border-border hover:border-orange-300"
+          }`}
+        >
+          <div className={`p-3 rounded-lg ${personaNaturalConEmpresaFilter ? "bg-orange-200" : "bg-orange-100"}`}>
+            <Building2 className="h-5 w-5 text-orange-700" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">
+              {clients.filter((c) => isPersonaNatural(c.tipo_cliente) && c.persona_natural_con_empresa === true).length}
+            </p>
+            <p className="text-sm text-muted-foreground">PN con Empresa</p>
+          </div>
+        </button>
       </div>
 
       {loading && (

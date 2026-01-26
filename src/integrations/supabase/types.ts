@@ -282,6 +282,7 @@ export type Database = {
           nombre_persona_natural: string | null
           notas: string | null
           nro_trabajadores: number | null
+          persona_natural_con_empresa: boolean | null
           razon_social: string
           regimen_laboral: string | null
           regimen_tributario: string | null
@@ -309,6 +310,7 @@ export type Database = {
           nombre_persona_natural?: string | null
           notas?: string | null
           nro_trabajadores?: number | null
+          persona_natural_con_empresa?: boolean | null
           razon_social: string
           regimen_laboral?: string | null
           regimen_tributario?: string | null
@@ -336,6 +338,7 @@ export type Database = {
           nombre_persona_natural?: string | null
           notas?: string | null
           nro_trabajadores?: number | null
+          persona_natural_con_empresa?: boolean | null
           razon_social?: string
           regimen_laboral?: string | null
           regimen_tributario?: string | null

@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,7 @@ const clientSchema = z.object({
   codigo: z.string().min(8, "El RUC/DNI debe tener al menos 8 caracteres"),
   razon_social: z.string().min(2, "La razón social es requerida"),
   nombre_persona_natural: z.string().optional(),
+  persona_natural_con_empresa: z.boolean().optional(),
   direccion: z.string().optional(),
   telefono: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
@@ -62,6 +64,7 @@ interface Client {
   codigo: string;
   razon_social: string;
   nombre_persona_natural: string | null;
+  persona_natural_con_empresa: boolean | null;
   direccion: string | null;
   telefono: string | null;
   email: string | null;
@@ -121,6 +124,7 @@ export function EditClientDialog({
         codigo: client.codigo,
         razon_social: client.razon_social,
         nombre_persona_natural: client.nombre_persona_natural || "",
+        persona_natural_con_empresa: client.persona_natural_con_empresa || false,
         direccion: client.direccion || "",
         telefono: client.telefono || "",
         email: client.email || "",
@@ -149,6 +153,7 @@ export function EditClientDialog({
       const updateData = {
         ...data,
         nombre_persona_natural: data.nombre_persona_natural || null,
+        persona_natural_con_empresa: data.persona_natural_con_empresa || false,
         direccion: data.direccion || null,
         telefono: data.telefono || null,
         email: data.email || null,
@@ -268,10 +273,25 @@ export function EditClientDialog({
                 </div>
 
                 {tipoCliente === "persona_natural" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="nombre_persona_natural">Nombre de Persona Natural</Label>
-                    <Input id="nombre_persona_natural" {...register("nombre_persona_natural")} />
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="nombre_persona_natural">Nombre de Persona Natural</Label>
+                      <Input id="nombre_persona_natural" {...register("nombre_persona_natural")} />
+                    </div>
+                    <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm md:col-span-2">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="persona_natural_con_empresa">Con Empresa</Label>
+                        <p className="text-xs text-muted-foreground">
+                          ¿Esta persona natural también tiene empresa?
+                        </p>
+                      </div>
+                      <Switch
+                        id="persona_natural_con_empresa"
+                        checked={watch("persona_natural_con_empresa") || false}
+                        onCheckedChange={(checked) => setValue("persona_natural_con_empresa", checked)}
+                      />
+                    </div>
+                  </>
                 )}
 
                 <div className="space-y-2 md:col-span-2">
