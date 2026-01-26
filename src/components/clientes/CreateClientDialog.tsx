@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Building2, User, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,7 @@ const clientSchema = z.object({
   codigo: z.string().min(8, "El código debe tener al menos 8 caracteres").max(11, "El código no puede tener más de 11 caracteres"),
   razon_social: z.string().optional(),
   nombre_persona_natural: z.string().optional(),
+  persona_natural_con_empresa: z.boolean().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   telefono: z.string().optional(),
   direccion: z.string().optional(),
@@ -94,6 +96,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
       codigo: "",
       razon_social: "",
       nombre_persona_natural: "",
+      persona_natural_con_empresa: false,
       email: "",
       telefono: "",
       direccion: "",
@@ -123,6 +126,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
         codigo: data.codigo,
         razon_social: data.tipo_cliente === "empresa" ? data.razon_social! : data.nombre_persona_natural!,
         nombre_persona_natural: data.tipo_cliente === "persona_natural" ? data.nombre_persona_natural : null,
+        persona_natural_con_empresa: data.tipo_cliente === "persona_natural" ? (data.persona_natural_con_empresa || false) : false,
         email: data.email || null,
         telefono: data.telefono || null,
         direccion: data.direccion || null,
@@ -285,19 +289,41 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                     )}
                   />
                 ) : (
-                  <FormField
-                    control={form.control}
-                    name="nombre_persona_natural"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre Completo *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Juan Pérez García" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="nombre_persona_natural"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre Completo *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Juan Pérez García" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="persona_natural_con_empresa"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                          <div className="space-y-0.5">
+                            <FormLabel>Con Empresa</FormLabel>
+                            <p className="text-xs text-muted-foreground">
+                              ¿Esta persona natural también tiene empresa?
+                            </p>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </>
                 )}
 
                 <FormField
