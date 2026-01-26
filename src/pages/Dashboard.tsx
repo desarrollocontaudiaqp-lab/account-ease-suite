@@ -6,12 +6,17 @@ import {
   TrendingUp,
   AlertTriangle,
   RefreshCw,
+  CalendarDays,
+  BarChart3,
 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentContracts } from "@/components/dashboard/RecentContracts";
 import { UpcomingPayments } from "@/components/dashboard/UpcomingPayments";
 import { TeamPerformance } from "@/components/dashboard/TeamPerformance";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { IncomeChart } from "@/components/dashboard/IncomeChart";
+import { ContractsChart } from "@/components/dashboard/ContractsChart";
+import { ProformasChart } from "@/components/dashboard/ProformasChart";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Button } from "@/components/ui/button";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
@@ -40,6 +45,9 @@ const Dashboard = () => {
           <h1 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
             Dashboard
           </h1>
+          <p className="text-sm text-muted-foreground">
+            Resumen ejecutivo de tu gestión contable
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button
@@ -62,7 +70,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stats Grid - Modern Layout */}
+      {/* Stats Grid - Clickable Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-5">
         <StatCard
           title="Clientes Activos"
@@ -72,6 +80,7 @@ const Dashboard = () => {
           trend={stats.clientesTrend !== 0 ? { value: Math.abs(stats.clientesTrend), isPositive: stats.clientesTrend > 0 } : undefined}
           variant="primary"
           delay={0}
+          href="/clientes"
         />
         <StatCard
           title="Contratos Vigentes"
@@ -80,6 +89,7 @@ const Dashboard = () => {
           icon={FileCheck}
           trend={stats.contratosTrend !== 0 ? { value: stats.contratosTrend, isPositive: true } : undefined}
           delay={50}
+          href="/contratos"
         />
         <StatCard
           title="Proformas"
@@ -88,6 +98,7 @@ const Dashboard = () => {
           icon={FileText}
           trend={stats.proformasTrend !== 0 ? { value: stats.proformasTrend, isPositive: true } : undefined}
           delay={100}
+          href="/proformas"
         />
         <StatCard
           title="Ingresos"
@@ -96,6 +107,7 @@ const Dashboard = () => {
           icon={DollarSign}
           variant="secondary"
           delay={150}
+          href="/calendario-pagos"
         />
         <StatCard
           title="Conversión"
@@ -104,6 +116,7 @@ const Dashboard = () => {
           icon={TrendingUp}
           trend={stats.conversionTrend !== 0 ? { value: stats.conversionTrend, isPositive: true } : undefined}
           delay={200}
+          href="/proformas"
         />
         <StatCard
           title="Pagos Vencidos"
@@ -112,21 +125,28 @@ const Dashboard = () => {
           icon={AlertTriangle}
           variant="warning"
           delay={250}
+          href="/calendario-pagos"
         />
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Recent Contracts - Takes 2 columns */}
-        <div className="xl:col-span-2">
-          <RecentContracts contracts={recentContracts} loading={loading} />
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <IncomeChart />
         </div>
-
-        {/* Quick Actions */}
-        <div>
-          <QuickActions />
-        </div>
+        <ProformasChart />
       </div>
+
+      {/* Contracts Chart and Quick Actions */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2">
+          <ContractsChart />
+        </div>
+        <QuickActions />
+      </div>
+
+      {/* Recent Contracts */}
+      <RecentContracts contracts={recentContracts} loading={loading} />
 
       {/* Secondary Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

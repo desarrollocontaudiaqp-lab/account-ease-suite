@@ -1,44 +1,41 @@
 import { cn } from "@/lib/utils";
-import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: LucideIcon;
+  icon: React.ElementType;
   trend?: {
     value: number;
     isPositive: boolean;
   };
-  variant?: "default" | "primary" | "secondary" | "success" | "warning";
+  variant?: "default" | "primary" | "secondary" | "warning";
   delay?: number;
+  href?: string;
 }
 
 const variantStyles = {
   default: {
-    card: "bg-card hover:shadow-lg",
-    icon: "bg-muted text-primary",
-    iconRing: "",
+    card: "bg-card border-border/50 hover:border-primary/30",
+    icon: "bg-gradient-to-br from-muted to-muted/50 text-foreground",
+    iconRing: "ring-1 ring-border/50",
   },
   primary: {
-    card: "bg-gradient-to-br from-primary via-primary to-primary/90 text-primary-foreground shadow-lg shadow-primary/25",
-    icon: "bg-white/20 text-white backdrop-blur-sm",
-    iconRing: "ring-2 ring-white/20",
+    card: "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-primary/20",
+    icon: "bg-white/20 text-primary-foreground",
+    iconRing: "ring-1 ring-white/20",
   },
   secondary: {
-    card: "bg-gradient-to-br from-secondary via-secondary to-secondary/90 text-secondary-foreground shadow-lg shadow-secondary/25",
-    icon: "bg-white/20 text-white backdrop-blur-sm",
-    iconRing: "ring-2 ring-white/20",
-  },
-  success: {
-    card: "bg-gradient-to-br from-emerald-500 via-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/25",
-    icon: "bg-white/20 text-white backdrop-blur-sm",
-    iconRing: "ring-2 ring-white/20",
+    card: "bg-gradient-to-br from-secondary to-secondary/90 text-secondary-foreground border-secondary/20",
+    icon: "bg-white/20 text-secondary-foreground",
+    iconRing: "ring-1 ring-white/20",
   },
   warning: {
-    card: "bg-gradient-to-br from-amber-400 via-amber-400 to-amber-500 text-amber-950 shadow-lg shadow-amber-400/25",
-    icon: "bg-amber-950/10 text-amber-950 backdrop-blur-sm",
-    iconRing: "ring-2 ring-amber-950/10",
+    card: "bg-gradient-to-br from-amber-500 to-orange-500 text-white border-amber-400/20",
+    icon: "bg-white/20 text-white",
+    iconRing: "ring-1 ring-white/20",
   },
 };
 
@@ -50,15 +47,26 @@ export function StatCard({
   trend,
   variant = "default",
   delay = 0,
+  href,
 }: StatCardProps) {
+  const navigate = useNavigate();
   const styles = variantStyles[variant];
   const isColoredVariant = variant !== "default";
+  const isClickable = !!href;
+
+  const handleClick = () => {
+    if (href) {
+      navigate(href);
+    }
+  };
 
   return (
     <div
+      onClick={handleClick}
       className={cn(
         "stat-card relative overflow-hidden group animate-slide-up",
-        styles.card
+        styles.card,
+        isClickable && "cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
@@ -109,6 +117,18 @@ export function StatCard({
           <Icon className="h-6 w-6" />
         </div>
       </div>
+
+      {/* Navigate indicator */}
+      {isClickable && (
+        <div className={cn(
+          "absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300",
+          "flex items-center gap-1 text-xs font-medium",
+          isColoredVariant ? "text-white/80" : "text-primary"
+        )}>
+          <span>Ver más</span>
+          <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+        </div>
+      )}
 
       {/* Decorative elements */}
       <div className={cn(
