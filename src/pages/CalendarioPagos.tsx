@@ -795,7 +795,11 @@ export default function CalendarioPagos() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {format(new Date(payment.fecha_vencimiento), "dd MMM yyyy", { locale: es })}
+                            {(() => {
+                              const parts = payment.fecha_vencimiento.split('T')[0].split('-');
+                              const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                              return format(date, "dd MMM yyyy", { locale: es });
+                            })()}
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             {formatCurrency(payment.monto, payment.contrato?.moneda)}
@@ -811,7 +815,11 @@ export default function CalendarioPagos() {
                           </TableCell>
                           <TableCell>
                             {payment.fecha_pago
-                              ? format(new Date(payment.fecha_pago), "dd MMM yyyy", { locale: es })
+                              ? (() => {
+                                  const parts = payment.fecha_pago.split('T')[0].split('-');
+                                  const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                                  return format(date, "dd MMM yyyy", { locale: es });
+                                })()
                               : "-"}
                           </TableCell>
                           <TableCell>
