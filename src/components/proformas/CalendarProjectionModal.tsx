@@ -282,34 +282,32 @@ export function CalendarProjectionModal({
       } else if (proj.cicloPago === "mensual") {
         let currentDate = new Date(proj.fechaInicio);
         currentDate.setDate(proj.fechaPago);
+        // Generar exactamente el número de cuotas indicado, sin depender de fechaTermino
         for (let i = 0; i < proj.nroCuotas; i++) {
           const paymentDate = addMonths(currentDate, i);
-          if (paymentDate <= proj.fechaTermino) {
-            schedule.push({
-              cuota: i + 1,
-              fecha: paymentDate,
-              servicio: proj.descripcion,
-              servicioId: proj.id,
-              color: proj.color,
-              monto: montoPorCuota,
-            });
-          }
+          schedule.push({
+            cuota: i + 1,
+            fecha: paymentDate,
+            servicio: proj.descripcion,
+            servicioId: proj.id,
+            color: proj.color,
+            monto: montoPorCuota,
+          });
         }
       } else if (proj.cicloPago === "anual") {
         let currentDate = new Date(proj.fechaInicio);
         currentDate.setDate(proj.fechaPago);
+        // Generar exactamente el número de cuotas indicado, sin depender de fechaTermino
         for (let i = 0; i < proj.nroCuotas; i++) {
           const paymentDate = addMonths(currentDate, i * 12);
-          if (paymentDate <= proj.fechaTermino) {
-            schedule.push({
-              cuota: i + 1,
-              fecha: paymentDate,
-              servicio: proj.descripcion,
-              servicioId: proj.id,
-              color: proj.color,
-              monto: montoPorCuota,
-            });
-          }
+          schedule.push({
+            cuota: i + 1,
+            fecha: paymentDate,
+            servicio: proj.descripcion,
+            servicioId: proj.id,
+            color: proj.color,
+            monto: montoPorCuota,
+          });
         }
       }
     });
