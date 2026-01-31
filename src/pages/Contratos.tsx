@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,9 @@ import { ContractDetailModal } from "@/components/contratos/ContractDetailModal"
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { ConfirmContractFromProformaDialog } from "@/components/contratos/ConfirmContractFromProformaDialog";
 import { CreateContractDialog } from "@/components/contratos/CreateContractDialog";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from "date-fns";
+
+type DateFilter = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
 
 export type ContractCondition = "Vigente" | "Terminado" | "Anulado" | "Suspendido";
 
@@ -117,6 +120,11 @@ const Contratos = () => {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [proformaData, setProformaData] = useState<ProformaState | null>(null);
+  
+  // Date filter state
+  const [dateFilter, setDateFilter] = useState<DateFilter>("hoy");
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   // Detail modal state
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -302,11 +310,48 @@ const Contratos = () => {
     setEditDialogOpen(true);
   };
 
-  const filteredContracts = contracts.filter(
-    (contract) =>
-      contract.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.cliente?.razon_social.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Get date range based on filter
+  const getDateRange = (filter: DateFilter): { start: Date; end: Date } | null => {
+    const now = new Date();
+    switch (filter) {
+      case "hoy":
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case "semana":
+        return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
+      case "mes_actual":
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case "mes":
+        const monthDate = new Date(selectedYear, selectedMonth, 1);
+        return { start: startOfMonth(monthDate), end: endOfMonth(monthDate) };
+      case "anio":
+        const yearDate = new Date(selectedYear, 0, 1);
+        return { start: startOfYear(yearDate), end: endOfYear(yearDate) };
+      case "todo":
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  const filteredContracts = useMemo(() => {
+    const dateRange = getDateRange(dateFilter);
+    
+    return contracts.filter((contract) => {
+      const matchesSearch = 
+        contract.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contract.cliente?.razon_social.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      let matchesDate = true;
+      if (dateRange) {
+        // Parse date manually to avoid timezone issues
+        const parts = contract.fecha_inicio.split('T')[0].split('-');
+        const contractDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        matchesDate = isWithinInterval(contractDate, { start: dateRange.start, end: dateRange.end });
+      }
+      
+      return matchesSearch && matchesDate;
+    });
+  }, [contracts, searchTerm, dateFilter, selectedMonth, selectedYear]);
 
   const stats = {
     borradores: contracts.filter((c) => c.status === "borrador").length,
@@ -407,6 +452,67 @@ const Contratos = () => {
             S/ {stats.ingresosMensuales.toLocaleString()}
           </p>
         </div>
+      </div>
+
+      {/* Period Filter */}
+      <div className="flex flex-wrap items-center gap-2 bg-card rounded-lg border border-border p-3">
+        <div className="flex items-center gap-2 mr-2">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground">Período:</span>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {[
+            { value: "hoy", label: "Hoy" },
+            { value: "semana", label: "Semana Actual" },
+            { value: "mes_actual", label: "Mes Actual" },
+            { value: "mes", label: "Mes" },
+            { value: "anio", label: "Año" },
+            { value: "todo", label: "Todo" },
+          ].map((option) => (
+            <Button
+              key={option.value}
+              variant={dateFilter === option.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDateFilter(option.value as DateFilter)}
+              className="h-8"
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+        
+        {/* Month selector */}
+        {dateFilter === "mes" && (
+          <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+            <SelectTrigger className="w-[130px] h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"].map((m, i) => (
+                <SelectItem key={i} value={i.toString()}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        
+        {/* Year selector */}
+        {(dateFilter === "mes" || dateFilter === "anio") && (
+          <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+            <SelectTrigger className="w-[100px] h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
+                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        
+        {/* Results count */}
+        <Badge variant="secondary" className="ml-auto">
+          {filteredContracts.length} contratos
+        </Badge>
       </div>
 
       {/* Search & View Toggle */}

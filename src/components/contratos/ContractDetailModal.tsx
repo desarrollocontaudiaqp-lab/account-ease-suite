@@ -595,14 +595,22 @@ export const ContractDetailModal = ({
                       <div>
                         <p className="text-xs text-muted-foreground uppercase">Fecha de Inicio</p>
                         <p className="font-semibold">
-                          {format(new Date(contract.fecha_inicio), "dd 'de' MMMM, yyyy", { locale: es })}
+                          {(() => {
+                            const parts = contract.fecha_inicio.split('T')[0].split('-');
+                            const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                            return format(date, "dd 'de' MMMM, yyyy", { locale: es });
+                          })()}
                         </p>
                       </div>
                       {contract.fecha_fin && (
                         <div>
                           <p className="text-xs text-muted-foreground uppercase">Fecha de Fin</p>
                           <p className="font-semibold">
-                            {format(new Date(contract.fecha_fin), "dd 'de' MMMM, yyyy", { locale: es })}
+                            {(() => {
+                              const parts = contract.fecha_fin.split('T')[0].split('-');
+                              const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                              return format(date, "dd 'de' MMMM, yyyy", { locale: es });
+                            })()}
                           </p>
                         </div>
                       )}

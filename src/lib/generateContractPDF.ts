@@ -113,7 +113,10 @@ function formatCurrency(amount: number, currency: string = "PEN"): string {
 
 function formatDate(dateStr: string): string {
   try {
-    return format(new Date(dateStr), "dd 'de' MMMM, yyyy", { locale: es });
+    // Parse date manually to avoid timezone issues
+    const parts = dateStr.split('T')[0].split('-');
+    const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    return format(date, "dd 'de' MMMM, yyyy", { locale: es });
   } catch {
     return dateStr;
   }
