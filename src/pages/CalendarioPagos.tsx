@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Calendar,
@@ -64,6 +64,9 @@ import { PaymentCalendarView } from "@/components/calendario-pagos/PaymentCalend
 import { RegisterPaymentDialog } from "@/components/calendario-pagos/RegisterPaymentDialog";
 import { RegistroVentasSection } from "@/components/calendario-pagos/RegistroVentasSection";
 import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+type DateFilterType = "Hoy" | "Semana Actual" | "Mes Actual" | "Mes" | "Año" | "Todo";
 
 interface Payment {
   id: string;
@@ -139,6 +142,35 @@ export default function CalendarioPagos() {
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [sourceFilter, setSourceFilter] = useState<string>("todos");
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+  const [dateFilter, setDateFilter] = useState<DateFilterType>("Hoy");
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+  const getDateRange = (filter: DateFilterType): { start: Date; end: Date } | null => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    switch (filter) {
+      case "Hoy":
+        return { start: today, end: endOfToday };
+      case "Semana Actual":
+        return { start: startOfWeek(today, { weekStartsOn: 1 }), end: endOfWeek(today, { weekStartsOn: 1 }) };
+      case "Mes Actual":
+        return { start: startOfMonth(today), end: endOfMonth(today) };
+      case "Mes":
+        const monthDate = new Date(selectedYear, selectedMonth, 1);
+        return { start: startOfMonth(monthDate), end: endOfMonth(monthDate) };
+      case "Año":
+        const yearDate = new Date(selectedYear, 0, 1);
+        return { start: startOfYear(yearDate), end: endOfYear(yearDate) };
+      case "Todo":
+        return null;
+      default:
+        return null;
+    }
+  };
   const [stats, setStats] = useState<PaymentStats>({
     total: 0,
     pendientes: 0,
@@ -359,22 +391,35 @@ export default function CalendarioPagos() {
     setLoading(false);
   };
 
-  const filteredPayments = unifiedPayments.filter((payment) => {
-    const matchesSearch =
-      payment.contrato?.numero?.toLowerCase().includes(search.toLowerCase()) ||
-      payment.contrato?.cliente?.razon_social?.toLowerCase().includes(search.toLowerCase()) ||
-      payment.contrato?.cliente?.codigo?.toLowerCase().includes(search.toLowerCase()) ||
-      payment.servicio?.toLowerCase().includes(search.toLowerCase());
+  const dateRange = useMemo(() => getDateRange(dateFilter), [dateFilter, selectedMonth, selectedYear]);
 
-    const matchesStatus = statusFilter === "todos" || payment.status === statusFilter;
-    
-    const matchesSource = 
-      sourceFilter === "todos" || 
-      (sourceFilter === "reales" && !payment.isProjected) ||
-      (sourceFilter === "proyectados" && payment.isProjected);
+  const filteredPayments = useMemo(() => {
+    return unifiedPayments.filter((payment) => {
+      const matchesSearch =
+        payment.contrato?.numero?.toLowerCase().includes(search.toLowerCase()) ||
+        payment.contrato?.cliente?.razon_social?.toLowerCase().includes(search.toLowerCase()) ||
+        payment.contrato?.cliente?.codigo?.toLowerCase().includes(search.toLowerCase()) ||
+        payment.servicio?.toLowerCase().includes(search.toLowerCase());
 
-    return matchesSearch && matchesStatus && matchesSource;
-  });
+      const matchesStatus = statusFilter === "todos" || payment.status === statusFilter;
+      
+      const matchesSource = 
+        sourceFilter === "todos" || 
+        (sourceFilter === "reales" && !payment.isProjected) ||
+        (sourceFilter === "proyectados" && payment.isProjected);
+
+      // Date filter based on fecha_vencimiento
+      let matchesDate = true;
+      if (dateRange && payment.fecha_vencimiento) {
+        // Parse date manually to avoid timezone issues
+        const parts = payment.fecha_vencimiento.split('T')[0].split('-');
+        const paymentDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        matchesDate = isWithinInterval(paymentDate, { start: dateRange.start, end: dateRange.end });
+      }
+
+      return matchesSearch && matchesStatus && matchesSource && matchesDate;
+    });
+  }, [unifiedPayments, search, statusFilter, sourceFilter, dateRange]);
 
   const handleEditPayment = (payment: UnifiedPayment) => {
     if (payment.isProjected) {
@@ -541,6 +586,68 @@ export default function CalendarioPagos() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Period Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <ToggleGroup type="single" value={dateFilter} onValueChange={(v) => v && setDateFilter(v as DateFilterType)}>
+          <ToggleGroupItem value="Hoy" aria-label="Hoy" className="text-xs">
+            Hoy
+          </ToggleGroupItem>
+          <ToggleGroupItem value="Semana Actual" aria-label="Semana Actual" className="text-xs">
+            Semana Actual
+          </ToggleGroupItem>
+          <ToggleGroupItem value="Mes Actual" aria-label="Mes Actual" className="text-xs">
+            Mes Actual
+          </ToggleGroupItem>
+          <ToggleGroupItem value="Mes" aria-label="Mes" className="text-xs">
+            Mes
+          </ToggleGroupItem>
+          <ToggleGroupItem value="Año" aria-label="Año" className="text-xs">
+            Año
+          </ToggleGroupItem>
+          <ToggleGroupItem value="Todo" aria-label="Todo" className="text-xs">
+            Todo
+          </ToggleGroupItem>
+        </ToggleGroup>
+
+        {(dateFilter === "Mes" || dateFilter === "Año") && (
+          <div className="flex items-center gap-2">
+            {dateFilter === "Mes" && (
+              <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+                <SelectTrigger className="w-[130px] h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <SelectItem key={i} value={i.toString()}>
+                      {format(new Date(2024, i, 1), "MMMM", { locale: es })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+              <SelectTrigger className="w-[90px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 5 }, (_, i) => {
+                  const year = new Date().getFullYear() - 2 + i;
+                  return (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <Badge variant="secondary" className="ml-2">
+          {filteredPayments.length} resultado{filteredPayments.length !== 1 ? "s" : ""}
+        </Badge>
       </div>
 
       {/* Filters */}
