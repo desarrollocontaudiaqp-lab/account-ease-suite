@@ -686,7 +686,10 @@ export async function generateProformaPDF(
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  // Parse date string as local date to avoid timezone issues
+  // Date strings like "2026-01-31" should not shift due to UTC conversion
+  const parts = dateStr.split('T')[0].split('-');
+  const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   const options: Intl.DateTimeFormatOptions = {
     day: "numeric",
     month: "long",
