@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { useState, useEffect, useMemo } from "react";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   FileCheck,
@@ -50,12 +50,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
+
+type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
 
 type ContractCondition = "Vigente" | "Terminado" | "Anulado" | "Suspendido";
 
@@ -71,6 +74,7 @@ interface ContratoAsignado {
   moneda: string;
   status: string;
   condicion: ContractCondition;
+  created_at: string;
   cliente: {
     id: string;
     razon_social: string;
@@ -142,6 +146,9 @@ const Asignaciones = () => {
   const [search, setSearch] = useState("");
   const [filterCartera, setFilterCartera] = useState<string>("todas");
   const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [dateFilter, setDateFilter] = useState<DateFilterType>("hoy");
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [stats, setStats] = useState<Stats>({
     totalAsignados: 0,
     enGestion: 0,
@@ -159,6 +166,28 @@ const Asignaciones = () => {
   const [saving, setSaving] = useState(false);
   const [selectedCarteraMiembros, setSelectedCarteraMiembros] = useState<any[]>([]);
 
+  const getDateRange = (filter: DateFilterType): { start: Date; end: Date } | null => {
+    const now = new Date();
+    switch (filter) {
+      case "hoy":
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case "semana":
+        return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
+      case "mes_actual":
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case "mes":
+        const monthDate = new Date(selectedYear, selectedMonth, 1);
+        return { start: startOfMonth(monthDate), end: endOfMonth(monthDate) };
+      case "anio":
+        const yearDate = new Date(selectedYear, 0, 1);
+        return { start: startOfYear(yearDate), end: endOfYear(yearDate) };
+      case "todo":
+        return null;
+    }
+  };
+
+  const dateRange = useMemo(() => getDateRange(dateFilter), [dateFilter, selectedMonth, selectedYear]);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -171,7 +200,7 @@ const Asignaciones = () => {
       .from("contratos")
       .select(`
         id, numero, descripcion, tipo_servicio, fecha_inicio, fecha_fin,
-        monto_mensual, monto_total, moneda, status, condicion,
+        monto_mensual, monto_total, moneda, status, condicion, created_at,
         cliente:clientes(id, razon_social, codigo)
       `)
       .neq("status", "borrador")
@@ -294,21 +323,31 @@ const Asignaciones = () => {
     setLoading(false);
   };
 
-  const filteredContratos = contratos.filter((contrato) => {
-    const matchesSearch =
-      contrato.numero.toLowerCase().includes(search.toLowerCase()) ||
-      contrato.cliente?.razon_social.toLowerCase().includes(search.toLowerCase()) ||
-      contrato.descripcion?.toLowerCase().includes(search.toLowerCase());
+  const filteredContratos = useMemo(() => {
+    return contratos.filter((contrato) => {
+      const matchesSearch =
+        contrato.numero.toLowerCase().includes(search.toLowerCase()) ||
+        contrato.cliente?.razon_social.toLowerCase().includes(search.toLowerCase()) ||
+        contrato.descripcion?.toLowerCase().includes(search.toLowerCase());
 
-    const matchesCartera =
-      filterCartera === "todas" ||
-      (filterCartera === "sin_asignar" && !contrato.cartera) ||
-      contrato.cartera?.id === filterCartera;
+      const matchesCartera =
+        filterCartera === "todas" ||
+        (filterCartera === "sin_asignar" && !contrato.cartera) ||
+        contrato.cartera?.id === filterCartera;
 
-    const matchesStatus = filterStatus === "todos" || contrato.status === filterStatus;
+      const matchesStatus = filterStatus === "todos" || contrato.status === filterStatus;
 
-    return matchesSearch && matchesCartera && matchesStatus;
-  });
+      // Date filter - based on created_at
+      let matchesDate = true;
+      if (dateRange && contrato.created_at) {
+        const parts = contrato.created_at.split('T')[0].split('-');
+        const contratoDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        matchesDate = isWithinInterval(contratoDate, { start: dateRange.start, end: dateRange.end });
+      }
+
+      return matchesSearch && matchesCartera && matchesStatus && matchesDate;
+    });
+  }, [contratos, search, filterCartera, filterStatus, dateRange]);
 
   const handleReasignar = async () => {
     if (!selectedContrato || !selectedCarteraId) {
@@ -484,6 +523,79 @@ const Asignaciones = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Period Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <ToggleGroup
+                type="single"
+                value={dateFilter}
+                onValueChange={(value) => value && setDateFilter(value as DateFilterType)}
+                className="justify-start"
+              >
+                <ToggleGroupItem value="hoy" aria-label="Hoy" className="text-xs px-3">
+                  Hoy
+                </ToggleGroupItem>
+                <ToggleGroupItem value="semana" aria-label="Semana Actual" className="text-xs px-3">
+                  Semana Actual
+                </ToggleGroupItem>
+                <ToggleGroupItem value="mes_actual" aria-label="Mes Actual" className="text-xs px-3">
+                  Mes Actual
+                </ToggleGroupItem>
+                <ToggleGroupItem value="mes" aria-label="Mes" className="text-xs px-3">
+                  Mes
+                </ToggleGroupItem>
+                <ToggleGroupItem value="anio" aria-label="Año" className="text-xs px-3">
+                  Año
+                </ToggleGroupItem>
+                <ToggleGroupItem value="todo" aria-label="Todo" className="text-xs px-3">
+                  Todo
+                </ToggleGroupItem>
+              </ToggleGroup>
+
+              {(dateFilter === "mes" || dateFilter === "anio") && (
+                <div className="flex items-center gap-2">
+                  {dateFilter === "mes" && (
+                    <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+                      <SelectTrigger className="w-[130px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <SelectItem key={i} value={i.toString()}>
+                            {format(new Date(2024, i, 1), "MMMM", { locale: es })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+                    <SelectTrigger className="w-[90px] h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const year = new Date().getFullYear() - 2 + i;
+                        return (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <Badge variant="secondary" className="ml-auto">
+                {filteredContratos.length} resultado(s)
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Filters */}
       <Card>
