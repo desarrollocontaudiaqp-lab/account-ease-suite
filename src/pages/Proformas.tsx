@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2, FileCheck, Pencil, Ban, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2, FileCheck, Pencil, Ban, Trash2, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -102,6 +104,17 @@ const typeLabels: Record<string, string> = {
   tramites: "Trámites",
 };
 
+type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
+
+const dateFilterLabels: Record<DateFilterType, string> = {
+  hoy: "Hoy",
+  semana: "Semana Actual",
+  mes_actual: "Mes Actual",
+  mes: "Mes",
+  anio: "Año",
+  todo: "Todo",
+};
+
 const Proformas = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -114,6 +127,11 @@ const Proformas = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createDialogType, setCreateDialogType] = useState<GrupoServicio>("Contabilidad");
   const [selectedPlantillaId, setSelectedPlantillaId] = useState<string | null>(null);
+  
+  // Date filter state - default to "hoy" (today)
+  const [dateFilter, setDateFilter] = useState<DateFilterType>("hoy");
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   
   // Fetch plantillas for the dropdown
   const { data: plantillas = [] } = useQuery({
@@ -152,6 +170,30 @@ const Proformas = () => {
   const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false);
   const [actionProforma, setActionProforma] = useState<Proforma | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // Helper function to get date range based on filter
+  const getDateRange = (filter: DateFilterType): { start: Date; end: Date } | null => {
+    const now = new Date();
+    
+    switch (filter) {
+      case "hoy":
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case "semana":
+        return { start: startOfWeek(now, { locale: es }), end: endOfWeek(now, { locale: es }) };
+      case "mes_actual":
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      case "mes":
+        const monthDate = new Date(selectedYear, selectedMonth, 1);
+        return { start: startOfMonth(monthDate), end: endOfMonth(monthDate) };
+      case "anio":
+        const yearDate = new Date(selectedYear, 0, 1);
+        return { start: startOfYear(yearDate), end: endOfYear(yearDate) };
+      case "todo":
+        return null;
+      default:
+        return null;
+    }
+  };
 
   // Fetch dynamic statuses
   const { data: estados = [] } = useQuery({
@@ -433,9 +475,24 @@ const Proformas = () => {
     }
   };
 
-  // Filter proformas with dynamic search and service filter
+  // Filter proformas with dynamic search, service filter, and date filter
   const filteredProformas = useMemo(() => {
+    const dateRange = getDateRange(dateFilter);
+    
     return proformas.filter((proforma) => {
+      // Date filter
+      let matchesDate = true;
+      if (dateRange) {
+        try {
+          // Parse the date as local to avoid timezone issues
+          const parts = proforma.fecha_emision.split('T')[0].split('-');
+          const proformaDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          matchesDate = isWithinInterval(proformaDate, { start: dateRange.start, end: dateRange.end });
+        } catch {
+          matchesDate = false;
+        }
+      }
+      
       // Search filter - by client name, proforma number, or item descriptions
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = searchTerm === "" ||
@@ -461,9 +518,9 @@ const Proformas = () => {
           )
         );
       
-      return matchesSearch && matchesTab && matchesService;
+      return matchesDate && matchesSearch && matchesTab && matchesService;
     });
-  }, [proformas, searchTerm, activeTab, selectedServices]);
+  }, [proformas, searchTerm, activeTab, selectedServices, dateFilter, selectedMonth, selectedYear]);
   
   // Count proformas by group
   const countByGroup = useMemo(() => {
@@ -554,6 +611,65 @@ const Proformas = () => {
             S/ {stats.valorTotal.toLocaleString()}
           </p>
         </div>
+      </div>
+
+      {/* Date Filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Calendar className="h-4 w-4" />
+          <span>Período:</span>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {(Object.keys(dateFilterLabels) as DateFilterType[]).map((filter) => (
+            <Button
+              key={filter}
+              variant={dateFilter === filter ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDateFilter(filter)}
+              className={dateFilter === filter ? "btn-gradient" : ""}
+            >
+              {dateFilterLabels[filter]}
+            </Button>
+          ))}
+        </div>
+        
+        {/* Month/Year selectors for specific filters */}
+        {(dateFilter === "mes" || dateFilter === "anio") && (
+          <div className="flex gap-2 ml-2">
+            {dateFilter === "mes" && (
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              >
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i} value={i}>
+                    {new Date(2000, i, 1).toLocaleDateString('es-PE', { month: 'long' })}
+                  </option>
+                ))}
+              </select>
+            )}
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              {Array.from({ length: 10 }, (_, i) => {
+                const year = new Date().getFullYear() - 5 + i;
+                return (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        )}
+        
+        {/* Show count of filtered results */}
+        <Badge variant="outline" className="ml-2">
+          {filteredProformas.length} resultado{filteredProformas.length !== 1 ? 's' : ''}
+        </Badge>
       </div>
 
       {/* Tabs & Filters */}
