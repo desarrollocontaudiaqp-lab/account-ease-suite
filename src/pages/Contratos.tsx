@@ -64,6 +64,7 @@ interface Contract {
   condicion: ContractCondition;
   notas: string | null;
   proforma_id: string | null;
+  created_at?: string;
 }
 
 interface ProformaState {
@@ -184,6 +185,7 @@ const Contratos = () => {
         condicion,
         notas,
         proforma_id,
+        created_at,
         cliente:clientes(id, razon_social, codigo)
       `)
       .order("created_at", { ascending: false });
@@ -342,9 +344,9 @@ const Contratos = () => {
         contract.cliente?.razon_social.toLowerCase().includes(searchTerm.toLowerCase());
       
       let matchesDate = true;
-      if (dateRange) {
-        // Parse date manually to avoid timezone issues
-        const parts = contract.fecha_inicio.split('T')[0].split('-');
+      if (dateRange && contract.created_at) {
+        // Parse created_at date manually to avoid timezone issues
+        const parts = contract.created_at.split('T')[0].split('-');
         const contractDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
         matchesDate = isWithinInterval(contractDate, { start: dateRange.start, end: dateRange.end });
       }
