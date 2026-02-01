@@ -872,12 +872,13 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                                 onDelete={() => deleteItem(output.id)}
                                 onEdit={() => setEditingItem(output.id)}
                                 isEditing={editingItem === output.id}
-                                onSaveEdit={(title) => {
-                                  updateItem(output.id, { titulo: title });
+                                onSaveEdit={(title, enlaceSharepoint) => {
+                                  updateItem(output.id, { titulo: title, enlaceSharepoint: enlaceSharepoint || undefined });
                                   setEditingItem(null);
                                 }}
                                 onCancelEdit={() => setEditingItem(null)}
                                 variant="rounded"
+                                showSharepointLink={true}
                                 onStartConnection={() => startConnection(output.id)}
                                 onCompleteConnection={() => completeConnection(output.id)}
                                 isConnecting={!!connectingFrom}
