@@ -31,7 +31,6 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { TreeNode, NodeType } from "./WorkFlowTreeSidebar";
 import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
-import { PortfolioDashboard } from "./PortfolioDashboard";
 
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
@@ -98,14 +97,72 @@ export function WorkFlowContentPanel({ selectedNode }: WorkFlowContentPanelProps
     switch (selectedNode.type) {
       case "espacio":
         return (
-          <PortfolioDashboard
-            carteraId={selectedNode.id}
-            carteraNombre={selectedNode.label}
-            especialidad={data.especialidad}
-            miembros={data.miembros}
-            stats={data.stats}
-            onViewContract={handleViewDetail}
-          />
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                <Briefcase className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">{selectedNode.label}</h2>
+                <p className="text-sm text-muted-foreground">{data.especialidad || "Cartera de trabajo"}</p>
+              </div>
+            </div>
+
+            {data.stats && (
+              <div className="grid grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold">{data.stats.total || 0}</p>
+                    <p className="text-xs text-muted-foreground">Contratos</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-blue-600">{data.stats.en_gestion || 0}</p>
+                    <p className="text-xs text-muted-foreground">En Gestión</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-green-600">{data.stats.finalizados || 0}</p>
+                    <p className="text-xs text-muted-foreground">Finalizados</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {data.miembros && data.miembros.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Equipo ({data.miembros.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {data.miembros.map((m: any, idx: number) => (
+                      <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="text-xs">
+                            {getInitials(m.profile?.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {m.profile?.full_name || m.profile?.email}
+                          </p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {m.rol_en_cartera}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         );
 
       case "mes":
