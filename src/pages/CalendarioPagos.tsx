@@ -408,13 +408,20 @@ export default function CalendarioPagos() {
         (sourceFilter === "reales" && !payment.isProjected) ||
         (sourceFilter === "proyectados" && payment.isProjected);
 
-      // Date filter based on fecha_vencimiento
+      // Date filter: for paid payments use fecha_pago, otherwise use fecha_vencimiento
       let matchesDate = true;
-      if (dateRange && payment.fecha_vencimiento) {
-        // Parse date manually to avoid timezone issues
-        const parts = payment.fecha_vencimiento.split('T')[0].split('-');
-        const paymentDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        matchesDate = isWithinInterval(paymentDate, { start: dateRange.start, end: dateRange.end });
+      if (dateRange) {
+        // For paid payments, filter by fecha_pago; for others, use fecha_vencimiento
+        const dateToFilter = (payment.status === "pagado" && payment.fecha_pago) 
+          ? payment.fecha_pago 
+          : payment.fecha_vencimiento;
+        
+        if (dateToFilter) {
+          // Parse date manually to avoid timezone issues
+          const parts = dateToFilter.split('T')[0].split('-');
+          const paymentDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          matchesDate = isWithinInterval(paymentDate, { start: dateRange.start, end: dateRange.end });
+        }
       }
 
       return matchesSearch && matchesStatus && matchesSource && matchesDate;
