@@ -15,6 +15,7 @@ import Asignaciones from "./pages/Asignaciones";
 import Carteras from "./pages/Carteras";
 import CalendarioTrabajo from "./pages/CalendarioTrabajo";
 import CalendarioPagos from "./pages/CalendarioPagos";
+import Reportes from "./pages/Reportes";
 import Usuarios from "./pages/Usuarios";
 import Configuracion from "./pages/Configuracion";
 import Auth from "./pages/Auth";
@@ -60,7 +61,7 @@ const AppRoutes = () => {
         <Route path="/carteras" element={<Carteras />} />
         <Route path="/calendario-pagos" element={<CalendarioPagos />} />
         <Route path="/calendario-trabajo" element={<CalendarioTrabajo />} />
-        <Route path="/reportes/*" element={<Dashboard />} />
+        <Route path="/reportes/*" element={<Reportes />} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/configuracion" element={<Configuracion />} />
       </Route>

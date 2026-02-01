@@ -62,7 +62,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PaymentCalendarView } from "@/components/calendario-pagos/PaymentCalendarView";
 import { RegisterPaymentDialog } from "@/components/calendario-pagos/RegisterPaymentDialog";
-import { RegistroVentasSection } from "@/components/calendario-pagos/RegistroVentasSection";
 import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -882,8 +881,6 @@ export default function CalendarioPagos() {
         </Card>
       )}
 
-      {/* Registro de Ventas Section */}
-      <RegistroVentasSection payments={unifiedPayments} />
 
       {/* Edit Payment Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
