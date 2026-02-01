@@ -119,7 +119,10 @@ export function AppSidebar() {
       {/* Collapse Toggle Button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-6 z-50 h-6 w-6 rounded-full bg-sidebar border border-sidebar-foreground/20 flex items-center justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors shadow-sm"
+        className={cn(
+          "absolute z-50 h-6 w-6 rounded-full bg-sidebar-accent/50 border border-sidebar-foreground/20 flex items-center justify-center text-sidebar-foreground hover:bg-sidebar-accent transition-colors shadow-sm",
+          isCollapsed ? "top-3 right-1" : "-right-3 top-6"
+        )}
       >
         {isCollapsed ? (
           <ChevronRight className="h-3.5 w-3.5" />
@@ -129,38 +132,55 @@ export function AppSidebar() {
       </button>
 
       {/* Logo Section */}
-      <div className={cn("p-6", isCollapsed && "p-4")}>
-        <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
-          <div className="relative">
+      <div className={cn(
+        "transition-all duration-300",
+        isCollapsed ? "p-3 flex justify-center" : "p-6"
+      )}>
+        <div className={cn(
+          "flex items-center transition-all duration-300",
+          isCollapsed ? "justify-center" : "gap-3"
+        )}>
+          <div className="relative flex-shrink-0">
             <img
               src={logo}
               alt="C&A Contadores y Auditores"
-              className={cn("h-14 w-auto object-contain drop-shadow-lg", isCollapsed && "h-10")}
+              className={cn(
+                "object-contain drop-shadow-lg transition-all duration-300",
+                isCollapsed ? "h-8 w-8" : "h-14 w-auto"
+              )}
             />
           </div>
-          {!isCollapsed && (
-            <div className="flex flex-col">
-              <span className="text-base font-bold text-sidebar-foreground tracking-tight">
-                Contadores
-              </span>
-              <span className="text-sm text-sidebar-foreground/70 font-medium">
-                & Auditores
-              </span>
-            </div>
-          )}
+          <div className={cn(
+            "flex flex-col overflow-hidden transition-all duration-300",
+            isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+          )}>
+            <span className="text-base font-bold text-sidebar-foreground tracking-tight whitespace-nowrap">
+              Contadores
+            </span>
+            <span className="text-sm text-sidebar-foreground/70 font-medium whitespace-nowrap">
+              & Auditores
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Divider */}
-      <div className="mx-4 h-px bg-gradient-to-r from-transparent via-sidebar-foreground/20 to-transparent" />
+      <div className={cn(
+        "h-px bg-gradient-to-r from-transparent via-sidebar-foreground/20 to-transparent transition-all duration-300",
+        isCollapsed ? "mx-2" : "mx-4"
+      )} />
 
       {/* Navigation */}
-      <nav className={cn("flex-1 p-4 space-y-1 overflow-y-auto scrollbar-modern", isCollapsed && "p-2")}>
-        {!isCollapsed && (
-          <p className="px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-            Menú Principal
-          </p>
-        )}
+      <nav className={cn(
+        "flex-1 space-y-1 overflow-y-auto scrollbar-modern transition-all duration-300",
+        isCollapsed ? "p-2" : "p-4"
+      )}>
+        <p className={cn(
+          "px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider transition-all duration-300 overflow-hidden whitespace-nowrap",
+          isCollapsed ? "h-0 opacity-0 py-0" : "h-auto opacity-100"
+        )}>
+          Menú Principal
+        </p>
         {menuItems.slice(0, 8).map((item, index) => {
           const Icon = item.icon;
           const hasChildren = item.children && item.children.length > 0;
@@ -220,10 +240,10 @@ export function AppSidebar() {
                       onClick={() => setIsMobileOpen(false)}
                       className={({ isActive }) =>
                         cn(
-                          "flex items-center justify-center p-3 rounded-lg transition-all duration-200",
+                          "flex items-center justify-center h-10 w-full rounded-lg transition-all duration-200",
                           isActive 
                             ? "bg-sidebar-accent text-sidebar-foreground" 
-                            : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent/30"
                         )
                       }
                     >
@@ -251,12 +271,13 @@ export function AppSidebar() {
         })}
 
         {/* Admin Section */}
-        <div className="pt-4">
-          {!isCollapsed && (
-            <p className="px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-              Administración
-            </p>
-          )}
+        <div className={cn("pt-4", isCollapsed && "pt-2")}>
+          <p className={cn(
+            "px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider transition-all duration-300 overflow-hidden whitespace-nowrap",
+            isCollapsed ? "h-0 opacity-0 py-0" : "h-auto opacity-100"
+          )}>
+            Administración
+          </p>
           {menuItems.slice(8).map((item) => {
             const Icon = item.icon;
             return isCollapsed ? (
@@ -267,10 +288,10 @@ export function AppSidebar() {
                     onClick={() => setIsMobileOpen(false)}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center justify-center p-3 rounded-lg transition-all duration-200",
+                        "flex items-center justify-center h-10 w-full rounded-lg transition-all duration-200",
                         isActive 
                           ? "bg-sidebar-accent text-sidebar-foreground" 
-                          : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent/30"
                       )
                     }
                   >
@@ -299,12 +320,12 @@ export function AppSidebar() {
       </nav>
 
       {/* Footer */}
-      <div className={cn("p-4 space-y-3", isCollapsed && "p-2")}>
+      <div className={cn("p-4 space-y-3", isCollapsed && "p-2 space-y-2")}>
         {/* Help Button */}
         {isCollapsed ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="flex items-center justify-center p-3 rounded-lg w-full text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors">
+              <button className="flex items-center justify-center h-10 w-full rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors">
                 <HelpCircle className="h-5 w-5" />
               </button>
             </TooltipTrigger>
