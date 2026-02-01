@@ -11,21 +11,21 @@ const CalendarioTrabajo = () => {
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
-      {/* Page Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Workflow className="h-5 w-5 text-primary" />
+      {/* Page Header - Compact */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <Workflow className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">WorkFlow</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-lg font-bold text-foreground">WorkFlow</h1>
+            <p className="text-xs text-muted-foreground">
               Gestiona los flujos de trabajo por cartera
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
+        <Button variant="outline" size="sm" onClick={refresh} className="gap-2 h-8">
+          <RefreshCw className="h-3.5 w-3.5" />
           Actualizar
         </Button>
       </div>
@@ -33,7 +33,7 @@ const CalendarioTrabajo = () => {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <div className="w-72 flex-shrink-0 overflow-hidden">
+        <div className="w-56 flex-shrink-0 overflow-hidden">
           <WorkFlowTreeSidebar
             treeData={treeData}
             selectedNode={selectedNode}
