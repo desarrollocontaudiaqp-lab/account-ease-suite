@@ -62,6 +62,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PaymentCalendarView } from "@/components/calendario-pagos/PaymentCalendarView";
 import { RegisterPaymentDialog } from "@/components/calendario-pagos/RegisterPaymentDialog";
+import { ContractCalendarModal } from "@/components/calendario-pagos/ContractCalendarModal";
 import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -202,6 +203,19 @@ export default function CalendarioPagos() {
   // Register payment dialog state
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [paymentToRegister, setPaymentToRegister] = useState<UnifiedPayment | null>(null);
+
+  // Contract calendar modal state
+  const [contractCalendarOpen, setContractCalendarOpen] = useState(false);
+  const [selectedContractPayments, setSelectedContractPayments] = useState<UnifiedPayment[]>([]);
+
+  const handleViewContractCalendar = (payment: UnifiedPayment) => {
+    // Get all payments for this contract
+    const contractPayments = unifiedPayments.filter(
+      p => p.contrato_id === payment.contrato_id
+    );
+    setSelectedContractPayments(contractPayments);
+    setContractCalendarOpen(true);
+  };
 
   const handleRegisterPayment = (payment: UnifiedPayment) => {
     if (payment.isProjected) {
@@ -845,6 +859,20 @@ export default function CalendarioPagos() {
                                   <TooltipContent>Ver Detalle</TooltipContent>
                                 </Tooltip>
 
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleViewContractCalendar(payment)}
+                                    >
+                                      <CalendarDays className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Ver Calendario del Contrato</TooltipContent>
+                                </Tooltip>
+
                                 {!payment.isProjected && (
 
                                     <Tooltip>
@@ -1139,6 +1167,14 @@ export default function CalendarioPagos() {
         payment={paymentToRegister}
         onSuccess={fetchPayments}
         allPayments={unifiedPayments}
+      />
+
+      {/* Contract Calendar Modal */}
+      <ContractCalendarModal
+        open={contractCalendarOpen}
+        onOpenChange={setContractCalendarOpen}
+        contractPayments={selectedContractPayments}
+        formatCurrency={formatCurrency}
       />
     </div>
   );
