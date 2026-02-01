@@ -4,6 +4,7 @@ import { es } from "date-fns/locale";
 import {
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   Briefcase,
   Calendar,
   FileText,
@@ -17,11 +18,14 @@ import {
   MoreHorizontal,
   FolderOpen,
   Check,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Tree node types
 export type NodeType = 
@@ -54,6 +58,8 @@ interface WorkFlowTreeSidebarProps {
   selectedNode: TreeNode | null;
   onSelectNode: (node: TreeNode) => void;
   loading?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const nodeIcons: Record<NodeType, React.ElementType> = {
@@ -93,6 +99,7 @@ interface TreeItemProps {
   onSelectNode: (node: TreeNode) => void;
   expandedNodes: Set<string>;
   toggleExpand: (id: string) => void;
+  isCollapsed?: boolean;
 }
 
 const TreeItem = ({
@@ -102,11 +109,41 @@ const TreeItem = ({
   onSelectNode,
   expandedNodes,
   toggleExpand,
+  isCollapsed,
 }: TreeItemProps) => {
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = expandedNodes.has(node.id);
   const isSelected = selectedNode?.id === node.id;
   const Icon = nodeIcons[node.type] || FileText;
+
+  // Collapsed view - only show top-level items with tooltips
+  if (isCollapsed && level === 0) {
+    return (
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>
+          <div
+            className={cn(
+              "flex items-center justify-center p-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors",
+              isSelected && "bg-primary/10 text-primary"
+            )}
+            onClick={() => onSelectNode(node)}
+          >
+            <Icon className={cn("h-4 w-4", nodeColors[node.type])} />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="font-medium">
+          {node.label}
+          {node.badge !== undefined && node.badge > 0 && (
+            <Badge variant="secondary" className="ml-2 h-5 min-w-[20px] px-1 text-[10px]">
+              {node.badge}
+            </Badge>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  if (isCollapsed) return null;
 
   return (
     <div className="select-none">
@@ -191,6 +228,7 @@ const TreeItem = ({
               onSelectNode={onSelectNode}
               expandedNodes={expandedNodes}
               toggleExpand={toggleExpand}
+              isCollapsed={isCollapsed}
             />
           ))}
         </div>
@@ -204,6 +242,8 @@ export function WorkFlowTreeSidebar({
   selectedNode,
   onSelectNode,
   loading,
+  isCollapsed = false,
+  onToggleCollapse,
 }: WorkFlowTreeSidebarProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
@@ -229,28 +269,55 @@ export function WorkFlowTreeSidebar({
   };
 
   return (
-    <div className="flex flex-col h-full bg-background border-r border-border">
+    <div className={cn(
+      "flex flex-col h-full bg-background border-r border-border transition-all duration-300 relative",
+      isCollapsed ? "w-12" : "w-full"
+    )}>
+      {/* Collapse Toggle */}
+      <button
+        onClick={onToggleCollapse}
+        className="absolute top-2 -right-3 z-10 p-1 rounded-full bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-sm"
+      >
+        {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+      </button>
+
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Briefcase className="h-4 w-4 text-primary" />
-          <span className="font-medium text-sm">Espacios</span>
-        </div>
-        <Button variant="ghost" size="icon" className="h-6 w-6">
-          <Plus className="h-4 w-4" />
-        </Button>
+      <div className={cn(
+        "flex items-center border-b border-border",
+        isCollapsed ? "justify-center px-1 py-2" : "justify-between px-3 py-2"
+      )}>
+        {isCollapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <div className="p-1">
+                <Briefcase className="h-4 w-4 text-primary" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">Espacios</TooltipContent>
+          </Tooltip>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-primary" />
+              <span className="font-medium text-sm">Espacios</span>
+            </div>
+            <Button variant="ghost" size="icon" className="h-6 w-6">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Tree view */}
       <ScrollArea className="flex-1">
-        <div className="py-2">
+        <div className={cn("py-2", isCollapsed && "px-1")}>
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
             </div>
           ) : treeData.length === 0 ? (
             <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-              No hay datos disponibles
+              {!isCollapsed && "No hay datos disponibles"}
             </div>
           ) : (
             treeData.map((node) => (
@@ -262,6 +329,7 @@ export function WorkFlowTreeSidebar({
                 onSelectNode={onSelectNode}
                 expandedNodes={expandedNodes}
                 toggleExpand={toggleExpand}
+                isCollapsed={isCollapsed}
               />
             ))
           )}
@@ -269,17 +337,34 @@ export function WorkFlowTreeSidebar({
       </ScrollArea>
 
       {/* Footer with "All Carteras" option */}
-      <div className="border-t border-border p-2">
-        <div
-          className={cn(
-            "flex items-center gap-2 py-2 px-3 rounded-md cursor-pointer hover:bg-muted/50 transition-colors",
-            !selectedNode && "bg-primary/10"
-          )}
-          onClick={() => onSelectNode({ id: "all", type: "espacio", label: "Todas las Carteras" })}
-        >
-          <Briefcase className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Todas las Carteras</span>
-        </div>
+      <div className={cn("border-t border-border", isCollapsed ? "p-1" : "p-2")}>
+        {isCollapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  "flex items-center justify-center p-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors",
+                  !selectedNode && "bg-primary/10"
+                )}
+                onClick={() => onSelectNode({ id: "all", type: "espacio", label: "Todas las Carteras" })}
+              >
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">Todas las Carteras</TooltipContent>
+          </Tooltip>
+        ) : (
+          <div
+            className={cn(
+              "flex items-center gap-2 py-2 px-3 rounded-md cursor-pointer hover:bg-muted/50 transition-colors",
+              !selectedNode && "bg-primary/10"
+            )}
+            onClick={() => onSelectNode({ id: "all", type: "espacio", label: "Todas las Carteras" })}
+          >
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Todas las Carteras</span>
+          </div>
+        )}
       </div>
     </div>
   );

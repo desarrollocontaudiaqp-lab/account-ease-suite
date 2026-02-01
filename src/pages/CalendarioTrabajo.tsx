@@ -4,10 +4,12 @@ import { WorkFlowContentPanel } from "@/components/workflow/WorkFlowContentPanel
 import { useWorkFlowTree } from "@/hooks/useWorkFlowTree";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Workflow } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const CalendarioTrabajo = () => {
   const { loading, treeData, refresh } = useWorkFlowTree();
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
@@ -33,12 +35,17 @@ const CalendarioTrabajo = () => {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <div className="w-56 flex-shrink-0 overflow-hidden">
+        <div className={cn(
+          "flex-shrink-0 overflow-hidden transition-all duration-300",
+          isSidebarCollapsed ? "w-12" : "w-56"
+        )}>
           <WorkFlowTreeSidebar
             treeData={treeData}
             selectedNode={selectedNode}
             onSelectNode={setSelectedNode}
             loading={loading}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           />
         </div>
 

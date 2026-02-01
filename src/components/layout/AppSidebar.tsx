@@ -13,6 +13,7 @@ import {
   Settings,
   Shield,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Menu,
   X,
@@ -23,6 +24,7 @@ import logo from "@/assets/logo-ca.png";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface SidebarItem {
   title: string;
@@ -61,6 +63,7 @@ export function AppSidebar() {
   const { user, role, signOut } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Reportes"]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string | null } | null>(null);
 
   useEffect(() => {
@@ -99,39 +102,75 @@ export function AppSidebar() {
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95">
       {/* Logo Section */}
-      <div className="p-6">
-        <div className="flex items-center gap-3">
+      <div className={cn("p-4", isCollapsed ? "px-2" : "p-6")}>
+        <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
           <div className="relative">
             <img
               src={logo}
               alt="C&A Contadores y Auditores"
-              className="h-14 w-auto object-contain drop-shadow-lg"
+              className={cn("object-contain drop-shadow-lg transition-all", isCollapsed ? "h-8 w-8" : "h-14 w-auto")}
             />
           </div>
-          <div className="flex flex-col">
-            <span className="text-base font-bold text-sidebar-foreground tracking-tight">
-              Contadores
-            </span>
-            <span className="text-sm text-sidebar-foreground/70 font-medium">
-              & Auditores
-            </span>
-          </div>
+          {!isCollapsed && (
+            <div className="flex flex-col">
+              <span className="text-base font-bold text-sidebar-foreground tracking-tight">
+                Contadores
+              </span>
+              <span className="text-sm text-sidebar-foreground/70 font-medium">
+                & Auditores
+              </span>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Collapse Toggle Button */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute top-4 -right-3 z-50 p-1 rounded-full bg-sidebar border border-sidebar-foreground/20 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors shadow-md"
+      >
+        {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+      </button>
 
       {/* Divider */}
       <div className="mx-4 h-px bg-gradient-to-r from-transparent via-sidebar-foreground/20 to-transparent" />
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto scrollbar-modern">
-        <p className="px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-          Menú Principal
-        </p>
+      <nav className={cn("flex-1 space-y-1 overflow-y-auto scrollbar-modern", isCollapsed ? "p-2" : "p-4")}>
+        {!isCollapsed && (
+          <p className="px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+            Menú Principal
+          </p>
+        )}
         {menuItems.slice(0, 8).map((item, index) => {
           const Icon = item.icon;
           const hasChildren = item.children && item.children.length > 0;
           const isExpanded = expandedItems.includes(item.title);
           const active = isActive(item.path) || isParentActive(item);
+
+          if (isCollapsed) {
+            return (
+              <Tooltip key={item.title} delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <NavLink
+                    to={item.path}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        "flex items-center justify-center p-2.5 rounded-lg transition-colors",
+                        isActive ? "bg-sidebar-accent text-sidebar-foreground" : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                      )
+                    }
+                  >
+                    <Icon className="h-5 w-5" />
+                  </NavLink>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="font-medium">
+                  {item.title}
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
 
           return (
             <div key={item.title} className={`animate-slide-up stagger-${index + 1}`}>
@@ -196,11 +235,38 @@ export function AppSidebar() {
 
         {/* Admin Section */}
         <div className="pt-4">
-          <p className="px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-            Administración
-          </p>
+          {!isCollapsed && (
+            <p className="px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+              ADM
+            </p>
+          )}
           {menuItems.slice(8).map((item) => {
             const Icon = item.icon;
+            
+            if (isCollapsed) {
+              return (
+                <Tooltip key={item.path} delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <NavLink
+                      to={item.path}
+                      onClick={() => setIsMobileOpen(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center justify-center p-2.5 rounded-lg transition-colors",
+                          isActive ? "bg-sidebar-accent text-sidebar-foreground" : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
+                        )
+                      }
+                    >
+                      <Icon className="h-5 w-5" />
+                    </NavLink>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    {item.title}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+            
             return (
               <NavLink
                 key={item.path}
@@ -219,34 +285,66 @@ export function AppSidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 space-y-3">
+      <div className={cn("space-y-3", isCollapsed ? "p-2" : "p-4")}>
         {/* Help Button */}
-        <button className="sidebar-item w-full text-sidebar-foreground/60 hover:text-sidebar-foreground">
-          <HelpCircle className="h-5 w-5" />
-          <span className="text-sm">Centro de Ayuda</span>
-        </button>
+        {isCollapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <button className="flex items-center justify-center p-2.5 rounded-lg w-full text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors">
+                <HelpCircle className="h-5 w-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="font-medium">
+              Centro de Ayuda
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <button className="sidebar-item w-full text-sidebar-foreground/60 hover:text-sidebar-foreground">
+            <HelpCircle className="h-5 w-5" />
+            <span className="text-sm">Centro de Ayuda</span>
+          </button>
+        )}
 
         {/* Divider */}
         <div className="h-px bg-gradient-to-r from-transparent via-sidebar-foreground/20 to-transparent" />
 
         {/* User Profile */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-sidebar-accent/40 to-sidebar-accent/20 border border-sidebar-foreground/10">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-sidebar-primary to-secondary flex items-center justify-center text-sidebar-primary-foreground text-sm font-bold shadow-lg">
-            {initials}
+        {isCollapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <button 
+                onClick={handleSignOut}
+                className="flex items-center justify-center p-2 rounded-xl w-full bg-gradient-to-r from-sidebar-accent/40 to-sidebar-accent/20 border border-sidebar-foreground/10"
+              >
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-sidebar-primary to-secondary flex items-center justify-center text-sidebar-primary-foreground text-xs font-bold shadow-lg">
+                  {initials}
+                </div>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="font-medium">
+              <p>{displayName}</p>
+              <p className="text-xs text-muted-foreground">{roleDisplay}</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-sidebar-accent/40 to-sidebar-accent/20 border border-sidebar-foreground/10">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-sidebar-primary to-secondary flex items-center justify-center text-sidebar-primary-foreground text-sm font-bold shadow-lg">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">
+                {displayName}
+              </p>
+              <p className="text-xs text-sidebar-foreground/60">{roleDisplay}</p>
+            </div>
+            <button 
+              onClick={handleSignOut}
+              className="p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors"
+            >
+              <LogOut className="h-4 w-4 text-sidebar-foreground/60" />
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-sidebar-foreground truncate">
-              {displayName}
-            </p>
-            <p className="text-xs text-sidebar-foreground/60">{roleDisplay}</p>
-          </div>
-          <button 
-            onClick={handleSignOut}
-            className="p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors"
-          >
-            <LogOut className="h-4 w-4 text-sidebar-foreground/60" />
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -272,8 +370,9 @@ export function AppSidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-40 w-72 transform transition-transform duration-300 ease-out lg:translate-x-0 shadow-2xl lg:shadow-none",
-          isMobileOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed lg:static inset-y-0 left-0 z-40 transform transition-all duration-300 ease-out lg:translate-x-0 shadow-2xl lg:shadow-none relative",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full",
+          isCollapsed ? "w-16" : "w-72"
         )}
       >
         <SidebarContent />
