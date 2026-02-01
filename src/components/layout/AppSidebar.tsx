@@ -115,17 +115,17 @@ export function AppSidebar() {
     item.children?.some((child) => location.pathname === child.path);
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95 relative">
+    <div className="flex flex-col h-full bg-sidebar relative">
       {/* Collapse Toggle Button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className={cn(
-          "absolute z-50 h-6 w-6 rounded-full bg-sidebar-accent/50 border border-sidebar-foreground/20 flex items-center justify-center text-sidebar-foreground hover:bg-sidebar-accent transition-colors shadow-sm",
-          isCollapsed ? "top-3 right-1" : "-right-3 top-6"
+          "absolute z-50 h-6 w-6 rounded-md bg-sidebar-accent flex items-center justify-center text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors",
+          isCollapsed ? "top-3 right-2" : "-right-3 top-6 rounded-full border border-sidebar-foreground/20 shadow-sm"
         )}
       >
         {isCollapsed ? (
-          <ChevronRight className="h-3.5 w-3.5" />
+          <ChevronRight className="h-4 w-4" />
         ) : (
           <ChevronLeft className="h-3.5 w-3.5" />
         )}
@@ -133,8 +133,8 @@ export function AppSidebar() {
 
       {/* Logo Section */}
       <div className={cn(
-        "transition-all duration-300",
-        isCollapsed ? "p-3 flex justify-center" : "p-6"
+        "transition-all duration-300 flex items-center",
+        isCollapsed ? "p-3 justify-center" : "p-6"
       )}>
         <div className={cn(
           "flex items-center transition-all duration-300",
@@ -146,7 +146,7 @@ export function AppSidebar() {
               alt="C&A Contadores y Auditores"
               className={cn(
                 "object-contain drop-shadow-lg transition-all duration-300",
-                isCollapsed ? "h-8 w-8" : "h-14 w-auto"
+                isCollapsed ? "h-7 w-7" : "h-14 w-auto"
               )}
             />
           </div>
@@ -166,18 +166,18 @@ export function AppSidebar() {
 
       {/* Divider */}
       <div className={cn(
-        "h-px bg-gradient-to-r from-transparent via-sidebar-foreground/20 to-transparent transition-all duration-300",
+        "h-px bg-sidebar-foreground/20 transition-all duration-300",
         isCollapsed ? "mx-2" : "mx-4"
       )} />
 
       {/* Navigation */}
       <nav className={cn(
-        "flex-1 space-y-1 overflow-y-auto scrollbar-modern transition-all duration-300",
-        isCollapsed ? "p-2" : "p-4"
+        "flex-1 overflow-y-auto scrollbar-modern transition-all duration-300",
+        isCollapsed ? "px-2 py-3 space-y-1" : "p-4 space-y-1"
       )}>
         <p className={cn(
           "px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider transition-all duration-300 overflow-hidden whitespace-nowrap",
-          isCollapsed ? "h-0 opacity-0 py-0" : "h-auto opacity-100"
+          isCollapsed ? "hidden" : "block"
         )}>
           Menú Principal
         </p>
@@ -240,14 +240,14 @@ export function AppSidebar() {
                       onClick={() => setIsMobileOpen(false)}
                       className={({ isActive }) =>
                         cn(
-                          "flex items-center justify-center h-10 w-full rounded-lg transition-all duration-200",
+                          "flex items-center justify-center h-9 w-full rounded-md transition-all duration-200",
                           isActive 
                             ? "bg-sidebar-accent text-sidebar-foreground" 
-                            : "text-sidebar-foreground hover:bg-sidebar-accent/30"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent/40"
                         )
                       }
                     >
-                      <Icon className="h-5 w-5" />
+                      <Icon className="h-[18px] w-[18px]" />
                     </NavLink>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="font-medium">
@@ -271,13 +271,17 @@ export function AppSidebar() {
         })}
 
         {/* Admin Section */}
-        <div className={cn("pt-4", isCollapsed && "pt-2")}>
-          <p className={cn(
-            "px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider transition-all duration-300 overflow-hidden whitespace-nowrap",
-            isCollapsed ? "h-0 opacity-0 py-0" : "h-auto opacity-100"
-          )}>
-            Administración
-          </p>
+        <div className={cn("pt-3", isCollapsed && "pt-2")}>
+          {/* ADM label when collapsed */}
+          {isCollapsed ? (
+            <div className="flex items-center justify-center py-2">
+              <span className="text-[10px] font-bold text-sidebar-foreground/70 tracking-wider">ADM</span>
+            </div>
+          ) : (
+            <p className="px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+              Administración
+            </p>
+          )}
           {menuItems.slice(8).map((item) => {
             const Icon = item.icon;
             return isCollapsed ? (
@@ -288,14 +292,14 @@ export function AppSidebar() {
                     onClick={() => setIsMobileOpen(false)}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center justify-center h-10 w-full rounded-lg transition-all duration-200",
+                        "flex items-center justify-center h-9 w-full rounded-md transition-all duration-200",
                         isActive 
                           ? "bg-sidebar-accent text-sidebar-foreground" 
-                          : "text-sidebar-foreground hover:bg-sidebar-accent/30"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent/40"
                       )
                     }
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-[18px] w-[18px]" />
                   </NavLink>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="font-medium">
@@ -320,13 +324,13 @@ export function AppSidebar() {
       </nav>
 
       {/* Footer */}
-      <div className={cn("p-4 space-y-3", isCollapsed && "p-2 space-y-2")}>
+      <div className={cn("p-4 space-y-3", isCollapsed && "p-2 space-y-1")}>
         {/* Help Button */}
         {isCollapsed ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="flex items-center justify-center h-10 w-full rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors">
-                <HelpCircle className="h-5 w-5" />
+              <button className="flex items-center justify-center h-9 w-full rounded-md text-sidebar-foreground hover:bg-sidebar-accent/40 transition-colors">
+                <HelpCircle className="h-[18px] w-[18px]" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" className="font-medium">
@@ -340,37 +344,44 @@ export function AppSidebar() {
           </button>
         )}
 
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-sidebar-foreground/20 to-transparent" />
+        {/* Divider - hide when collapsed */}
+        {!isCollapsed && (
+          <div className="h-px bg-sidebar-foreground/20" />
+        )}
 
         {/* User Profile */}
-        <div className={cn(
-          "flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-sidebar-accent/40 to-sidebar-accent/20 border border-sidebar-foreground/10",
-          isCollapsed && "p-2 justify-center"
-        )}>
-          <div className={cn(
-            "h-10 w-10 rounded-full bg-gradient-to-br from-sidebar-primary to-secondary flex items-center justify-center text-sidebar-primary-foreground text-sm font-bold shadow-lg",
-            isCollapsed && "h-8 w-8 text-xs"
-          )}>
-            {initials}
-          </div>
-          {!isCollapsed && (
-            <>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-sidebar-foreground truncate">
-                  {displayName}
-                </p>
-                <p className="text-xs text-sidebar-foreground/60">{roleDisplay}</p>
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center justify-center p-1">
+                <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center text-sidebar-foreground text-xs font-bold">
+                  {initials}
+                </div>
               </div>
-              <button 
-                onClick={handleSignOut}
-                className="p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors"
-              >
-                <LogOut className="h-4 w-4 text-sidebar-foreground/60" />
-              </button>
-            </>
-          )}
-        </div>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="font-medium">
+              {displayName}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-sidebar-accent/30 border border-sidebar-foreground/10">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-sidebar-primary to-secondary flex items-center justify-center text-sidebar-primary-foreground text-sm font-bold shadow-lg">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">
+                {displayName}
+              </p>
+              <p className="text-xs text-sidebar-foreground/60">{roleDisplay}</p>
+            </div>
+            <button 
+              onClick={handleSignOut}
+              className="p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors"
+            >
+              <LogOut className="h-4 w-4 text-sidebar-foreground/60" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
