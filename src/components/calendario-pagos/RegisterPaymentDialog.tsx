@@ -431,8 +431,8 @@ export function RegisterPaymentDialog({
       toast.error("Error al registrar el pago");
     } else {
       toast.success("Pago registrado correctamente");
-      setIsRegistered(true);
       onSuccess();
+      onOpenChange(false);
     }
 
     setSaving(false);
