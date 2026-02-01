@@ -44,7 +44,7 @@ const CalendarioTrabajo = () => {
 
         {/* Content Panel */}
         <div className="flex-1 overflow-hidden bg-muted/30">
-          <WorkFlowContentPanel selectedNode={selectedNode} />
+          <WorkFlowContentPanel selectedNode={selectedNode} treeData={treeData} />
         </div>
       </div>
     </div>
