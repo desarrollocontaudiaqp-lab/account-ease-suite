@@ -272,7 +272,23 @@ export default function CalendarioPagos() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Process real payments
+    // Group payments by contract_id first, then sort by fecha_vencimiento to assign cuota numbers
+    const paymentsByContract: Record<string, any[]> = {};
+    (pagosData || []).forEach((payment: any) => {
+      if (!paymentsByContract[payment.contrato_id]) {
+        paymentsByContract[payment.contrato_id] = [];
+      }
+      paymentsByContract[payment.contrato_id].push(payment);
+    });
+
+    // Sort each contract's payments by fecha_vencimiento
+    Object.keys(paymentsByContract).forEach((contratoId) => {
+      paymentsByContract[contratoId].sort((a, b) => 
+        new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime()
+      );
+    });
+
+    // Process real payments with correct cuota numbers based on chronological order
     const realPaymentsProcessed: UnifiedPayment[] = (pagosData || []).map((payment) => {
       const dueDate = new Date(payment.fecha_vencimiento);
       dueDate.setHours(0, 0, 0, 0);
@@ -282,18 +298,10 @@ export default function CalendarioPagos() {
         status = "vencido";
       }
 
-      // Find the corresponding contract to get datos_plantilla for cuota info
-      const contratoInfo = (contratosData || []).find((c: any) => c.id === payment.contrato_id);
-      const datosPlantilla = contratoInfo?.datos_plantilla as Record<string, any> | null;
-      const paymentSchedule = datosPlantilla?.payment_schedule || [];
+      // Find cuota number based on position in sorted list for this contract
+      const contractPayments = paymentsByContract[payment.contrato_id] || [];
+      const cuotaNumber = contractPayments.findIndex((p: any) => p.id === payment.id) + 1;
       
-      // Find the payment in the schedule by matching fecha_vencimiento
-      const scheduleIndex = (paymentSchedule as any[]).findIndex((s: any) => {
-        const scheduleDate = s.fecha ? new Date(s.fecha).toISOString().split("T")[0] : null;
-        return scheduleDate === payment.fecha_vencimiento;
-      });
-      
-      const cuotaNumber = scheduleIndex >= 0 ? scheduleIndex + 1 : 1;
       const descripcionContrato = payment.contrato?.descripcion || "";
       const glosaGenerada = `${descripcionContrato}${descripcionContrato ? " - " : ""}Cuota ${cuotaNumber}`;
 
