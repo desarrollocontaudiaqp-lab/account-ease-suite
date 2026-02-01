@@ -133,21 +133,15 @@ export function AppSidebar() {
 
       {/* Logo Section */}
       <div className={cn(
-        "transition-all duration-300 flex items-center",
-        isCollapsed ? "p-3 justify-center" : "p-6"
+        "transition-all duration-300 flex items-center p-4",
+        isCollapsed ? "justify-center" : "px-6"
       )}>
-        <div className={cn(
-          "flex items-center transition-all duration-300",
-          isCollapsed ? "justify-center" : "gap-3"
-        )}>
+        <div className="flex items-center gap-3">
           <div className="relative flex-shrink-0">
             <img
               src={logo}
               alt="C&A Contadores y Auditores"
-              className={cn(
-                "object-contain drop-shadow-lg transition-all duration-300",
-                isCollapsed ? "h-7 w-7" : "h-14 w-auto"
-              )}
+              className="h-10 w-auto object-contain drop-shadow-lg"
             />
           </div>
           <div className={cn(
@@ -199,7 +193,7 @@ export function AppSidebar() {
                     )}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className="h-5 w-5" />
+                      <Icon className="h-5 w-5 flex-shrink-0" />
                       <span className="text-sm font-medium">{item.title}</span>
                     </div>
                     <ChevronDown 
@@ -232,7 +226,7 @@ export function AppSidebar() {
                     ))}
                   </div>
                 </>
-              ) : isCollapsed ? (
+              ) : (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <NavLink
@@ -240,148 +234,135 @@ export function AppSidebar() {
                       onClick={() => setIsMobileOpen(false)}
                       className={({ isActive }) =>
                         cn(
-                          "flex items-center justify-center h-9 w-full rounded-md transition-all duration-200",
-                          isActive 
-                            ? "bg-sidebar-accent text-sidebar-foreground" 
-                            : "text-sidebar-foreground hover:bg-sidebar-accent/40"
+                          "sidebar-item",
+                          isActive && "sidebar-item-active"
                         )
                       }
                     >
-                      <Icon className="h-[18px] w-[18px]" />
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      <span className={cn(
+                        "text-sm font-medium whitespace-nowrap overflow-hidden transition-all duration-300",
+                        isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+                      )}>
+                        {item.title}
+                      </span>
                     </NavLink>
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="font-medium">
-                    {item.title}
-                  </TooltipContent>
+                  {isCollapsed && (
+                    <TooltipContent side="right" className="font-medium">
+                      {item.title}
+                    </TooltipContent>
+                  )}
                 </Tooltip>
-              ) : (
-                <NavLink
-                  to={item.path}
-                  onClick={() => setIsMobileOpen(false)}
-                  className={({ isActive }) =>
-                    cn("sidebar-item", isActive && "sidebar-item-active")
-                  }
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-sm font-medium">{item.title}</span>
-                </NavLink>
               )}
             </div>
           );
         })}
 
         {/* Admin Section */}
-        <div className={cn("pt-3", isCollapsed && "pt-2")}>
-          {/* ADM label when collapsed */}
-          {isCollapsed ? (
-            <div className="flex items-center justify-center py-2">
-              <span className="text-[10px] font-bold text-sidebar-foreground/70 tracking-wider">ADM</span>
-            </div>
-          ) : (
-            <p className="px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-              Administración
-            </p>
-          )}
+        <div className="pt-3">
+          <p className={cn(
+            "px-4 py-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider whitespace-nowrap overflow-hidden transition-all duration-300",
+            isCollapsed ? "opacity-0 h-0 py-0" : "opacity-100"
+          )}>
+            Administración
+          </p>
           {menuItems.slice(8).map((item) => {
             const Icon = item.icon;
-            return isCollapsed ? (
+            return (
               <Tooltip key={item.path}>
                 <TooltipTrigger asChild>
                   <NavLink
                     to={item.path}
                     onClick={() => setIsMobileOpen(false)}
                     className={({ isActive }) =>
-                      cn(
-                        "flex items-center justify-center h-9 w-full rounded-md transition-all duration-200",
-                        isActive 
-                          ? "bg-sidebar-accent text-sidebar-foreground" 
-                          : "text-sidebar-foreground hover:bg-sidebar-accent/40"
-                      )
+                      cn("sidebar-item", isActive && "sidebar-item-active")
                     }
                   >
-                    <Icon className="h-[18px] w-[18px]" />
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <span className={cn(
+                      "text-sm font-medium whitespace-nowrap overflow-hidden transition-all duration-300",
+                      isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+                    )}>
+                      {item.title}
+                    </span>
                   </NavLink>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="font-medium">
-                  {item.title}
-                </TooltipContent>
+                {isCollapsed && (
+                  <TooltipContent side="right" className="font-medium">
+                    {item.title}
+                  </TooltipContent>
+                )}
               </Tooltip>
-            ) : (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={() => setIsMobileOpen(false)}
-                className={({ isActive }) =>
-                  cn("sidebar-item", isActive && "sidebar-item-active")
-                }
-              >
-                <Icon className="h-5 w-5" />
-                <span className="text-sm font-medium">{item.title}</span>
-              </NavLink>
             );
           })}
         </div>
       </nav>
 
       {/* Footer */}
-      <div className={cn("p-4 space-y-3", isCollapsed && "p-2 space-y-1")}>
+      <div className="p-4 space-y-3">
         {/* Help Button */}
-        {isCollapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="flex items-center justify-center h-9 w-full rounded-md text-sidebar-foreground hover:bg-sidebar-accent/40 transition-colors">
-                <HelpCircle className="h-[18px] w-[18px]" />
-              </button>
-            </TooltipTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className="sidebar-item w-full text-sidebar-foreground/60 hover:text-sidebar-foreground">
+              <HelpCircle className="h-5 w-5 flex-shrink-0" />
+              <span className={cn(
+                "text-sm whitespace-nowrap overflow-hidden transition-all duration-300",
+                isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+              )}>
+                Centro de Ayuda
+              </span>
+            </button>
+          </TooltipTrigger>
+          {isCollapsed && (
             <TooltipContent side="right" className="font-medium">
               Centro de Ayuda
             </TooltipContent>
-          </Tooltip>
-        ) : (
-          <button className="sidebar-item w-full text-sidebar-foreground/60 hover:text-sidebar-foreground">
-            <HelpCircle className="h-5 w-5" />
-            <span className="text-sm">Centro de Ayuda</span>
-          </button>
-        )}
+          )}
+        </Tooltip>
 
-        {/* Divider - hide when collapsed */}
-        {!isCollapsed && (
-          <div className="h-px bg-sidebar-foreground/20" />
-        )}
+        {/* Divider */}
+        <div className={cn(
+          "h-px bg-sidebar-foreground/20 transition-all duration-300",
+          isCollapsed ? "opacity-0" : "opacity-100"
+        )} />
 
         {/* User Profile */}
-        {isCollapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center justify-center p-1">
-                <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center text-sidebar-foreground text-xs font-bold">
-                  {initials}
-                </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={cn(
+              "flex items-center gap-3 rounded-xl transition-all duration-300",
+              isCollapsed ? "justify-center p-2" : "p-3 bg-sidebar-accent/30 border border-sidebar-foreground/10"
+            )}>
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-sidebar-primary to-secondary flex items-center justify-center text-sidebar-primary-foreground text-sm font-bold shadow-lg flex-shrink-0">
+                {initials}
               </div>
-            </TooltipTrigger>
+              <div className={cn(
+                "flex-1 min-w-0 overflow-hidden transition-all duration-300",
+                isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+              )}>
+                <p className="text-sm font-semibold text-sidebar-foreground truncate">
+                  {displayName}
+                </p>
+                <p className="text-xs text-sidebar-foreground/60">{roleDisplay}</p>
+              </div>
+              <button 
+                onClick={handleSignOut}
+                className={cn(
+                  "p-2 rounded-lg hover:bg-sidebar-accent/50 transition-all duration-300",
+                  isCollapsed ? "hidden" : "block"
+                )}
+              >
+                <LogOut className="h-4 w-4 text-sidebar-foreground/60" />
+              </button>
+            </div>
+          </TooltipTrigger>
+          {isCollapsed && (
             <TooltipContent side="right" className="font-medium">
               {displayName}
             </TooltipContent>
-          </Tooltip>
-        ) : (
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-sidebar-accent/30 border border-sidebar-foreground/10">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-sidebar-primary to-secondary flex items-center justify-center text-sidebar-primary-foreground text-sm font-bold shadow-lg">
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-sidebar-foreground truncate">
-                {displayName}
-              </p>
-              <p className="text-xs text-sidebar-foreground/60">{roleDisplay}</p>
-            </div>
-            <button 
-              onClick={handleSignOut}
-              className="p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors"
-            >
-              <LogOut className="h-4 w-4 text-sidebar-foreground/60" />
-            </button>
-          </div>
-        )}
+          )}
+        </Tooltip>
       </div>
     </div>
   );
