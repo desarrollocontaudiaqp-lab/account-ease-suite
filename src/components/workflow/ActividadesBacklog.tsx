@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, isToday, isPast } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, isToday, isPast, startOfYear, endOfYear, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Activity,
@@ -26,6 +26,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -53,6 +55,8 @@ interface WorkflowStep {
   parentActivityId: string;
   enlaceSharepoint?: string;
 }
+
+type PeriodFilter = "hoy" | "mes" | "fecha" | "año";
 
 const typeIcons: Record<string, React.ElementType> = {
   input: Database,
@@ -86,6 +90,8 @@ const getInitials = (name: string | null | undefined) => {
 export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedView, setSelectedView] = useState<"calendario" | "tabla">("calendario");
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("mes");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   // Collect all workflow steps from all activities
   const { activities, allSteps } = useMemo(() => {
@@ -133,10 +139,40 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
     return { activities: acts, allSteps: steps };
   }, [node]);
 
+  // Filter steps based on period
+  const filteredSteps = useMemo(() => {
+    const today = new Date();
+    
+    return allSteps.filter(step => {
+      if (!step.fecha_vencimiento) {
+        // Steps without date are included in all views except "hoy" and "fecha"
+        return periodFilter === "mes" || periodFilter === "año";
+      }
+
+      // Manual date parsing to avoid timezone issues
+      const [year, month, day] = step.fecha_vencimiento.split("T")[0].split("-").map(Number);
+      const stepDate = new Date(year, month - 1, day);
+
+      switch (periodFilter) {
+        case "hoy":
+          return isToday(stepDate);
+        case "mes":
+          return isSameMonth(stepDate, currentDate);
+        case "fecha":
+          if (!selectedDate) return true;
+          return isSameDay(stepDate, selectedDate);
+        case "año":
+          return stepDate.getFullYear() === currentDate.getFullYear();
+        default:
+          return true;
+      }
+    });
+  }, [allSteps, periodFilter, currentDate, selectedDate]);
+
   // Group steps by date for calendar view
   const stepsByDate = useMemo(() => {
     const groups: Record<string, WorkflowStep[]> = {};
-    allSteps.forEach(step => {
+    filteredSteps.forEach(step => {
       if (step.fecha_vencimiento) {
         const dateKey = step.fecha_vencimiento.split("T")[0];
         if (!groups[dateKey]) groups[dateKey] = [];
@@ -144,31 +180,46 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
       }
     });
     return groups;
-  }, [allSteps]);
+  }, [filteredSteps]);
 
   // Steps without date
   const stepsWithoutDate = useMemo(() => {
-    return allSteps.filter(s => !s.fecha_vencimiento);
-  }, [allSteps]);
+    return filteredSteps.filter(s => !s.fecha_vencimiento);
+  }, [filteredSteps]);
 
-  // Calendar days
+  // Calendar days based on filter
   const calendarDays = useMemo(() => {
-    const start = startOfMonth(currentDate);
-    const end = endOfMonth(currentDate);
-    return eachDayOfInterval({ start, end });
-  }, [currentDate]);
+    if (periodFilter === "hoy") {
+      return [new Date()];
+    } else if (periodFilter === "fecha" && selectedDate) {
+      // Show the week around the selected date
+      const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
+      const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
+      return eachDayOfInterval({ start, end });
+    } else if (periodFilter === "año") {
+      // For year view, show current month
+      const start = startOfMonth(currentDate);
+      const end = endOfMonth(currentDate);
+      return eachDayOfInterval({ start, end });
+    } else {
+      const start = startOfMonth(currentDate);
+      const end = endOfMonth(currentDate);
+      return eachDayOfInterval({ start, end });
+    }
+  }, [currentDate, periodFilter, selectedDate]);
 
-  // Stats
+  // Stats based on filtered steps
   const stats = useMemo(() => {
-    const total = allSteps.length;
-    const completed = allSteps.filter(s => s.isCompleted).length;
+    const total = filteredSteps.length;
+    const completed = filteredSteps.filter(s => s.isCompleted).length;
     const pending = total - completed;
-    const overdue = allSteps.filter(s => {
+    const overdue = filteredSteps.filter(s => {
       if (s.isCompleted || !s.fecha_vencimiento) return false;
-      return isPast(parseISO(s.fecha_vencimiento));
+      const [year, month, day] = s.fecha_vencimiento.split("T")[0].split("-").map(Number);
+      return isPast(new Date(year, month - 1, day));
     }).length;
     return { total, completed, pending, overdue };
-  }, [allSteps]);
+  }, [filteredSteps]);
 
   const renderStepBadge = (step: WorkflowStep) => {
     const Icon = typeIcons[step.type] || Activity;
@@ -277,41 +328,129 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
 
         {/* Calendar View */}
         <TabsContent value="calendario" className="space-y-4">
+          {/* Period Filter Controls */}
           <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">
-                  {format(currentDate, "MMMM yyyy", { locale: es })}
-                </CardTitle>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={() => setCurrentDate(new Date())}
-                  >
-                    Hoy
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                {/* Period Filter Buttons */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground mr-2">Filtrar por:</span>
+                  <div className="flex items-center rounded-lg border bg-muted/30 p-1">
+                    <Button
+                      variant={periodFilter === "hoy" ? "default" : "ghost"}
+                      size="sm"
+                      className="h-8 px-3"
+                      onClick={() => setPeriodFilter("hoy")}
+                    >
+                      Hoy
+                    </Button>
+                    <Button
+                      variant={periodFilter === "mes" ? "default" : "ghost"}
+                      size="sm"
+                      className="h-8 px-3"
+                      onClick={() => setPeriodFilter("mes")}
+                    >
+                      Mes
+                    </Button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={periodFilter === "fecha" ? "default" : "ghost"}
+                          size="sm"
+                          className={cn(
+                            "h-8 px-3 gap-2",
+                            periodFilter === "fecha" && selectedDate && "pr-2"
+                          )}
+                          onClick={() => {
+                            if (periodFilter !== "fecha") {
+                              setPeriodFilter("fecha");
+                            }
+                          }}
+                        >
+                          <CalendarIcon className="h-3.5 w-3.5" />
+                          {periodFilter === "fecha" && selectedDate 
+                            ? format(selectedDate, "dd MMM", { locale: es })
+                            : "Fecha"
+                          }
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => {
+                            setSelectedDate(date);
+                            setPeriodFilter("fecha");
+                          }}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      variant={periodFilter === "año" ? "default" : "ghost"}
+                      size="sm"
+                      className="h-8 px-3"
+                      onClick={() => setPeriodFilter("año")}
+                    >
+                      Año
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Month/Year Navigation */}
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base capitalize">
+                    {periodFilter === "hoy" 
+                      ? format(new Date(), "EEEE, dd MMMM yyyy", { locale: es })
+                      : periodFilter === "fecha" && selectedDate
+                        ? format(selectedDate, "EEEE, dd MMMM yyyy", { locale: es })
+                        : periodFilter === "año"
+                          ? format(currentDate, "yyyy", { locale: es })
+                          : format(currentDate, "MMMM yyyy", { locale: es })
+                    }
+                  </CardTitle>
+                  {(periodFilter === "mes" || periodFilter === "año") && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCurrentDate(periodFilter === "año" 
+                          ? new Date(currentDate.getFullYear() - 1, currentDate.getMonth(), 1)
+                          : subMonths(currentDate, 1)
+                        )}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => setCurrentDate(new Date())}
+                      >
+                        Hoy
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCurrentDate(periodFilter === "año"
+                          ? new Date(currentDate.getFullYear() + 1, currentDate.getMonth(), 1)
+                          : addMonths(currentDate, 1)
+                        )}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
               {/* Days of week header */}
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
