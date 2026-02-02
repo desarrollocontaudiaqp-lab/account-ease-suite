@@ -36,11 +36,13 @@ import { MesDashboard } from "./MesDashboard";
 import { ContratoDashboard } from "./ContratoDashboard";
 import { ActividadesBacklog } from "./ActividadesBacklog";
 import { ActividadDetailDashboard } from "./ActividadDetailDashboard";
+import { WorkFlowBreadcrumb } from "./WorkFlowBreadcrumb";
 
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
   treeData?: TreeNode[];
   onRefresh?: () => void;
+  onNavigateNode?: (node: TreeNode) => void;
 }
 
 const getInitials = (name: string | null | undefined) => {
@@ -79,7 +81,7 @@ const statusLabels: Record<string, string> = {
   finalizado: "Finalizado",
 };
 
-export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh }: WorkFlowContentPanelProps) {
+export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, onNavigateNode }: WorkFlowContentPanelProps) {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
 
@@ -410,16 +412,20 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh }:
 
   return (
     <>
-      <ScrollArea className="h-full">
-        <div className="p-3">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-1 text-sm text-muted-foreground mb-6">
-            <span className="capitalize">{typeLabels[selectedNode.type]}</span>
-          </div>
+      <div className="h-full flex flex-col">
+        {/* Dynamic Breadcrumb Navigation */}
+        <WorkFlowBreadcrumb 
+          selectedNode={selectedNode} 
+          treeData={treeData} 
+          onNavigate={(node) => onNavigateNode?.(node)} 
+        />
 
-          {renderNodeContent()}
-        </div>
-      </ScrollArea>
+        <ScrollArea className="flex-1">
+          <div className="p-3">
+            {renderNodeContent()}
+          </div>
+        </ScrollArea>
+      </div>
 
       {/* Contract Detail Modal */}
       <ContractDetailModal
