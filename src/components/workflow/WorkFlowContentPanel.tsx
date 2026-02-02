@@ -40,6 +40,7 @@ import { ActividadDetailDashboard } from "./ActividadDetailDashboard";
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
   treeData?: TreeNode[];
+  onRefresh?: () => void;
 }
 
 const getInitials = (name: string | null | undefined) => {
@@ -78,7 +79,7 @@ const statusLabels: Record<string, string> = {
   finalizado: "Finalizado",
 };
 
-export function WorkFlowContentPanel({ selectedNode, treeData = [] }: WorkFlowContentPanelProps) {
+export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh }: WorkFlowContentPanelProps) {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
 
@@ -272,7 +273,7 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [] }: WorkFlowCo
 
         if (isActivitiesFolder && hasChildActivities) {
           // Activities folder - show backlog of all activities
-          return <ActividadesBacklog node={selectedNode} allNodes={treeData} />;
+          return <ActividadesBacklog node={selectedNode} allNodes={treeData} onRefresh={onRefresh} />;
         }
 
         // Single activity - show detailed dashboard with steps table

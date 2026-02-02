@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, isToday, isPast, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   LayoutGrid,
   CalendarDays,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,11 +33,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { TreeNode } from "./WorkFlowTreeSidebar";
 
 interface ActividadesBacklogProps {
   node: TreeNode;
   allNodes?: TreeNode[];
+  onRefresh?: () => void;
 }
 
 interface ActivityItem {
@@ -47,6 +51,8 @@ interface ActivityItem {
   fecha_termino?: string;
   totalSteps: number;
   completedSteps: number;
+  workflowId?: string;
+  contratoId?: string;
 }
 
 type PeriodFilter = "hoy" | "mes" | "fecha" | "año";
@@ -56,11 +62,24 @@ const getInitials = (name: string | null | undefined) => {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
-export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogProps) {
+export function ActividadesBacklog({ node, allNodes = [], onRefresh }: ActividadesBacklogProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedView, setSelectedView] = useState<"calendario" | "tabla">("calendario");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("mes");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [updatingActivity, setUpdatingActivity] = useState<string | null>(null);
+
+  // Find the contrato node to get workflow info
+  const findContratoNode = (n: TreeNode): TreeNode | null => {
+    if (n.type === "contrato") return n;
+    if (n.children) {
+      for (const child of n.children) {
+        const found = findContratoNode(child);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
 
   // Collect activities with their data (only activities, not steps)
   const activities = useMemo(() => {
@@ -86,10 +105,20 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
       return { total, completed };
     };
 
-    const findActivities = (n: TreeNode) => {
+    const findActivities = (n: TreeNode, parentContratoId?: string) => {
+      let contratoId = parentContratoId;
+      
+      // Check for contrato node - use id directly as it's the contrato.id
+      if (n.type === "contrato") {
+        contratoId = n.id;
+      }
+      
       if (n.type === "actividad" && !n.label.toLowerCase().includes("actividades")) {
         const data = n.data || {};
         const { total, completed } = countSteps(n);
+        
+        // Prefer contratoId from data if available, otherwise use parent
+        const activityContratoId = data.contratoId || contratoId;
         
         acts.push({
           id: n.id,
@@ -99,19 +128,87 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
           fecha_termino: data.fecha_termino,
           totalSteps: total,
           completedSteps: completed,
+          contratoId: activityContratoId,
         });
       }
       if (n.children) {
-        n.children.forEach(findActivities);
+        n.children.forEach(child => findActivities(child, contratoId));
       }
     };
 
     if (node.children) {
-      node.children.forEach(findActivities);
+      node.children.forEach(child => findActivities(child));
     }
 
     return acts;
   }, [node]);
+
+  // Function to update activity dates in the database
+  const updateActivityDates = useCallback(async (
+    activityId: string,
+    contratoId: string | undefined,
+    field: "fecha_inicio" | "fecha_termino",
+    date: Date | undefined
+  ) => {
+    if (!contratoId) {
+      toast.error("No se pudo encontrar el contrato asociado");
+      return;
+    }
+
+    setUpdatingActivity(activityId);
+
+    try {
+      // Get the workflow for this contrato
+      const { data: workflow, error: wfError } = await supabase
+        .from("workflows")
+        .select("id, items")
+        .eq("contrato_id", contratoId)
+        .maybeSingle();
+
+      if (wfError) throw wfError;
+
+      if (!workflow) {
+        toast.error("No se encontró el workflow");
+        setUpdatingActivity(null);
+        return;
+      }
+
+      // Update the activity in the items array
+      const items = (workflow.items as any[]) || [];
+      const updatedItems = items.map((item: any) => {
+        if (item.id === activityId) {
+          return {
+            ...item,
+            [field]: date ? date.toISOString() : null,
+          };
+        }
+        return item;
+      });
+
+      // Save back to database
+      const { error: updateError } = await supabase
+        .from("workflows")
+        .update({ 
+          items: updatedItems,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", workflow.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("Fecha actualizada correctamente");
+      
+      // Trigger refresh
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error) {
+      console.error("Error updating activity date:", error);
+      toast.error("Error al actualizar la fecha");
+    }
+
+    setUpdatingActivity(null);
+  }, [onRefresh]);
 
   // Filter activities based on period (using fecha_inicio or fecha_termino)
   const filteredActivities = useMemo(() => {
@@ -538,8 +635,8 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
                   <TableRow className="bg-muted/30">
                     <TableHead className="w-[50px]">Estado</TableHead>
                     <TableHead>Actividad</TableHead>
-                    <TableHead className="w-[120px]">Fecha Inicio</TableHead>
-                    <TableHead className="w-[120px]">Fecha Término</TableHead>
+                    <TableHead className="w-[150px]">Fecha Inicio</TableHead>
+                    <TableHead className="w-[150px]">Fecha Término</TableHead>
                     <TableHead className="w-[150px]">Progreso</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -560,6 +657,14 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
                         const [year, month, day] = activity.fecha_termino.split("T")[0].split("-").map(Number);
                         isOverdue = isPast(new Date(year, month - 1, day));
                       }
+
+                      const parseDateString = (dateStr: string | undefined): Date | undefined => {
+                        if (!dateStr) return undefined;
+                        const [year, month, day] = dateStr.split("T")[0].split("-").map(Number);
+                        return new Date(year, month - 1, day);
+                      };
+
+                      const isUpdating = updatingActivity === activity.id;
 
                       return (
                         <TableRow 
@@ -587,33 +692,77 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
                             </div>
                           </TableCell>
                           <TableCell>
-                            {activity.fecha_inicio ? (
-                              <div className="flex items-center gap-1.5 text-sm">
-                                <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                                {(() => {
-                                  const [year, month, day] = activity.fecha_inicio!.split("T")[0].split("-").map(Number);
-                                  return format(new Date(year, month - 1, day), "dd MMM yyyy", { locale: es });
-                                })()}
-                              </div>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">-</span>
-                            )}
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    "h-8 w-full justify-start text-left font-normal",
+                                    !activity.fecha_inicio && "text-muted-foreground"
+                                  )}
+                                  disabled={isUpdating}
+                                >
+                                  {isUpdating ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+                                  ) : (
+                                    <CalendarDays className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                  )}
+                                  {activity.fecha_inicio
+                                    ? format(parseDateString(activity.fecha_inicio)!, "dd MMM yyyy", { locale: es })
+                                    : "Seleccionar"
+                                  }
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={parseDateString(activity.fecha_inicio)}
+                                  onSelect={(date) => {
+                                    updateActivityDates(activity.id, activity.contratoId, "fecha_inicio", date);
+                                  }}
+                                  initialFocus
+                                  className="p-3 pointer-events-auto"
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </TableCell>
                           <TableCell>
-                            {activity.fecha_termino ? (
-                              <div className={cn(
-                                "flex items-center gap-1.5 text-sm",
-                                isOverdue && "text-red-600 font-medium"
-                              )}>
-                                <Clock className="h-3.5 w-3.5" />
-                                {(() => {
-                                  const [year, month, day] = activity.fecha_termino!.split("T")[0].split("-").map(Number);
-                                  return format(new Date(year, month - 1, day), "dd MMM yyyy", { locale: es });
-                                })()}
-                              </div>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">-</span>
-                            )}
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    "h-8 w-full justify-start text-left font-normal",
+                                    !activity.fecha_termino && "text-muted-foreground",
+                                    isOverdue && activity.fecha_termino && "border-red-300 text-red-600"
+                                  )}
+                                  disabled={isUpdating}
+                                >
+                                  {isUpdating ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+                                  ) : (
+                                    <Clock className="h-3.5 w-3.5 mr-2" />
+                                  )}
+                                  {activity.fecha_termino
+                                    ? format(parseDateString(activity.fecha_termino)!, "dd MMM yyyy", { locale: es })
+                                    : "Seleccionar"
+                                  }
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={parseDateString(activity.fecha_termino)}
+                                  onSelect={(date) => {
+                                    updateActivityDates(activity.id, activity.contratoId, "fecha_termino", date);
+                                  }}
+                                  initialFocus
+                                  className="p-3 pointer-events-auto"
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
