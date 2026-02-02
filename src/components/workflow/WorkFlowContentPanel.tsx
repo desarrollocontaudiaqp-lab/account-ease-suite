@@ -34,6 +34,7 @@ import { ContractDetailModal } from "@/components/contratos/ContractDetailModal"
 import { EspacioDashboard } from "./EspacioDashboard";
 import { MesDashboard } from "./MesDashboard";
 import { ContratoDashboard } from "./ContratoDashboard";
+import { ActividadesBacklog } from "./ActividadesBacklog";
 
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
@@ -264,6 +265,15 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [] }: WorkFlowCo
         );
 
       case "actividad":
+        // Check if this is an activities folder (contains child activities) or a single activity
+        const hasChildActivities = selectedNode.children?.some(c => c.type === "actividad" || c.type === "input" || c.type === "procesos" || c.type === "outputs" || c.type === "supervision");
+        const isActivitiesFolder = selectedNode.label.toLowerCase().includes("actividades") || hasChildActivities;
+
+        if (isActivitiesFolder) {
+          return <ActividadesBacklog node={selectedNode} allNodes={treeData} />;
+        }
+
+        // Single activity view
         return (
           <div className="space-y-6">
             <div className="flex items-center gap-4">
