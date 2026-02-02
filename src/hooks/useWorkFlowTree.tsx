@@ -17,6 +17,8 @@ interface WorkFlowItem {
   subColumna?: number;
   parentId?: string;
   enlaceSharepoint?: string;
+  fecha_inicio?: string;
+  fecha_termino?: string;
 }
 
 interface Workflow {
@@ -331,7 +333,12 @@ export function useWorkFlowTree() {
                   id: actividad.id,
                   type: "actividad" as const,
                   label: actividad.titulo,
-                  data: actividad,
+                  data: {
+                    ...actividad,
+                    contratoId: contrato.id,
+                    fecha_inicio: actividad.fecha_inicio,
+                    fecha_termino: actividad.fecha_termino,
+                  },
                   isCompleted: actividad.completado,
                   children: activityChildren.length > 0 ? activityChildren : undefined,
                 });

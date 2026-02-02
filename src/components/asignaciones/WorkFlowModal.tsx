@@ -56,6 +56,8 @@ interface WorkFlowItem {
   subColumna?: number; // For proceso items: 0, 1, or 2
   parentId?: string; // For inputs: links to actividad; for tareas: links to input
   enlaceSharepoint?: string; // SharePoint document link for inputs
+  fecha_inicio?: string; // Activity start date
+  fecha_termino?: string; // Activity end date
 }
 
 interface MiembroCartera {
@@ -252,6 +254,8 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         subColumna: item.subColumna ?? null,
         parentId: item.parentId || null,
         enlaceSharepoint: item.enlaceSharepoint || null,
+        fecha_inicio: item.fecha_inicio || null,
+        fecha_termino: item.fecha_termino || null,
       }));
 
       if (workflowData?.id) {
