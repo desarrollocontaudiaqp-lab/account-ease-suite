@@ -7,38 +7,35 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-
 export function AppLayout() {
-  const { user, role } = useAuth();
-  const [profile, setProfile] = useState<{ full_name: string | null } | null>(null);
-
+  const {
+    user,
+    role
+  } = useAuth();
+  const [profile, setProfile] = useState<{
+    full_name: string | null;
+  } | null>(null);
   useEffect(() => {
     const fetchProfile = async () => {
       if (user?.id) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', user.id)
-          .single();
+        const {
+          data
+        } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
         setProfile(data);
       }
     };
     fetchProfile();
   }, [user?.id]);
-
   const currentDate = new Date().toLocaleDateString("es-PE", {
     weekday: "long",
     day: "numeric",
     month: "long",
-    year: "numeric",
+    year: "numeric"
   });
-
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Usuario';
   const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const roleDisplay = role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Usuario';
-
-  return (
-    <div className="min-h-screen flex w-full bg-background">
+  return <div className="min-h-screen flex w-full bg-background">
       <AppSidebar />
       
       <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
@@ -49,11 +46,7 @@ export function AppLayout() {
             <div className="flex-1 max-w-lg ml-12 lg:ml-0">
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                <Input
-                  type="search"
-                  placeholder="Buscar clientes, contratos, proformas..."
-                  className="pl-11 pr-4 h-11 bg-muted/50 border-0 rounded-xl focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background transition-all"
-                />
+                <Input type="search" placeholder="Buscar clientes, contratos, proformas..." className="pl-11 pr-4 h-11 bg-muted/50 border-0 rounded-xl focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background transition-all" />
                 <kbd className="absolute right-4 top-1/2 -translate-y-1/2 hidden md:inline-flex h-6 items-center gap-1 rounded-md border border-border bg-muted px-2 text-xs text-muted-foreground">
                   <span className="text-xs">⌘</span>K
                 </kbd>
@@ -71,20 +64,13 @@ export function AppLayout() {
               </div>
 
               {/* Notifications */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="relative h-11 w-11 rounded-xl hover:bg-muted"
-              >
+              <Button variant="ghost" size="icon" className="relative h-11 w-11 rounded-xl hover:bg-muted">
                 <Bell className="h-5 w-5 text-muted-foreground" />
                 <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-destructive rounded-full ring-2 ring-card animate-pulse" />
               </Button>
 
               {/* User Dropdown */}
-              <Button 
-                variant="ghost" 
-                className="hidden md:flex items-center gap-2 h-11 px-3 rounded-xl hover:bg-muted"
-              >
+              <Button variant="ghost" className="hidden md:flex items-center gap-2 h-11 px-3 rounded-xl hover:bg-muted">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-primary-foreground text-xs font-bold">
                     {initials}
@@ -101,10 +87,9 @@ export function AppLayout() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">
+        <main className="flex-1 p-4 lg:p-8 overflow-auto py-[4px] px-[4px]">
           <Outlet />
         </main>
       </div>
-    </div>
-  );
+    </div>;
 }
