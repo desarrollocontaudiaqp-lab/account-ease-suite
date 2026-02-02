@@ -33,6 +33,7 @@ import type { TreeNode, NodeType } from "./WorkFlowTreeSidebar";
 import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
 import { EspacioDashboard } from "./EspacioDashboard";
 import { MesDashboard } from "./MesDashboard";
+import { ContratoDashboard } from "./ContratoDashboard";
 
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
@@ -256,68 +257,10 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [] }: WorkFlowCo
 
       case "contrato":
         return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">{data.cliente || selectedNode.label}</h2>
-                  <p className="text-sm text-muted-foreground">{data.numero}</p>
-                </div>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-1.5"
-                onClick={() => handleViewDetail(data.contrato_id || selectedNode.id)}
-              >
-                <Eye className="h-4 w-4" />
-                Ver Detalle Completo
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Servicio</p>
-                  <p className="font-medium">{data.tipo_servicio || "-"}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Estado</p>
-                  <Badge className={statusStyles[data.status]}>
-                    {statusLabels[data.status] || data.status || "Activo"}
-                  </Badge>
-                </CardContent>
-              </Card>
-            </div>
-
-            {data.fecha_inicio && (
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Fecha de Inicio</p>
-                  <div className="flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                    <p className="font-medium">
-                      {format(parseISO(data.fecha_inicio), "dd 'de' MMMM 'de' yyyy", { locale: es })}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {data.descripcion && (
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Descripción</p>
-                  <p className="text-sm">{data.descripcion}</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <ContratoDashboard 
+            node={selectedNode} 
+            onViewDetail={handleViewDetail}
+          />
         );
 
       case "actividad":
