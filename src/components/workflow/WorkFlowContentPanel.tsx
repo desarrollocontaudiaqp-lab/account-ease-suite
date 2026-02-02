@@ -35,6 +35,7 @@ import { EspacioDashboard } from "./EspacioDashboard";
 import { MesDashboard } from "./MesDashboard";
 import { ContratoDashboard } from "./ContratoDashboard";
 import { ActividadesBacklog } from "./ActividadesBacklog";
+import { ActividadDetailDashboard } from "./ActividadDetailDashboard";
 
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
@@ -265,42 +266,17 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [] }: WorkFlowCo
         );
 
       case "actividad":
-        // Check if this is an activities folder (contains child activities) or a single activity
-        const hasChildActivities = selectedNode.children?.some(c => c.type === "actividad" || c.type === "input" || c.type === "procesos" || c.type === "outputs" || c.type === "supervision");
-        const isActivitiesFolder = selectedNode.label.toLowerCase().includes("actividades") || hasChildActivities;
+        // Check if this is an activities folder or a single activity
+        const isActivitiesFolder = selectedNode.label.toLowerCase().includes("actividades");
+        const hasChildActivities = selectedNode.children?.some(c => c.type === "actividad");
 
-        if (isActivitiesFolder) {
+        if (isActivitiesFolder && hasChildActivities) {
+          // Activities folder - show backlog of all activities
           return <ActividadesBacklog node={selectedNode} allNodes={treeData} />;
         }
 
-        // Single activity view
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <Activity className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">{selectedNode.label}</h2>
-                <p className="text-sm text-muted-foreground">Actividad del workflow</p>
-              </div>
-              {selectedNode.isCompleted && (
-                <Badge className="bg-green-100 text-green-800 ml-auto">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Completada
-                </Badge>
-              )}
-            </div>
-
-            {data.descripcion && (
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-sm">{data.descripcion}</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        );
+        // Single activity - show detailed dashboard with steps table
+        return <ActividadDetailDashboard node={selectedNode} />;
 
       case "input":
         return (

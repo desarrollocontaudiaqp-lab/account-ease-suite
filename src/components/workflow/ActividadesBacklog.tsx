@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, isToday, isPast, startOfYear, endOfYear, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, isToday, isPast, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Activity,
@@ -10,24 +10,19 @@ import {
   CheckCircle2,
   Circle,
   Clock,
-  User,
   AlertTriangle,
-  Database,
-  ListTodo,
-  Package,
-  ShieldCheck,
-  ExternalLink,
   LayoutGrid,
+  CalendarDays,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -44,43 +39,17 @@ interface ActividadesBacklogProps {
   allNodes?: TreeNode[];
 }
 
-interface WorkflowStep {
+interface ActivityItem {
   id: string;
-  type: string;
   label: string;
   isCompleted: boolean;
-  asignado_nombre?: string;
-  fecha_vencimiento?: string;
-  parentActivity: string;
-  parentActivityId: string;
-  enlaceSharepoint?: string;
+  fecha_inicio?: string;
+  fecha_termino?: string;
+  totalSteps: number;
+  completedSteps: number;
 }
 
 type PeriodFilter = "hoy" | "mes" | "fecha" | "año";
-
-const typeIcons: Record<string, React.ElementType> = {
-  input: Database,
-  tarea: ListTodo,
-  output: Package,
-  supervision_item: ShieldCheck,
-  actividad: Activity,
-};
-
-const typeColors: Record<string, string> = {
-  input: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  tarea: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  output: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  supervision_item: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  actividad: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-};
-
-const typeLabels: Record<string, string> = {
-  input: "Data",
-  tarea: "Proceso",
-  output: "Output",
-  supervision_item: "Supervisión",
-  actividad: "Actividad",
-};
 
 const getInitials = (name: string | null | undefined) => {
   if (!name) return "?";
@@ -93,113 +62,112 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("mes");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
-  // Collect all workflow steps from all activities
-  const { activities, allSteps } = useMemo(() => {
-    const acts: TreeNode[] = [];
-    const steps: WorkflowStep[] = [];
+  // Collect activities with their data (only activities, not steps)
+  const activities = useMemo(() => {
+    const acts: ActivityItem[] = [];
 
-    const collectSteps = (n: TreeNode, activityName: string, activityId: string) => {
-      const data = n.data || {};
-      
+    const countSteps = (n: TreeNode): { total: number; completed: number } => {
+      let total = 0;
+      let completed = 0;
+
       if (["input", "tarea", "output", "supervision_item"].includes(n.type)) {
-        steps.push({
-          id: n.id,
-          type: n.type,
-          label: n.label,
-          isCompleted: n.isCompleted || false,
-          asignado_nombre: data.asignado_nombre,
-          fecha_vencimiento: data.fecha_vencimiento,
-          parentActivity: activityName,
-          parentActivityId: activityId,
-          enlaceSharepoint: data.enlaceSharepoint,
-        });
+        total = 1;
+        completed = n.isCompleted ? 1 : 0;
       }
 
       if (n.children) {
-        n.children.forEach(child => collectSteps(child, activityName, activityId));
+        n.children.forEach(child => {
+          const childCounts = countSteps(child);
+          total += childCounts.total;
+          completed += childCounts.completed;
+        });
       }
+
+      return { total, completed };
     };
 
-    // Find activities in the node's children
     const findActivities = (n: TreeNode) => {
-      if (n.type === "actividad") {
-        acts.push(n);
-        collectSteps(n, n.label, n.id);
+      if (n.type === "actividad" && !n.label.toLowerCase().includes("actividades")) {
+        const data = n.data || {};
+        const { total, completed } = countSteps(n);
+        
+        acts.push({
+          id: n.id,
+          label: n.label,
+          isCompleted: n.isCompleted || false,
+          fecha_inicio: data.fecha_inicio,
+          fecha_termino: data.fecha_termino,
+          totalSteps: total,
+          completedSteps: completed,
+        });
       }
       if (n.children) {
         n.children.forEach(findActivities);
       }
     };
 
-    // If this is an "actividades" folder, look at children
     if (node.children) {
       node.children.forEach(findActivities);
     }
 
-    return { activities: acts, allSteps: steps };
+    return acts;
   }, [node]);
 
-  // Filter steps based on period
-  const filteredSteps = useMemo(() => {
-    const today = new Date();
-    
-    return allSteps.filter(step => {
-      if (!step.fecha_vencimiento) {
-        // Steps without date are included in all views except "hoy" and "fecha"
+  // Filter activities based on period (using fecha_inicio or fecha_termino)
+  const filteredActivities = useMemo(() => {
+    return activities.filter(activity => {
+      // Use fecha_inicio for filtering, fallback to fecha_termino
+      const dateStr = activity.fecha_inicio || activity.fecha_termino;
+      
+      if (!dateStr) {
         return periodFilter === "mes" || periodFilter === "año";
       }
 
-      // Manual date parsing to avoid timezone issues
-      const [year, month, day] = step.fecha_vencimiento.split("T")[0].split("-").map(Number);
-      const stepDate = new Date(year, month - 1, day);
+      const [year, month, day] = dateStr.split("T")[0].split("-").map(Number);
+      const activityDate = new Date(year, month - 1, day);
 
       switch (periodFilter) {
         case "hoy":
-          return isToday(stepDate);
+          return isToday(activityDate);
         case "mes":
-          return isSameMonth(stepDate, currentDate);
+          return isSameMonth(activityDate, currentDate);
         case "fecha":
           if (!selectedDate) return true;
-          return isSameDay(stepDate, selectedDate);
+          return isSameDay(activityDate, selectedDate);
         case "año":
-          return stepDate.getFullYear() === currentDate.getFullYear();
+          return activityDate.getFullYear() === currentDate.getFullYear();
         default:
           return true;
       }
     });
-  }, [allSteps, periodFilter, currentDate, selectedDate]);
+  }, [activities, periodFilter, currentDate, selectedDate]);
 
-  // Group steps by date for calendar view
-  const stepsByDate = useMemo(() => {
-    const groups: Record<string, WorkflowStep[]> = {};
-    filteredSteps.forEach(step => {
-      if (step.fecha_vencimiento) {
-        const dateKey = step.fecha_vencimiento.split("T")[0];
+  // Group activities by date for calendar view
+  const activitiesByDate = useMemo(() => {
+    const groups: Record<string, ActivityItem[]> = {};
+    filteredActivities.forEach(activity => {
+      const dateStr = activity.fecha_inicio || activity.fecha_termino;
+      if (dateStr) {
+        const dateKey = dateStr.split("T")[0];
         if (!groups[dateKey]) groups[dateKey] = [];
-        groups[dateKey].push(step);
+        groups[dateKey].push(activity);
       }
     });
     return groups;
-  }, [filteredSteps]);
+  }, [filteredActivities]);
 
-  // Steps without date
-  const stepsWithoutDate = useMemo(() => {
-    return filteredSteps.filter(s => !s.fecha_vencimiento);
-  }, [filteredSteps]);
+  // Activities without date
+  const activitiesWithoutDate = useMemo(() => {
+    return filteredActivities.filter(a => !a.fecha_inicio && !a.fecha_termino);
+  }, [filteredActivities]);
 
   // Calendar days based on filter
   const calendarDays = useMemo(() => {
     if (periodFilter === "hoy") {
       return [new Date()];
     } else if (periodFilter === "fecha" && selectedDate) {
-      // Show the week around the selected date
       const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
       const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
-      return eachDayOfInterval({ start, end });
-    } else if (periodFilter === "año") {
-      // For year view, show current month
-      const start = startOfMonth(currentDate);
-      const end = endOfMonth(currentDate);
       return eachDayOfInterval({ start, end });
     } else {
       const start = startOfMonth(currentDate);
@@ -208,31 +176,34 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
     }
   }, [currentDate, periodFilter, selectedDate]);
 
-  // Stats based on filtered steps
+  // Stats based on filtered activities
   const stats = useMemo(() => {
-    const total = filteredSteps.length;
-    const completed = filteredSteps.filter(s => s.isCompleted).length;
+    const total = filteredActivities.length;
+    const completed = filteredActivities.filter(a => a.isCompleted).length;
     const pending = total - completed;
-    const overdue = filteredSteps.filter(s => {
-      if (s.isCompleted || !s.fecha_vencimiento) return false;
-      const [year, month, day] = s.fecha_vencimiento.split("T")[0].split("-").map(Number);
+    const overdue = filteredActivities.filter(a => {
+      if (a.isCompleted) return false;
+      const dateStr = a.fecha_termino || a.fecha_inicio;
+      if (!dateStr) return false;
+      const [year, month, day] = dateStr.split("T")[0].split("-").map(Number);
       return isPast(new Date(year, month - 1, day));
     }).length;
     return { total, completed, pending, overdue };
-  }, [filteredSteps]);
+  }, [filteredActivities]);
 
-  const renderStepBadge = (step: WorkflowStep) => {
-    const Icon = typeIcons[step.type] || Activity;
+  const renderActivityBadge = (activity: ActivityItem) => {
+    const progress = activity.totalSteps > 0 ? (activity.completedSteps / activity.totalSteps) * 100 : 0;
+    
     return (
-      <div
-        className={cn(
-          "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
-          typeColors[step.type]
-        )}
-      >
-        <Icon className="h-3 w-3" />
-        <span className="truncate max-w-[100px]">{step.label}</span>
-        {step.isCompleted && <CheckCircle2 className="h-3 w-3 ml-auto" />}
+      <div className={cn(
+        "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
+        activity.isCompleted 
+          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+      )}>
+        <Activity className="h-3 w-3" />
+        <span className="truncate max-w-[120px]">{activity.label}</span>
+        {activity.isCompleted && <CheckCircle2 className="h-3 w-3 ml-auto" />}
       </div>
     );
   };
@@ -248,7 +219,7 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
           <div>
             <h2 className="text-xl font-bold">Backlog de Actividades</h2>
             <p className="text-sm text-muted-foreground">
-              {activities.length} actividad{activities.length !== 1 ? "es" : ""} • {allSteps.length} pasos del workflow
+              {activities.length} actividad{activities.length !== 1 ? "es" : ""}
             </p>
           </div>
         </div>
@@ -274,7 +245,7 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wide">Completados</p>
+                <p className="text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wide">Completadas</p>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.completed}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -302,7 +273,7 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">Vencidos</p>
+                <p className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">Vencidas</p>
                 <p className="text-2xl font-bold text-red-700 dark:text-red-300">{stats.overdue}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-red-500/10 flex items-center justify-center">
@@ -469,8 +440,8 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
 
                 {calendarDays.map((day) => {
                   const dateKey = format(day, "yyyy-MM-dd");
-                  const daySteps = stepsByDate[dateKey] || [];
-                  const hasOverdue = daySteps.some(s => !s.isCompleted && isPast(day));
+                  const dayActivities = activitiesByDate[dateKey] || [];
+                  const hasOverdue = dayActivities.some(a => !a.isCompleted && isPast(day));
 
                   return (
                     <div
@@ -491,32 +462,36 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
                       </div>
                       <ScrollArea className="h-[80px]">
                         <div className="space-y-1">
-                          {daySteps.slice(0, 3).map((step) => (
-                            <Tooltip key={step.id} delayDuration={0}>
+                          {dayActivities.slice(0, 3).map((activity) => (
+                            <Tooltip key={activity.id} delayDuration={0}>
                               <TooltipTrigger asChild>
                                 <div className="cursor-pointer">
-                                  {renderStepBadge(step)}
+                                  {renderActivityBadge(activity)}
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-[250px]">
                                 <div className="space-y-1">
-                                  <p className="font-medium">{step.label}</p>
+                                  <p className="font-medium">{activity.label}</p>
                                   <p className="text-xs text-muted-foreground">
-                                    {typeLabels[step.type]} • {step.parentActivity}
+                                    {activity.completedSteps}/{activity.totalSteps} pasos completados
                                   </p>
-                                  {step.asignado_nombre && (
-                                    <p className="text-xs flex items-center gap-1">
-                                      <User className="h-3 w-3" />
-                                      {step.asignado_nombre}
+                                  {activity.fecha_inicio && (
+                                    <p className="text-xs">
+                                      Inicio: {format(parseISO(activity.fecha_inicio), "dd MMM yyyy", { locale: es })}
+                                    </p>
+                                  )}
+                                  {activity.fecha_termino && (
+                                    <p className="text-xs">
+                                      Término: {format(parseISO(activity.fecha_termino), "dd MMM yyyy", { locale: es })}
                                     </p>
                                   )}
                                 </div>
                               </TooltipContent>
                             </Tooltip>
                           ))}
-                          {daySteps.length > 3 && (
+                          {dayActivities.length > 3 && (
                             <Badge variant="secondary" className="text-[10px] w-full justify-center">
-                              +{daySteps.length - 3} más
+                              +{dayActivities.length - 3} más
                             </Badge>
                           )}
                         </div>
@@ -526,22 +501,24 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
                 })}
               </div>
 
-              {/* Steps without date */}
-              {stepsWithoutDate.length > 0 && (
+              {/* Activities without date */}
+              {activitiesWithoutDate.length > 0 && (
                 <div className="mt-6 pt-4 border-t">
                   <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" />
-                    Sin fecha asignada ({stepsWithoutDate.length})
+                    Sin fecha asignada ({activitiesWithoutDate.length})
                   </h4>
                   <div className="flex flex-wrap gap-2">
-                    {stepsWithoutDate.map((step) => (
-                      <Tooltip key={step.id} delayDuration={0}>
+                    {activitiesWithoutDate.map((activity) => (
+                      <Tooltip key={activity.id} delayDuration={0}>
                         <TooltipTrigger asChild>
-                          <div className="cursor-pointer">{renderStepBadge(step)}</div>
+                          <div className="cursor-pointer">{renderActivityBadge(activity)}</div>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="font-medium">{step.label}</p>
-                          <p className="text-xs text-muted-foreground">{step.parentActivity}</p>
+                          <p className="font-medium">{activity.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {activity.completedSteps}/{activity.totalSteps} pasos
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     ))}
@@ -552,149 +529,108 @@ export function ActividadesBacklog({ node, allNodes = [] }: ActividadesBacklogPr
           </Card>
         </TabsContent>
 
-        {/* Table View */}
+        {/* Table View - Only Activities */}
         <TabsContent value="tabla" className="space-y-4">
-          {activities.map((activity) => {
-            const activitySteps = allSteps.filter(s => s.parentActivityId === activity.id);
-            const completedSteps = activitySteps.filter(s => s.isCompleted).length;
-            const progress = activitySteps.length > 0 ? (completedSteps / activitySteps.length) * 100 : 0;
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="w-[50px]">Estado</TableHead>
+                    <TableHead>Actividad</TableHead>
+                    <TableHead className="w-[120px]">Fecha Inicio</TableHead>
+                    <TableHead className="w-[120px]">Fecha Término</TableHead>
+                    <TableHead className="w-[150px]">Progreso</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredActivities.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        <Activity className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                        <p className="text-lg font-medium">No hay actividades</p>
+                        <p className="text-sm">No se encontraron actividades para el período seleccionado</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredActivities.map((activity) => {
+                      const progress = activity.totalSteps > 0 ? (activity.completedSteps / activity.totalSteps) * 100 : 0;
+                      let isOverdue = false;
+                      if (!activity.isCompleted && activity.fecha_termino) {
+                        const [year, month, day] = activity.fecha_termino.split("T")[0].split("-").map(Number);
+                        isOverdue = isPast(new Date(year, month - 1, day));
+                      }
 
-            return (
-              <Card key={activity.id} className="overflow-hidden">
-                <CardHeader className="pb-2 bg-gradient-to-r from-green-50 to-emerald-50/50 dark:from-green-950/30 dark:to-emerald-950/20">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center">
-                        <Activity className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">{activity.label}</CardTitle>
-                        <p className="text-xs text-muted-foreground">
-                          {completedSteps}/{activitySteps.length} pasos completados
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-green-500 transition-all"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-medium text-muted-foreground">
-                        {Math.round(progress)}%
-                      </span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30">
-                        <TableHead className="w-[50px]">Estado</TableHead>
-                        <TableHead className="w-[100px]">Tipo</TableHead>
-                        <TableHead>Paso</TableHead>
-                        <TableHead>Asignado</TableHead>
-                        <TableHead className="w-[120px]">Vencimiento</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {activitySteps.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                            No hay pasos en esta actividad
+                      return (
+                        <TableRow 
+                          key={activity.id}
+                          className={cn(
+                            isOverdue && "bg-red-50/50 dark:bg-red-950/10",
+                            activity.isCompleted && "opacity-60"
+                          )}
+                        >
+                          <TableCell>
+                            {activity.isCompleted ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            ) : isOverdue ? (
+                              <AlertTriangle className="h-5 w-5 text-red-500" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                <Activity className="h-4 w-4 text-green-600 dark:text-green-400" />
+                              </div>
+                              <span className="font-medium">{activity.label}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {activity.fecha_inicio ? (
+                              <div className="flex items-center gap-1.5 text-sm">
+                                <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                                {(() => {
+                                  const [year, month, day] = activity.fecha_inicio!.split("T")[0].split("-").map(Number);
+                                  return format(new Date(year, month - 1, day), "dd MMM yyyy", { locale: es });
+                                })()}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {activity.fecha_termino ? (
+                              <div className={cn(
+                                "flex items-center gap-1.5 text-sm",
+                                isOverdue && "text-red-600 font-medium"
+                              )}>
+                                <Clock className="h-3.5 w-3.5" />
+                                {(() => {
+                                  const [year, month, day] = activity.fecha_termino!.split("T")[0].split("-").map(Number);
+                                  return format(new Date(year, month - 1, day), "dd MMM yyyy", { locale: es });
+                                })()}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Progress value={progress} className="h-2 w-20" />
+                              <span className="text-xs text-muted-foreground">
+                                {activity.completedSteps}/{activity.totalSteps}
+                              </span>
+                            </div>
                           </TableCell>
                         </TableRow>
-                      ) : (
-                        activitySteps.map((step) => {
-                          const isOverdue = step.fecha_vencimiento && !step.isCompleted && isPast(parseISO(step.fecha_vencimiento));
-                          const Icon = typeIcons[step.type] || Activity;
-
-                          return (
-                            <TableRow 
-                              key={step.id}
-                              className={cn(
-                                isOverdue && "bg-red-50/50 dark:bg-red-950/10",
-                                step.isCompleted && "opacity-60"
-                              )}
-                            >
-                              <TableCell>
-                                {step.isCompleted ? (
-                                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                                ) : isOverdue ? (
-                                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                                ) : (
-                                  <Circle className="h-5 w-5 text-muted-foreground" />
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={cn("gap-1", typeColors[step.type])}>
-                                  <Icon className="h-3 w-3" />
-                                  {typeLabels[step.type]}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="font-medium">{step.label}</TableCell>
-                              <TableCell>
-                                {step.asignado_nombre ? (
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-6 w-6">
-                                      <AvatarFallback className="text-[10px]">
-                                        {getInitials(step.asignado_nombre)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-sm">{step.asignado_nombre}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-muted-foreground">Sin asignar</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {step.fecha_vencimiento ? (
-                                  <span className={cn(
-                                    "text-sm",
-                                    isOverdue && "text-red-600 font-medium"
-                                  )}>
-                                    {format(parseISO(step.fecha_vencimiento), "dd MMM yyyy", { locale: es })}
-                                  </span>
-                                ) : (
-                                  <span className="text-sm text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {step.enlaceSharepoint && (
-                                  <Tooltip delayDuration={0}>
-                                    <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                                        <a href={step.enlaceSharepoint} target="_blank" rel="noopener noreferrer">
-                                          <ExternalLink className="h-3.5 w-3.5" />
-                                        </a>
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Abrir en SharePoint</TooltipContent>
-                                  </Tooltip>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {activities.length === 0 && (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <Activity className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-medium">No hay actividades</p>
-                <p className="text-sm">Esta carpeta no contiene actividades</p>
-              </CardContent>
-            </Card>
-          )}
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
