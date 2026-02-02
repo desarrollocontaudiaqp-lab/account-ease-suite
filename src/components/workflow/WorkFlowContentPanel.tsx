@@ -411,7 +411,7 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh }:
   return (
     <>
       <ScrollArea className="h-full">
-        <div className="p-6">
+        <div className="p-3">
           {/* Breadcrumb */}
           <div className="flex items-center gap-1 text-sm text-muted-foreground mb-6">
             <span className="capitalize">{typeLabels[selectedNode.type]}</span>
