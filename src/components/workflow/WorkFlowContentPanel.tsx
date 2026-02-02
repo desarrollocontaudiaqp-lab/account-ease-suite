@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import type { TreeNode, NodeType } from "./WorkFlowTreeSidebar";
 import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
 import { EspacioDashboard } from "./EspacioDashboard";
+import { MesDashboard } from "./MesDashboard";
 
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
@@ -102,19 +103,11 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [] }: WorkFlowCo
 
       case "mes":
         return (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">{selectedNode.label}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {data.contractCount || 0} contratos
-                </p>
-              </div>
-            </div>
-          </div>
+          <MesDashboard 
+            node={selectedNode} 
+            allNodes={treeData} 
+            onViewContractDetail={handleViewDetail}
+          />
         );
 
       case "contratos_folder":
