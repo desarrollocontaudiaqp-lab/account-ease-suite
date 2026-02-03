@@ -234,14 +234,37 @@ export function useWorkFlowTree() {
                 .filter((item) => item.tipo === "actividad")
                 .sort((a, b) => a._originalIndex - b._originalIndex);
 
+              // Helper function to recursively get all descendant IDs of an activity
+              const getActivityDescendantIds = (actividadId: string): Set<string> => {
+                const descendantIds = new Set<string>();
+                const queue: string[] = [actividadId];
+                
+                while (queue.length > 0) {
+                  const currentId = queue.shift()!;
+                  // Find all items that have this ID as their parentId
+                  const children = itemsWithIndex.filter(item => item.parentId === currentId);
+                  children.forEach(child => {
+                    descendantIds.add(child.id);
+                    queue.push(child.id);
+                  });
+                }
+                
+                return descendantIds;
+              };
+
               actividades.forEach((actividad) => {
-                // Get all child items for this activity and maintain JSON order
+                // Get all descendant IDs for this specific activity
+                const activityDescendantIds = getActivityDescendantIds(actividad.id);
+                
+                // Get all items that belong to this activity (direct children or descendants)
                 const activityItems = itemsWithIndex
-                  .filter((item) => item.parentId === actividad.id)
+                  .filter((item) => activityDescendantIds.has(item.id))
                   .sort((a, b) => a._originalIndex - b._originalIndex);
 
-                // Get inputs for this activity - preserve JSON order
-                const inputs = activityItems.filter((item) => item.tipo === "input");
+                // Get inputs for this activity (direct children with tipo="input")
+                const inputs = itemsWithIndex
+                  .filter((item) => item.tipo === "input" && item.parentId === actividad.id)
+                  .sort((a, b) => a._originalIndex - b._originalIndex);
 
                 const inputNodes: TreeNode[] = inputs.map((input) => ({
                   id: input.id,
@@ -256,7 +279,7 @@ export function useWorkFlowTree() {
                   isCompleted: input.completado,
                 }));
 
-                // Get all tareas (procesos) that belong to any input of this activity - preserve JSON order
+                // Get all tareas (procesos) that belong to inputs of THIS activity only
                 const inputIds = inputs.map(i => i.id);
                 const tareas = itemsWithIndex
                   .filter((item) => item.tipo === "tarea" && inputIds.includes(item.parentId as string))
@@ -274,8 +297,10 @@ export function useWorkFlowTree() {
                   isCompleted: tarea.completado,
                 }));
 
-                // Get outputs - preserve JSON order
-                const outputs = activityItems.filter((item) => item.tipo === "output");
+                // Get outputs that belong to inputs of THIS activity only
+                const outputs = itemsWithIndex
+                  .filter((item) => item.tipo === "output" && inputIds.includes(item.parentId as string))
+                  .sort((a, b) => a._originalIndex - b._originalIndex);
 
                 const outputNodes: TreeNode[] = outputs.map((output) => ({
                   id: output.id,
@@ -289,8 +314,10 @@ export function useWorkFlowTree() {
                   isCompleted: output.completado,
                 }));
 
-                // Get supervision items - preserve JSON order
-                const supervisionItems = activityItems.filter((item) => item.tipo === "supervision");
+                // Get supervision items that belong to inputs of THIS activity only
+                const supervisionItems = itemsWithIndex
+                  .filter((item) => item.tipo === "supervision" && inputIds.includes(item.parentId as string))
+                  .sort((a, b) => a._originalIndex - b._originalIndex);
 
                 const supervisionNodes: TreeNode[] = supervisionItems.map((sup) => ({
                   id: sup.id,
