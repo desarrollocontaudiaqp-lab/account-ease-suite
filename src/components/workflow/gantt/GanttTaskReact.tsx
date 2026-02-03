@@ -2,7 +2,7 @@ import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { Gantt, Task, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
 import { addDays, differenceInDays } from "date-fns";
-import { Calendar, Loader2, RefreshCw } from "lucide-react";
+import { Calendar, Loader2, RefreshCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -284,6 +284,17 @@ export function GanttTaskReact({
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">Diagrama Gantt</span>
+          {/* Save button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 hover:bg-muted"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing || !!savingTask}
+            title="Guardar cambios"
+          >
+            <Save className={`h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors`} />
+          </Button>
           {/* Refresh button */}
           <Button
             variant="ghost"
