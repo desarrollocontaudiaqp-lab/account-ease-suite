@@ -38,7 +38,7 @@ import { AssigneeSelect } from "./AssigneeSelect";
 
 interface ActividadDetailDashboardProps {
   node: TreeNode;
-  onRefresh?: () => Promise<void> | void;
+  onRefresh?: () => void;
 }
 
 interface WorkflowStep {
@@ -81,7 +81,6 @@ const typeLabels: Record<string, string> = {
 export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDashboardProps) {
   const [activeView, setActiveView] = useState<"table" | "gantt">("gantt");
   const [profiles, setProfiles] = useState<{ id: string; full_name: string | null }[]>([]);
-  const [ganttKey, setGanttKey] = useState(0);
 
   // Fetch profiles
   useEffect(() => {
@@ -93,15 +92,6 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
     };
     fetchProfiles();
   }, []);
-
-  // Handler that refreshes data AND forces Gantt remount
-  const handleGanttRefresh = async () => {
-    if (onRefresh) {
-      await onRefresh();
-    }
-    // Force Gantt component to completely remount with fresh data
-    setGanttKey(k => k + 1);
-  };
 
   // Collect all workflow steps from this activity
   const steps = useMemo(() => {
@@ -307,12 +297,7 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
 
         {/* Gantt View */}
         <TabsContent value="gantt" className="mt-0">
-          <GanttTaskReact 
-            key={`gantt-${node.id}-${ganttKey}`}
-            tasks={ganttTasks} 
-            profiles={profiles} 
-            onRefresh={handleGanttRefresh} 
-          />
+          <GanttTaskReact tasks={ganttTasks} profiles={profiles} onRefresh={onRefresh} />
         </TabsContent>
 
         {/* Table View */}

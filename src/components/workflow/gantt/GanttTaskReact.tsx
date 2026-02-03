@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { Gantt, Task, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
 import { addDays, differenceInDays } from "date-fns";
@@ -26,7 +26,7 @@ export interface GanttTaskData {
 interface GanttTaskReactProps {
   tasks: GanttTaskData[];
   profiles: { id: string; full_name: string | null }[];
-  onRefresh?: () => Promise<void> | void;
+  onRefresh?: () => void;
 }
 
 // Color palette by type
@@ -51,19 +51,31 @@ const formatDateForDB = (date: Date): string => {
 };
 
 export function GanttTaskReact({
-  tasks,
+  tasks: propTasks,
   profiles,
   onRefresh,
 }: GanttTaskReactProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Day);
   const [savingTask, setSavingTask] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // LOCAL STATE - This is the source of truth for the Gantt chart
+  // Only sync from props when there are no pending saves
+  const [localTasks, setLocalTasks] = useState<GanttTaskData[]>(propTasks);
+  const pendingSaveRef = useRef(false);
+  
+  // Sync from props only when NOT saving
+  useEffect(() => {
+    if (!pendingSaveRef.current) {
+      setLocalTasks(propTasks);
+    }
+  }, [propTasks]);
 
-  // Convert our data format to gantt-task-react format - use props directly
+  // Convert our data format to gantt-task-react format
   const ganttTasks: Task[] = useMemo(() => {
     const today = new Date();
     
-    return tasks.map((task) => {
+    return localTasks.map((task) => {
       const startDate = parseLocalDate(task.fecha_inicio) || today;
       const endDate = parseLocalDate(task.fecha_termino) || addDays(startDate, 1);
       
@@ -71,7 +83,7 @@ export function GanttTaskReact({
       const colors = typeColors[task.tipo] || typeColors.tarea;
       
       const dependencies = task.dependencias
-        ?.filter((depId) => tasks.some((t) => t.id === depId))
+        ?.filter((depId) => localTasks.some((t) => t.id === depId))
         || [];
 
       return {
@@ -92,26 +104,26 @@ export function GanttTaskReact({
         project: task.contratoId,
       };
     });
-  }, [tasks]);
+  }, [localTasks]);
 
   // Calculate stats
   const stats = useMemo(() => {
-    const total = tasks.length;
-    const completed = tasks.filter((t) => t.isCompleted).length;
-    const withDates = tasks.filter((t) => t.fecha_inicio).length;
+    const total = localTasks.length;
+    const completed = localTasks.filter((t) => t.isCompleted).length;
+    const withDates = localTasks.filter((t) => t.fecha_inicio).length;
     const progress = total > 0 ? (completed / total) * 100 : 0;
     return { total, completed, withDates, progress };
-  }, [tasks]);
+  }, [localTasks]);
 
-  // Save to database and trigger full refresh
+  // Save to database in background
   const saveToDatabase = useCallback(
     async (taskId: string, updates: { fecha_inicio?: string; fecha_termino?: string; progreso?: number }) => {
-      const task = tasks.find((t) => t.id === taskId);
+      const task = localTasks.find((t) => t.id === taskId);
       
       if (!task?.contratoId) {
         console.error("No contratoId found for task:", taskId);
         toast.error("No se puede actualizar: falta el ID del contrato");
-        setSavingTask(null);
+        pendingSaveRef.current = false;
         return;
       }
 
@@ -126,7 +138,7 @@ export function GanttTaskReact({
         if (wfError) throw wfError;
         if (!workflow) {
           toast.error("No se encontró el workflow");
-          setSavingTask(null);
+          pendingSaveRef.current = false;
           return;
         }
 
@@ -135,7 +147,7 @@ export function GanttTaskReact({
         
         if (itemIndex === -1) {
           toast.error("No se encontró el item en el workflow");
-          setSavingTask(null);
+          pendingSaveRef.current = false;
           return;
         }
 
@@ -164,28 +176,46 @@ export function GanttTaskReact({
         if (updateError) throw updateError;
 
         toast.success("Guardado");
+        
+        // Now safe to allow prop sync
+        pendingSaveRef.current = false;
         setSavingTask(null);
         
-        // Trigger full refresh - this will remount the component with fresh data
+        // Trigger background refresh (won't overwrite local state while pendingSaveRef is true)
         if (onRefresh) {
-          await onRefresh();
+          setTimeout(() => onRefresh(), 100);
         }
       } catch (error) {
         console.error("Error saving:", error);
         toast.error("Error al guardar");
+        pendingSaveRef.current = false;
         setSavingTask(null);
       }
     },
-    [tasks, onRefresh]
+    [localTasks, onRefresh]
   );
 
-  // Handle date change - save to DB then refresh
+  // Handle date change - update local state IMMEDIATELY, then save in background
   const handleDateChange = useCallback(
     (task: Task) => {
       console.log("Date change:", { id: task.id, start: task.start, end: task.end });
+      
+      // Block prop sync
+      pendingSaveRef.current = true;
       setSavingTask(task.id);
       
-      // Save in background, then refresh will remount component
+      // Update local state IMMEDIATELY
+      setLocalTasks(prev => prev.map(t => 
+        t.id === task.id 
+          ? { 
+              ...t, 
+              fecha_inicio: formatDateForDB(task.start),
+              fecha_termino: formatDateForDB(task.end)
+            }
+          : t
+      ));
+      
+      // Save in background
       saveToDatabase(task.id, {
         fecha_inicio: formatDateForDB(task.start),
         fecha_termino: formatDateForDB(task.end),
@@ -194,15 +224,25 @@ export function GanttTaskReact({
     [saveToDatabase]
   );
 
-  // Handle progress change - save to DB then refresh
+  // Handle progress change - update local state IMMEDIATELY, then save in background
   const handleProgressChange = useCallback(
     (task: Task) => {
       console.log("Progress change:", { id: task.id, progress: task.progress });
+      
+      // Block prop sync
+      pendingSaveRef.current = true;
       setSavingTask(task.id);
       
       const newProgress = Math.round(task.progress);
       
-      // Save in background, then refresh will remount component
+      // Update local state IMMEDIATELY
+      setLocalTasks(prev => prev.map(t => 
+        t.id === task.id 
+          ? { ...t, progreso: newProgress }
+          : t
+      ));
+      
+      // Save in background
       saveToDatabase(task.id, {
         progreso: newProgress,
       });
@@ -215,16 +255,17 @@ export function GanttTaskReact({
     console.log("Task clicked:", task.id);
   }, []);
 
-  // Manual refresh handler - triggers full component remount
-  const handleManualRefresh = useCallback(async () => {
+  // Manual refresh handler
+  const handleManualRefresh = useCallback(() => {
     setIsRefreshing(true);
+    pendingSaveRef.current = false; // Allow sync
     if (onRefresh) {
-      await onRefresh();
+      onRefresh();
     }
-    setIsRefreshing(false);
+    setTimeout(() => setIsRefreshing(false), 1000);
   }, [onRefresh]);
 
-  if (tasks.length === 0) {
+  if (localTasks.length === 0) {
     return (
       <div className="border rounded-lg bg-card overflow-hidden">
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -391,7 +432,7 @@ export function GanttTaskReact({
             <div className="text-xs">
               {tableTasks.map((task) => {
                 const duration = differenceInDays(task.end, task.start) + 1;
-                const originalTask = tasks.find(t => t.id === task.id);
+                const originalTask = localTasks.find(t => t.id === task.id);
                 const colors = typeColors[originalTask?.tipo || 'tarea'];
                 return (
                   <div
@@ -433,7 +474,7 @@ export function GanttTaskReact({
             </div>
           )}
           TooltipContent={({ task }) => {
-            const originalTask = tasks.find((t) => t.id === task.id);
+            const originalTask = localTasks.find((t) => t.id === task.id);
             const duration = differenceInDays(task.end, task.start) + 1;
             return (
               <div className="bg-popover border rounded-lg p-3 shadow-lg min-w-[220px]">
