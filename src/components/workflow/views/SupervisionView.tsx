@@ -30,7 +30,7 @@ interface SupervisionViewProps {
   node: TreeNode;
   workflowId?: string;
   profiles: { id: string; full_name: string | null }[];
-  onRefresh?: () => void;
+  onRefresh?: () => Promise<void> | void;
 }
 
 interface ChecklistData {
