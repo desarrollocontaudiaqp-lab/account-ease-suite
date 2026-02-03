@@ -332,7 +332,7 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
         }
 
         // Single activity - show detailed dashboard with steps table
-        return <ActividadDetailDashboard node={selectedNode} />;
+        return <ActividadDetailDashboard node={selectedNode} onRefresh={onRefresh} />;
 
       case "input":
         return (
