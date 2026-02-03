@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import type { TreeNode, NodeType } from "./WorkFlowTreeSidebar";
 import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
 import { EspacioDashboard } from "./EspacioDashboard";
@@ -37,6 +38,9 @@ import { ContratoDashboard } from "./ContratoDashboard";
 import { ActividadesBacklog } from "./ActividadesBacklog";
 import { ActividadDetailDashboard } from "./ActividadDetailDashboard";
 import { WorkFlowBreadcrumb } from "./WorkFlowBreadcrumb";
+import { DataNotionView } from "./views/DataNotionView";
+import { KanbanBoard } from "./views/KanbanBoard";
+import { SupervisionView } from "./views/SupervisionView";
 
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
@@ -84,6 +88,55 @@ const statusLabels: Record<string, string> = {
 export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, onNavigateNode }: WorkFlowContentPanelProps) {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [workflowId, setWorkflowId] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<{ id: string; full_name: string | null }[]>([]);
+
+  // Fetch workflow ID and profiles
+  useEffect(() => {
+    const fetchContext = async () => {
+      // Find contrato ID from context
+      const contratoId = findContratoId(selectedNode, treeData);
+      if (contratoId) {
+        const { data: workflow } = await supabase
+          .from("workflows")
+          .select("id")
+          .eq("contrato_id", contratoId)
+          .maybeSingle();
+        setWorkflowId(workflow?.id || null);
+      }
+
+      // Fetch profiles
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name");
+      setProfiles(profilesData || []);
+    };
+    fetchContext();
+  }, [selectedNode]);
+
+  // Helper to find contrato ID
+  const findContratoId = (node: TreeNode | null, allNodes: TreeNode[]): string | null => {
+    if (!node) return null;
+    if (node.type === "contrato") return node.id;
+    if (node.data?.contratoId) return node.data.contratoId;
+    // Search up the tree
+    const findParent = (nodes: TreeNode[], targetId: string, path: TreeNode[] = []): TreeNode[] | null => {
+      for (const n of nodes) {
+        if (n.id === targetId) return path;
+        if (n.children) {
+          const found = findParent(n.children, targetId, [...path, n]);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const parentPath = findParent(allNodes, node.id);
+    if (parentPath) {
+      const contrato = parentPath.find(p => p.type === "contrato");
+      if (contrato) return contrato.id;
+    }
+    return null;
+  };
 
   const handleViewDetail = (contractId: string) => {
     setSelectedContractId(contractId);
@@ -283,121 +336,41 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
 
       case "input":
         return (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                <Database className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">{selectedNode.label}</h2>
-                <p className="text-sm text-muted-foreground">Input de datos</p>
-              </div>
-            </div>
-
-            {data.enlaceSharepoint && (
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-2">Enlace SharePoint</p>
-                  <Button variant="outline" className="gap-2" asChild>
-                    <a href={data.enlaceSharepoint} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4" />
-                      Abrir documento
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <DataNotionView 
+            node={selectedNode} 
+            workflowId={workflowId || undefined}
+            onRefresh={onRefresh}
+          />
         );
 
       case "tarea":
         return (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className={cn(
-                "h-12 w-12 rounded-lg flex items-center justify-center",
-                selectedNode.isCompleted 
-                  ? "bg-green-100 dark:bg-green-900/30" 
-                  : "bg-orange-100 dark:bg-orange-900/30"
-              )}>
-                {selectedNode.isCompleted ? (
-                  <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
-                ) : (
-                  <ListTodo className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                )}
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">{selectedNode.label}</h2>
-                <p className="text-sm text-muted-foreground">Tarea asignada</p>
-              </div>
-            </div>
-
-            {data.asignado_a && (
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-2">Asignado a</p>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
-                        {getInitials(data.asignado_nombre)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{data.asignado_nombre || "Sin asignar"}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{data.rol}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <KanbanBoard
+            node={selectedNode}
+            workflowId={workflowId || undefined}
+            profiles={profiles}
+            onRefresh={onRefresh}
+          />
         );
 
       case "output":
         return (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                <Package className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">{selectedNode.label}</h2>
-                <p className="text-sm text-muted-foreground">Entregable</p>
-              </div>
-            </div>
-          </div>
+          <DataNotionView 
+            node={selectedNode} 
+            workflowId={workflowId || undefined}
+            onRefresh={onRefresh}
+          />
         );
 
       case "supervision":
       case "supervision_item":
         return (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                <ShieldCheck className="h-6 w-6 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">{selectedNode.label}</h2>
-                <p className="text-sm text-muted-foreground">Verificación de supervisión</p>
-              </div>
-            </div>
-
-            {data.asignado_a && (
-              <Card>
-                <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground mb-2">Supervisor</p>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
-                        {getInitials(data.asignado_nombre)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <p className="font-medium">{data.asignado_nombre || "Sin asignar"}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <SupervisionView
+            node={selectedNode}
+            workflowId={workflowId || undefined}
+            profiles={profiles}
+            onRefresh={onRefresh}
+          />
         );
 
       default:
