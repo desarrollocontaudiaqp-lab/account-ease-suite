@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useRef, useEffect } from "react";
+import { useMemo, useCallback, useState, useRef } from "react";
 import { Gantt, Task, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
 import { addDays, differenceInDays } from "date-fns";
@@ -57,24 +57,32 @@ export function GanttTaskReact({
 }: GanttTaskReactProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Day);
   const [savingTask, setSavingTask] = useState<string | null>(null);
-  const [localTasks, setLocalTasks] = useState<GanttTaskData[]>(tasks);
-  const [ganttKey, setGanttKey] = useState(0);
   
-  // Ref to track if we're currently saving to prevent sync overwrites
-  const isSavingRef = useRef(false);
+  // Use a ref to track the latest task data with local modifications
+  // This allows us to maintain state across re-renders from parent
+  const localTasksRef = useRef<Map<string, { fecha_inicio: string; fecha_termino: string; progreso: number }>>(new Map());
 
-  // Sync with props only when not in the middle of a save operation
-  useEffect(() => {
-    if (!isSavingRef.current) {
-      setLocalTasks(tasks);
-    }
+  // Apply local modifications on top of parent data
+  const mergedTasks = useMemo(() => {
+    return tasks.map(task => {
+      const localMods = localTasksRef.current.get(task.id);
+      if (localMods) {
+        return {
+          ...task,
+          fecha_inicio: localMods.fecha_inicio,
+          fecha_termino: localMods.fecha_termino,
+          progreso: localMods.progreso,
+        };
+      }
+      return task;
+    });
   }, [tasks]);
 
   // Convert our data format to gantt-task-react format
   const ganttTasks: Task[] = useMemo(() => {
     const today = new Date();
     
-    return localTasks.map((task) => {
+    return mergedTasks.map((task) => {
       const startDate = parseLocalDate(task.fecha_inicio) || today;
       const endDate = parseLocalDate(task.fecha_termino) || addDays(startDate, 1);
       
@@ -82,7 +90,7 @@ export function GanttTaskReact({
       const colors = typeColors[task.tipo] || typeColors.tarea;
       
       const dependencies = task.dependencias
-        ?.filter((depId) => localTasks.some((t) => t.id === depId))
+        ?.filter((depId) => mergedTasks.some((t) => t.id === depId))
         || [];
 
       return {
@@ -103,25 +111,21 @@ export function GanttTaskReact({
         project: task.contratoId,
       };
     });
-  }, [localTasks]);
+  }, [mergedTasks]);
 
   // Calculate stats
   const stats = useMemo(() => {
-    const total = localTasks.length;
-    const completed = localTasks.filter((t) => t.isCompleted).length;
-    const withDates = localTasks.filter((t) => t.fecha_inicio).length;
+    const total = mergedTasks.length;
+    const completed = mergedTasks.filter((t) => t.isCompleted).length;
+    const withDates = mergedTasks.filter((t) => t.fecha_inicio).length;
     const progress = total > 0 ? (completed / total) * 100 : 0;
     return { total, completed, withDates, progress };
-  }, [localTasks]);
+  }, [mergedTasks]);
 
   // Update workflow item in database
   const updateWorkflowItem = useCallback(
-    async (taskId: string, updates: { fecha_inicio: string; fecha_termino: string }): Promise<boolean> => {
-      const task = localTasks.find((t) => t.id === taskId);
-      
-      console.log("updateWorkflowItem called for:", taskId);
-      console.log("Task found:", task);
-      console.log("ContratoId:", task?.contratoId);
+    async (taskId: string, updates: { fecha_inicio?: string; fecha_termino?: string; progreso?: number }): Promise<boolean> => {
+      const task = tasks.find((t) => t.id === taskId);
       
       if (!task?.contratoId) {
         console.error("No contratoId found for task:", taskId);
@@ -129,33 +133,28 @@ export function GanttTaskReact({
         return false;
       }
 
-      // Mark as saving to prevent prop sync from overwriting
-      isSavingRef.current = true;
       setSavingTask(taskId);
 
-      // Store previous state for rollback
-      const previousTasks = [...localTasks];
+      // Immediately store local modifications
+      const currentMods = localTasksRef.current.get(taskId) || {
+        fecha_inicio: task.fecha_inicio || "",
+        fecha_termino: task.fecha_termino || "",
+        progreso: task.progreso || 0,
+      };
       
-      // Optimistic update - update local state immediately
-      setLocalTasks(prev => prev.map(t => 
-        t.id === taskId 
-          ? { ...t, fecha_inicio: updates.fecha_inicio, fecha_termino: updates.fecha_termino }
-          : t
-      ));
-      setGanttKey(k => k + 1);
+      localTasksRef.current.set(taskId, {
+        fecha_inicio: updates.fecha_inicio || currentMods.fecha_inicio,
+        fecha_termino: updates.fecha_termino || currentMods.fecha_termino,
+        progreso: updates.progreso !== undefined ? updates.progreso : currentMods.progreso,
+      });
 
       try {
-        console.log("Fetching workflow for contrato_id:", task.contratoId);
-        
         // Fetch the current workflow
         const { data: workflow, error: wfError } = await supabase
           .from("workflows")
           .select("id, items")
           .eq("contrato_id", task.contratoId)
           .maybeSingle();
-
-        console.log("Workflow fetched:", workflow ? workflow.id : "null");
-        console.log("Workflow error:", wfError);
 
         if (wfError) {
           console.error("Error fetching workflow:", wfError);
@@ -165,96 +164,78 @@ export function GanttTaskReact({
         if (!workflow) {
           console.error("No workflow found for contrato_id:", task.contratoId);
           toast.error("No se encontró el workflow");
-          setLocalTasks(previousTasks);
-          setGanttKey(k => k + 1);
-          isSavingRef.current = false;
+          localTasksRef.current.delete(taskId);
           setSavingTask(null);
           return false;
         }
 
         const items = (workflow.items as any[]) || [];
-        console.log("Total items in workflow:", items.length);
 
         // Find the item in the flat array
         const itemIndex = items.findIndex((item: any) => item.id === taskId);
-        console.log("Item index found:", itemIndex);
         
         if (itemIndex === -1) {
           console.error("Item not found in workflow items:", taskId);
-          console.log("Available items:", items.map((i: any) => ({ id: i.id, titulo: i.titulo })));
           toast.error("No se encontró el item en el workflow");
-          setLocalTasks(previousTasks);
-          setGanttKey(k => k + 1);
-          isSavingRef.current = false;
+          localTasksRef.current.delete(taskId);
           setSavingTask(null);
           return false;
         }
 
-        // Create updated items array with the new dates
+        // Create updated items array
         const updatedItems = [...items];
         updatedItems[itemIndex] = { 
-          ...items[itemIndex], 
-          fecha_inicio: updates.fecha_inicio,
-          fecha_termino: updates.fecha_termino
+          ...items[itemIndex],
+          ...(updates.fecha_inicio && { fecha_inicio: updates.fecha_inicio }),
+          ...(updates.fecha_termino && { fecha_termino: updates.fecha_termino }),
+          ...(updates.progreso !== undefined && { progreso: updates.progreso }),
         };
 
-        console.log("Saving to DB - Workflow ID:", workflow.id);
-        console.log("Saving to DB - Item:", taskId, "Updates:", updates);
-        console.log("Updated item will be:", updatedItems[itemIndex]);
-
         // Save to database
-        const { data: updateData, error: updateError } = await supabase
+        const { error: updateError } = await supabase
           .from("workflows")
           .update({ 
             items: updatedItems, 
             updated_at: new Date().toISOString() 
           })
-          .eq("id", workflow.id)
-          .select();
-
-        console.log("Update response data:", updateData);
-        console.log("Update response error:", updateError);
+          .eq("id", workflow.id);
 
         if (updateError) {
           console.error("Error updating workflow:", updateError);
           throw updateError;
         }
 
-        console.log("Successfully saved to database");
-        toast.success("Fechas actualizadas");
-
-        // Allow sync again and trigger refresh after delay
+        toast.success("Cambios guardados");
+        
+        // Clear local modifications after successful save
+        // Wait a bit before refreshing to let the DB settle
         setTimeout(() => {
-          isSavingRef.current = false;
+          localTasksRef.current.delete(taskId);
           setSavingTask(null);
           if (onRefresh) {
             onRefresh();
           }
-        }, 500);
+        }, 200);
         
         return true;
       } catch (error) {
         console.error("Error updating workflow item:", error);
         toast.error("Error al guardar los cambios");
-        setLocalTasks(previousTasks);
-        setGanttKey(k => k + 1);
-        isSavingRef.current = false;
+        localTasksRef.current.delete(taskId);
         setSavingTask(null);
         return false;
       }
     },
-    [localTasks, onRefresh]
+    [tasks, onRefresh]
   );
 
   // Handle date change from Gantt (drag or resize)
   const handleDateChange = useCallback(
-    async (task: Task, children: Task[]): Promise<boolean> => {
-      console.log("handleDateChange called:", task.id, task.start, task.end);
+    async (task: Task): Promise<boolean> => {
       const result = await updateWorkflowItem(task.id, {
         fecha_inicio: formatDateForDB(task.start),
         fecha_termino: formatDateForDB(task.end),
       });
-      // Return the result - if false, gantt-task-react will undo the change
       return result;
     },
     [updateWorkflowItem]
@@ -262,12 +243,13 @@ export function GanttTaskReact({
 
   // Handle progress change
   const handleProgressChange = useCallback(
-    async (task: Task, children: Task[]): Promise<boolean> => {
-      console.log("Progress changed:", task.id, task.progress);
-      // TODO: Implement progress update
-      return true;
+    async (task: Task): Promise<boolean> => {
+      const result = await updateWorkflowItem(task.id, {
+        progreso: Math.round(task.progress),
+      });
+      return result;
     },
-    []
+    [updateWorkflowItem]
   );
 
   // Handle task click
@@ -275,7 +257,7 @@ export function GanttTaskReact({
     console.log("Task clicked:", task.id);
   }, []);
 
-  if (localTasks.length === 0) {
+  if (mergedTasks.length === 0) {
     return (
       <div className="border rounded-lg bg-card overflow-hidden">
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -388,7 +370,6 @@ export function GanttTaskReact({
           }
         `}</style>
         <Gantt
-          key={ganttKey}
           tasks={ganttTasks}
           viewMode={viewMode}
           onDateChange={handleDateChange}
@@ -426,7 +407,7 @@ export function GanttTaskReact({
             <div className="text-xs">
               {tableTasks.map((task) => {
                 const duration = differenceInDays(task.end, task.start) + 1;
-                const originalTask = localTasks.find(t => t.id === task.id);
+                const originalTask = mergedTasks.find(t => t.id === task.id);
                 const colors = typeColors[originalTask?.tipo || 'tarea'];
                 return (
                   <div
@@ -468,7 +449,7 @@ export function GanttTaskReact({
             </div>
           )}
           TooltipContent={({ task }) => {
-            const originalTask = localTasks.find((t) => t.id === task.id);
+            const originalTask = mergedTasks.find((t) => t.id === task.id);
             const duration = differenceInDays(task.end, task.start) + 1;
             return (
               <div className="bg-popover border rounded-lg p-3 shadow-lg min-w-[220px]">
