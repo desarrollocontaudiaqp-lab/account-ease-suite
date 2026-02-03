@@ -115,7 +115,7 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
           fecha_inicio: data.fecha_inicio,
           fecha_termino: data.fecha_termino,
           fecha_vencimiento: data.fecha_vencimiento,
-          dependencias: data.dependencias || [],
+          dependencias: data.conexiones || [],
           progreso: data.progreso || 0,
           enlaceSharepoint: data.enlaceSharepoint,
           // Use contratoId from the item's data, or fallback to activity's contratoId
