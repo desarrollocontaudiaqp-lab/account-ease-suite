@@ -234,18 +234,21 @@ export function useWorkFlowTree() {
                 .filter((item) => item.tipo === "actividad")
                 .sort((a, b) => a._originalIndex - b._originalIndex);
 
-              // Helper function to recursively get all descendant IDs of an activity
-              const getActivityDescendantIds = (actividadId: string): Set<string> => {
-                const descendantIds = new Set<string>();
-                const queue: string[] = [actividadId];
+              // Helper function to get all descendant IDs starting from a set of root item IDs
+              // Uses conexiones from activity to find the root input, then follows parentId chain
+              const getActivityDescendantIds = (rootInputIds: string[]): Set<string> => {
+                const descendantIds = new Set<string>(rootInputIds);
+                const queue: string[] = [...rootInputIds];
                 
                 while (queue.length > 0) {
                   const currentId = queue.shift()!;
                   // Find all items that have this ID as their parentId
                   const children = itemsWithIndex.filter(item => item.parentId === currentId);
                   children.forEach(child => {
-                    descendantIds.add(child.id);
-                    queue.push(child.id);
+                    if (!descendantIds.has(child.id)) {
+                      descendantIds.add(child.id);
+                      queue.push(child.id);
+                    }
                   });
                 }
                 
@@ -253,17 +256,18 @@ export function useWorkFlowTree() {
               };
 
               actividades.forEach((actividad) => {
-                // Get all descendant IDs for this specific activity
-                const activityDescendantIds = getActivityDescendantIds(actividad.id);
+                // Get root input IDs from the activity's conexiones array
+                // This defines which inputs belong to this specific activity
+                const rootInputIds = (actividad.conexiones || []).filter((id: string) => 
+                  itemsWithIndex.some(item => item.id === id && item.tipo === "input")
+                );
                 
-                // Get all items that belong to this activity (direct children or descendants)
-                const activityItems = itemsWithIndex
-                  .filter((item) => activityDescendantIds.has(item.id))
-                  .sort((a, b) => a._originalIndex - b._originalIndex);
-
-                // Get inputs for this activity (direct children with tipo="input")
+                // Get all descendant IDs starting from these root inputs
+                const activityDescendantIds = getActivityDescendantIds(rootInputIds);
+                
+                // Get inputs for this activity (from conexiones only)
                 const inputs = itemsWithIndex
-                  .filter((item) => item.tipo === "input" && item.parentId === actividad.id)
+                  .filter((item) => item.tipo === "input" && rootInputIds.includes(item.id))
                   .sort((a, b) => a._originalIndex - b._originalIndex);
 
                 const inputNodes: TreeNode[] = inputs.map((input) => ({
@@ -279,10 +283,9 @@ export function useWorkFlowTree() {
                   isCompleted: input.completado,
                 }));
 
-                // Get all tareas (procesos) that belong to inputs of THIS activity only
-                const inputIds = inputs.map(i => i.id);
+                // Get all tareas that belong to THIS activity's descendants
                 const tareas = itemsWithIndex
-                  .filter((item) => item.tipo === "tarea" && inputIds.includes(item.parentId as string))
+                  .filter((item) => item.tipo === "tarea" && activityDescendantIds.has(item.id))
                   .sort((a, b) => a._originalIndex - b._originalIndex);
 
                 const tareaNodes: TreeNode[] = tareas.map((tarea) => ({
@@ -297,9 +300,9 @@ export function useWorkFlowTree() {
                   isCompleted: tarea.completado,
                 }));
 
-                // Get outputs that belong to inputs of THIS activity only
+                // Get outputs that belong to THIS activity's descendants
                 const outputs = itemsWithIndex
-                  .filter((item) => item.tipo === "output" && inputIds.includes(item.parentId as string))
+                  .filter((item) => item.tipo === "output" && activityDescendantIds.has(item.id))
                   .sort((a, b) => a._originalIndex - b._originalIndex);
 
                 const outputNodes: TreeNode[] = outputs.map((output) => ({
@@ -314,9 +317,9 @@ export function useWorkFlowTree() {
                   isCompleted: output.completado,
                 }));
 
-                // Get supervision items that belong to inputs of THIS activity only
+                // Get supervision items that belong to THIS activity's descendants
                 const supervisionItems = itemsWithIndex
-                  .filter((item) => item.tipo === "supervision" && inputIds.includes(item.parentId as string))
+                  .filter((item) => item.tipo === "supervision" && activityDescendantIds.has(item.id))
                   .sort((a, b) => a._originalIndex - b._originalIndex);
 
                 const supervisionNodes: TreeNode[] = supervisionItems.map((sup) => ({
