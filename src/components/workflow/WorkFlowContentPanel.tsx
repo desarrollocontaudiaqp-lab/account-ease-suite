@@ -405,7 +405,8 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
         <WorkFlowBreadcrumb 
           selectedNode={selectedNode} 
           treeData={treeData} 
-          onNavigate={(node) => onNavigateNode?.(node)} 
+          onNavigate={(node) => onNavigateNode?.(node)}
+          onRefreshCurrent={handleFullRefresh}
         />
 
         <ScrollArea className="flex-1">

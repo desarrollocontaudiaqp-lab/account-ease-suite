@@ -1,11 +1,13 @@
-import { ChevronRight, Home } from "lucide-react";
+import { ChevronRight, Home, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TreeNode } from "./WorkFlowTreeSidebar";
 
 interface WorkFlowBreadcrumbProps {
   selectedNode: TreeNode | null;
   treeData: TreeNode[];
   onNavigate: (node: TreeNode) => void;
+  onRefreshCurrent?: () => Promise<void> | void;
 }
 
 /**
@@ -29,7 +31,7 @@ function findNodePath(nodes: TreeNode[], targetId: string, currentPath: TreeNode
   return null;
 }
 
-export function WorkFlowBreadcrumb({ selectedNode, treeData, onNavigate }: WorkFlowBreadcrumbProps) {
+export function WorkFlowBreadcrumb({ selectedNode, treeData, onNavigate, onRefreshCurrent }: WorkFlowBreadcrumbProps) {
   // Build the path from root to selected node
   const path = selectedNode ? findNodePath(treeData, selectedNode.id) || [] : [];
   
@@ -41,6 +43,12 @@ export function WorkFlowBreadcrumb({ selectedNode, treeData, onNavigate }: WorkF
       </div>
     );
   }
+
+  const handleCurrentClick = () => {
+    if (onRefreshCurrent) {
+      onRefreshCurrent();
+    }
+  };
 
   return (
     <nav 
@@ -58,12 +66,26 @@ export function WorkFlowBreadcrumb({ selectedNode, treeData, onNavigate }: WorkF
               )}
               
               {isLast ? (
-                // Current page - not clickable
-                <span 
-                  className="text-sm font-medium text-foreground px-2 py-0.5 rounded bg-background border border-border shadow-sm"
-                >
-                  {node.label}
-                </span>
+                // Current page - clickable to refresh
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={handleCurrentClick}
+                      className={cn(
+                        "text-sm font-medium text-foreground px-2 py-0.5 rounded bg-background border border-border shadow-sm",
+                        "flex items-center gap-1.5 transition-colors",
+                        "hover:bg-primary/5 hover:border-primary/30 focus:outline-none focus:ring-2 focus:ring-primary/20",
+                        "cursor-pointer"
+                      )}
+                    >
+                      {node.label}
+                      <RefreshCw className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>Clic para recargar esta sección</p>
+                  </TooltipContent>
+                </Tooltip>
               ) : (
                 // Clickable ancestor
                 <button
