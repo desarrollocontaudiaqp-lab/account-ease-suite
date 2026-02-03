@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { format, parseISO, isPast } from "date-fns";
+import { format, parseISO, isPast, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Activity,
@@ -329,15 +329,18 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
                     <TableHead className="w-[50px]">Estado</TableHead>
                     <TableHead className="w-[100px]">Tipo</TableHead>
                     <TableHead>Paso</TableHead>
+                    <TableHead className="w-[90px]">Inicio</TableHead>
+                    <TableHead className="w-[90px]">Fin</TableHead>
+                    <TableHead className="w-[60px] text-center">Días</TableHead>
+                    <TableHead className="w-[60px] text-center">%</TableHead>
                     <TableHead>Asignado</TableHead>
-                    <TableHead className="w-[120px]">Vencimiento</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {steps.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                         No hay pasos en esta actividad
                       </TableCell>
                     </TableRow>
@@ -349,6 +352,20 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
                         isOverdue = isPast(new Date(year, month - 1, day));
                       }
                       const Icon = typeIcons[step.type] || Activity;
+
+                      // Parse dates for display
+                      const parseDate = (dateStr?: string) => {
+                        if (!dateStr) return null;
+                        const [year, month, day] = dateStr.split("T")[0].split("-").map(Number);
+                        return new Date(year, month - 1, day);
+                      };
+
+                      const fechaInicio = parseDate(step.fecha_inicio);
+                      const fechaTermino = parseDate(step.fecha_termino);
+                      const duracion = fechaInicio && fechaTermino 
+                        ? differenceInDays(fechaTermino, fechaInicio) + 1 
+                        : null;
+                      const progreso = step.progreso || 0;
 
                       return (
                         <TableRow 
@@ -375,6 +392,40 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
                           </TableCell>
                           <TableCell className="font-medium">{step.label}</TableCell>
                           <TableCell>
+                            {fechaInicio ? (
+                              <span className="text-sm text-muted-foreground">
+                                {format(fechaInicio, "dd MMM", { locale: es })}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {fechaTermino ? (
+                              <span className="text-sm text-muted-foreground">
+                                {format(fechaTermino, "dd MMM", { locale: es })}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {duracion !== null ? (
+                              <span className="text-sm font-medium">{duracion}</span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className={cn(
+                              "text-sm font-medium",
+                              progreso >= 100 ? "text-emerald-600" :
+                              progreso > 0 ? "text-amber-600" : "text-muted-foreground"
+                            )}>
+                              {progreso}
+                            </span>
+                          </TableCell>
+                          <TableCell>
                             {step.asignado_nombre ? (
                               <div className="flex items-center gap-2">
                                 <Avatar className="h-6 w-6">
@@ -386,21 +437,6 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
                               </div>
                             ) : (
                               <span className="text-sm text-muted-foreground">Sin asignar</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {step.fecha_vencimiento ? (
-                              <span className={cn(
-                                "text-sm",
-                                isOverdue && "text-red-600 font-medium"
-                              )}>
-                                {(() => {
-                                  const [year, month, day] = step.fecha_vencimiento!.split("T")[0].split("-").map(Number);
-                                  return format(new Date(year, month - 1, day), "dd MMM yyyy", { locale: es });
-                                })()}
-                              </span>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell>
