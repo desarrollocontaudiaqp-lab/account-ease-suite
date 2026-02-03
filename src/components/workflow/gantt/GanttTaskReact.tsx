@@ -2,7 +2,8 @@ import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { Gantt, Task, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
 import { addDays, differenceInDays } from "date-fns";
-import { Calendar, Loader2, RefreshCw, Save, Maximize2, Minimize2 } from "lucide-react";
+import { Calendar, Loader2, RefreshCw, Save, Maximize2, Minimize2, GitBranch } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -61,6 +62,7 @@ export function GanttTaskReact({
   const [savingTask, setSavingTask] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showArrows, setShowArrows] = useState(false);
   
   // LOCAL STATE - This is the source of truth for the Gantt chart
   // Only sync from props when there are no pending saves
@@ -74,65 +76,21 @@ export function GanttTaskReact({
     }
   }, [propTasks]);
 
-  // Direct database reload function
-  const reloadFromDatabase = useCallback(async () => {
-    if (!contratoId) {
-      console.warn("No contratoId provided for reload");
-      if (onRefresh) onRefresh();
-      return;
-    }
-
+  // Refresh handler - uses parent's onRefresh to maintain proper filtering
+  const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     pendingSaveRef.current = false;
-
-    try {
-      const { data: workflow, error } = await supabase
-        .from("workflows")
-        .select("items")
-        .eq("contrato_id", contratoId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error reloading from DB:", error);
-        toast.error("Error al recargar datos");
-        return;
-      }
-
-      if (workflow?.items) {
-        const items = workflow.items as any[];
-        // Filter to only show tasks relevant to this activity (same logic as parent)
-        const reloadedTasks: GanttTaskData[] = items
-          .filter((item: any) => 
-            item.tipo === "input" || 
-            item.tipo === "tarea" || 
-            item.tipo === "output" || 
-            item.tipo === "supervision"
-          )
-          .map((item: any) => ({
-            id: item.id,
-            label: item.titulo,
-            tipo: item.tipo,
-            fecha_inicio: item.fecha_inicio,
-            fecha_termino: item.fecha_termino,
-            progreso: item.progreso || 0,
-            asignado_a: item.asignado_a,
-            asignado_nombre: item.asignado_nombre,
-            dependencias: item.conexiones,
-            isCompleted: item.completado || false,
-            contratoId: contratoId,
-          }));
-
-        console.log("Reloaded from DB:", reloadedTasks.length, "tasks");
-        setLocalTasks(reloadedTasks);
-        toast.success("Diagrama actualizado");
-      }
-    } catch (err) {
-      console.error("Reload error:", err);
-      toast.error("Error al recargar");
-    } finally {
-      setIsRefreshing(false);
+    
+    if (onRefresh) {
+      onRefresh();
     }
-  }, [contratoId, onRefresh]);
+    
+    // Reset refreshing state after a short delay
+    setTimeout(() => {
+      setIsRefreshing(false);
+      toast.success("Diagrama actualizado");
+    }, 500);
+  }, [onRefresh]);
 
   // Convert our data format to gantt-task-react format
   const ganttTasks: Task[] = useMemo(() => {
@@ -145,9 +103,10 @@ export function GanttTaskReact({
       const validEndDate = endDate >= startDate ? endDate : addDays(startDate, 1);
       const colors = typeColors[task.tipo] || typeColors.tarea;
       
-      const dependencies = task.dependencias
-        ?.filter((depId) => localTasks.some((t) => t.id === depId))
-        || [];
+      // Only include dependencies if arrows are enabled
+      const dependencies = showArrows 
+        ? (task.dependencias?.filter((depId) => localTasks.some((t) => t.id === depId)) || [])
+        : [];
 
       return {
         id: task.id,
@@ -167,7 +126,7 @@ export function GanttTaskReact({
         project: task.contratoId,
       };
     });
-  }, [localTasks]);
+  }, [localTasks, showArrows]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -318,11 +277,6 @@ export function GanttTaskReact({
     console.log("Task clicked:", task.id);
   }, []);
 
-  // Manual refresh handler - now uses direct DB reload
-  const handleManualRefresh = useCallback(() => {
-    reloadFromDatabase();
-  }, [reloadFromDatabase]);
-
   if (localTasks.length === 0) {
     return (
       <div className="border rounded-lg bg-card overflow-hidden">
@@ -342,42 +296,61 @@ export function GanttTaskReact({
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">Diagrama Gantt</span>
-          {/* Save button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 hover:bg-muted"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing || !!savingTask}
-            title="Guardar cambios"
-          >
-            <Save className={`h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors`} />
-          </Button>
+          
           {/* Refresh button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 hover:bg-muted"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing || !!savingTask}
-            title="Actualizar diagrama"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-muted"
+                onClick={handleRefresh}
+                disabled={isRefreshing || !!savingTask}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Actualizar diagrama</TooltipContent>
+          </Tooltip>
+          
+          {/* Toggle arrows button */}
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-6 w-6 p-0 hover:bg-muted ${showArrows ? 'bg-primary/10' : ''}`}
+                onClick={() => setShowArrows(!showArrows)}
+              >
+                <GitBranch className={`h-3.5 w-3.5 transition-colors ${showArrows ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {showArrows ? 'Ocultar dependencias' : 'Mostrar dependencias'}
+            </TooltipContent>
+          </Tooltip>
+          
           {/* Fullscreen button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 hover:bg-muted"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
-            ) : (
-              <Maximize2 className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
-            )}
-          </Button>
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-muted"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                ) : (
+                  <Maximize2 className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+            </TooltipContent>
+          </Tooltip>
+          
           {savingTask && (
             <Badge variant="outline" className="gap-1 ml-1">
               <Loader2 className="h-3 w-3 animate-spin" />
