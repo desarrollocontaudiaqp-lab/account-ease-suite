@@ -1,0 +1,131 @@
+/* Custom styles for gantt-task-react */
+.gantt-wrapper {
+  --gantt-bg: hsl(var(--card));
+  --gantt-border: hsl(var(--border));
+  --gantt-text: hsl(var(--foreground));
+  --gantt-muted: hsl(var(--muted-foreground));
+}
+
+.gantt-wrapper ._3eULf {
+  fill: hsl(var(--card)) !important;
+  stroke: hsl(var(--border)) !important;
+}
+
+/* Calendar header */
+.gantt-wrapper ._2k9Ys {
+  fill: hsl(var(--muted)) !important;
+  stroke: hsl(var(--border)) !important;
+}
+
+/* Calendar text */
+.gantt-wrapper ._3ZbQT,
+.gantt-wrapper ._9w8d5,
+.gantt-wrapper ._1rLuZ {
+  fill: hsl(var(--foreground)) !important;
+  font-family: inherit !important;
+}
+
+/* Grid lines */
+.gantt-wrapper ._1nBOt {
+  stroke: hsl(var(--border)) !important;
+  opacity: 0.5;
+}
+
+/* Today highlight */
+.gantt-wrapper ._RuwuK {
+  fill: hsl(var(--primary) / 0.1) !important;
+}
+
+/* Task bars */
+.gantt-wrapper ._CZjuD {
+  cursor: grab;
+  transition: filter 0.15s ease;
+}
+
+.gantt-wrapper ._CZjuD:hover {
+  filter: brightness(1.1);
+}
+
+/* Resize handles */
+.gantt-wrapper ._KxSXS,
+.gantt-wrapper ._1KJ6x {
+  cursor: ew-resize !important;
+  fill: rgba(255, 255, 255, 0.4) !important;
+  rx: 2 !important;
+}
+
+.gantt-wrapper ._KxSXS:hover,
+.gantt-wrapper ._1KJ6x:hover {
+  fill: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Arrow/dependency lines */
+.gantt-wrapper ._3zRJQ {
+  stroke: hsl(var(--primary)) !important;
+  stroke-width: 2 !important;
+}
+
+/* Task list container */
+.gantt-wrapper ._3_ygE {
+  background: hsl(var(--card)) !important;
+  border-right: 1px solid hsl(var(--border)) !important;
+}
+
+/* Task list header */
+.gantt-wrapper ._WuQ0f {
+  background: hsl(var(--muted) / 0.3) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+/* Task list rows */
+.gantt-wrapper ._nI1Xw {
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+.gantt-wrapper ._nI1Xw:nth-child(even) {
+  background: hsl(var(--muted) / 0.1) !important;
+}
+
+/* Scrollbar styling */
+.gantt-wrapper ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.gantt-wrapper ::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.3);
+  border-radius: 4px;
+}
+
+.gantt-wrapper ::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+.gantt-wrapper ::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Progress bar inside task */
+.gantt-wrapper ._35nLX {
+  transition: width 0.2s ease;
+}
+
+/* Selected task highlight */
+.gantt-wrapper ._3T42e {
+  filter: brightness(1.15);
+}
+
+/* Task bar text (hidden by default in this library, but styled just in case) */
+.gantt-wrapper ._3lLk3 {
+  fill: white !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+/* Vertical grid lines for current day */
+.gantt-wrapper ._2dZTy {
+  stroke: hsl(var(--primary)) !important;
+  stroke-width: 2 !important;
+  opacity: 0.5;
+}
