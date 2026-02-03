@@ -10,15 +10,19 @@ interface WorkFlowItem {
   titulo: string;
   descripcion?: string;
   asignado_a?: string;
+  asignado_nombre?: string;
   rol?: string;
   completado: boolean;
   orden: number;
   conexiones?: string[];
+  dependencias?: string[];
   subColumna?: number;
   parentId?: string;
   enlaceSharepoint?: string;
   fecha_inicio?: string;
   fecha_termino?: string;
+  fecha_vencimiento?: string;
+  progreso?: number;
 }
 
 interface Workflow {
@@ -239,7 +243,9 @@ export function useWorkFlowTree() {
                   label: input.titulo,
                   data: {
                     ...input,
+                    contratoId: contrato.id,
                     enlaceSharepoint: input.enlaceSharepoint,
+                    asignado_nombre: input.asignado_a ? profilesMap[input.asignado_a]?.full_name : null,
                   },
                   isCompleted: input.completado,
                 }));
@@ -255,6 +261,7 @@ export function useWorkFlowTree() {
                   label: tarea.titulo,
                   data: {
                     ...tarea,
+                    contratoId: contrato.id,
                     asignado_nombre: tarea.asignado_a ? profilesMap[tarea.asignado_a]?.full_name : null,
                   },
                   isCompleted: tarea.completado,
@@ -269,7 +276,11 @@ export function useWorkFlowTree() {
                   id: output.id,
                   type: "output" as const,
                   label: output.titulo,
-                  data: output,
+                  data: {
+                    ...output,
+                    contratoId: contrato.id,
+                    asignado_nombre: output.asignado_a ? profilesMap[output.asignado_a]?.full_name : null,
+                  },
                   isCompleted: output.completado,
                 }));
 
@@ -284,6 +295,7 @@ export function useWorkFlowTree() {
                   label: sup.titulo,
                   data: {
                     ...sup,
+                    contratoId: contrato.id,
                     asignado_nombre: sup.asignado_a ? profilesMap[sup.asignado_a]?.full_name : null,
                   },
                   isCompleted: sup.completado,

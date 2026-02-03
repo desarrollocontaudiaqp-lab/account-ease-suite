@@ -55,6 +55,7 @@ interface WorkflowStep {
   dependencias?: string[];
   progreso?: number;
   enlaceSharepoint?: string;
+  contratoId?: string;
 }
 
 const typeIcons: Record<string, React.ElementType> = {
@@ -101,6 +102,8 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
   // Collect all workflow steps from this activity
   const steps = useMemo(() => {
     const result: WorkflowStep[] = [];
+    // Get contratoId from the activity node's data
+    const activityContratoId = node.data?.contratoId;
 
     const collectSteps = (n: TreeNode) => {
       const data = n.data || {};
@@ -119,6 +122,8 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
           dependencias: data.dependencias || [],
           progreso: data.progreso || 0,
           enlaceSharepoint: data.enlaceSharepoint,
+          // Use contratoId from the item's data, or fallback to activity's contratoId
+          contratoId: data.contratoId || activityContratoId,
         });
       }
 
@@ -136,7 +141,9 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
 
   // Convert steps to GanttTask format
   const ganttTasks: GanttTask[] = useMemo(() => {
-    const contratoId = node.data?.contratoId;
+    // Fallback contratoId from activity node
+    const fallbackContratoId = node.data?.contratoId;
+    
     return steps.map(step => ({
       id: step.id,
       label: step.label,
@@ -148,7 +155,7 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
       asignado_nombre: step.asignado_nombre,
       dependencias: step.dependencias,
       isCompleted: step.isCompleted,
-      contratoId,
+      contratoId: step.contratoId || fallbackContratoId,
     }));
   }, [steps, node.data?.contratoId]);
 

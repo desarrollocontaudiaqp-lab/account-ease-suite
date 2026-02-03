@@ -85,25 +85,37 @@ export function GanttChart({ tasks, profiles, onRefresh }: GanttChartProps) {
       dependencias: string[];
     }>
   ) => {
-    if (!task.contratoId) return;
+    if (!task.contratoId) {
+      console.error("No contratoId found for task:", task.id);
+      toast.error("No se puede actualizar: falta el ID del contrato");
+      return;
+    }
     
     setSavingTask(task.id);
 
     try {
+      // First fetch the current workflow
       const { data: workflow, error: wfError } = await supabase
         .from("workflows")
         .select("id, items")
         .eq("contrato_id", task.contratoId)
         .maybeSingle();
 
-      if (wfError) throw wfError;
+      if (wfError) {
+        console.error("Error fetching workflow:", wfError);
+        throw wfError;
+      }
+      
       if (!workflow) {
+        console.error("No workflow found for contrato_id:", task.contratoId);
         toast.error("No se encontró el workflow");
+        setSavingTask(null);
         return;
       }
 
       const items = (workflow.items as any[]) || [];
       
+      // Update the specific item
       const updatedItems = items.map((item: any) => {
         if (item.id === task.id) {
           const newItem = { ...item, ...updates };
@@ -117,27 +129,43 @@ export function GanttChart({ tasks, profiles, onRefresh }: GanttChartProps) {
         return item;
       });
 
+      // Save to database
       const { error: updateError } = await supabase
         .from("workflows")
         .update({ items: updatedItems, updated_at: new Date().toISOString() })
         .eq("id", workflow.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Error updating workflow:", updateError);
+        throw updateError;
+      }
 
-      toast.success("Actualizado correctamente");
-      onRefresh?.();
+      toast.success("Guardado correctamente");
+      
+      // Trigger refresh to update UI
+      if (onRefresh) {
+        onRefresh();
+      }
     } catch (error) {
-      console.error("Error updating:", error);
-      toast.error("Error al actualizar");
+      console.error("Error updating workflow item:", error);
+      toast.error("Error al guardar los cambios");
+    } finally {
+      setSavingTask(null);
     }
-
-    setSavingTask(null);
   }, [profiles, onRefresh]);
 
   const handleUpdateDates = useCallback((task: GanttTask, start: Date, end: Date) => {
+    // Format dates as ISO strings (just date portion for consistency)
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}T00:00:00.000Z`;
+    };
+    
     updateWorkflowItem(task, {
-      fecha_inicio: start.toISOString(),
-      fecha_termino: end.toISOString(),
+      fecha_inicio: formatDate(start),
+      fecha_termino: formatDate(end),
     });
   }, [updateWorkflowItem]);
 
