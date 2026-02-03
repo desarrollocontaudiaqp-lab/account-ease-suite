@@ -27,6 +27,7 @@ interface GanttTaskReactProps {
   tasks: GanttTaskData[];
   profiles: { id: string; full_name: string | null }[];
   onRefresh?: () => void;
+  contratoId?: string;
 }
 
 // Color palette by type
@@ -54,6 +55,7 @@ export function GanttTaskReact({
   tasks: propTasks,
   profiles,
   onRefresh,
+  contratoId,
 }: GanttTaskReactProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Day);
   const [savingTask, setSavingTask] = useState<string | null>(null);
@@ -70,6 +72,66 @@ export function GanttTaskReact({
       setLocalTasks(propTasks);
     }
   }, [propTasks]);
+
+  // Direct database reload function
+  const reloadFromDatabase = useCallback(async () => {
+    if (!contratoId) {
+      console.warn("No contratoId provided for reload");
+      if (onRefresh) onRefresh();
+      return;
+    }
+
+    setIsRefreshing(true);
+    pendingSaveRef.current = false;
+
+    try {
+      const { data: workflow, error } = await supabase
+        .from("workflows")
+        .select("items")
+        .eq("contrato_id", contratoId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error reloading from DB:", error);
+        toast.error("Error al recargar datos");
+        return;
+      }
+
+      if (workflow?.items) {
+        const items = workflow.items as any[];
+        // Filter to only show tasks relevant to this activity (same logic as parent)
+        const reloadedTasks: GanttTaskData[] = items
+          .filter((item: any) => 
+            item.tipo === "input" || 
+            item.tipo === "tarea" || 
+            item.tipo === "output" || 
+            item.tipo === "supervision"
+          )
+          .map((item: any) => ({
+            id: item.id,
+            label: item.titulo,
+            tipo: item.tipo,
+            fecha_inicio: item.fecha_inicio,
+            fecha_termino: item.fecha_termino,
+            progreso: item.progreso || 0,
+            asignado_a: item.asignado_a,
+            asignado_nombre: item.asignado_nombre,
+            dependencias: item.conexiones,
+            isCompleted: item.completado || false,
+            contratoId: contratoId,
+          }));
+
+        console.log("Reloaded from DB:", reloadedTasks.length, "tasks");
+        setLocalTasks(reloadedTasks);
+        toast.success("Diagrama actualizado");
+      }
+    } catch (err) {
+      console.error("Reload error:", err);
+      toast.error("Error al recargar");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [contratoId, onRefresh]);
 
   // Convert our data format to gantt-task-react format
   const ganttTasks: Task[] = useMemo(() => {
@@ -255,15 +317,10 @@ export function GanttTaskReact({
     console.log("Task clicked:", task.id);
   }, []);
 
-  // Manual refresh handler
+  // Manual refresh handler - now uses direct DB reload
   const handleManualRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    pendingSaveRef.current = false; // Allow sync
-    if (onRefresh) {
-      onRefresh();
-    }
-    setTimeout(() => setIsRefreshing(false), 1000);
-  }, [onRefresh]);
+    reloadFromDatabase();
+  }, [reloadFromDatabase]);
 
   if (localTasks.length === 0) {
     return (
