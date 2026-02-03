@@ -39,7 +39,7 @@ import type { TreeNode } from "../WorkFlowTreeSidebar";
 interface DataNotionViewProps {
   node: TreeNode;
   workflowId?: string;
-  onRefresh?: () => void;
+  onRefresh?: () => Promise<void> | void;
 }
 
 interface NoteBlock {

@@ -40,7 +40,7 @@ import type { TreeNode } from "./WorkFlowTreeSidebar";
 interface ActividadesBacklogProps {
   node: TreeNode;
   allNodes?: TreeNode[];
-  onRefresh?: () => void;
+  onRefresh?: () => Promise<void> | void;
 }
 
 interface ActivityItem {

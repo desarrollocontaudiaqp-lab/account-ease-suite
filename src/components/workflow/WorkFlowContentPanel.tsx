@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
@@ -45,7 +45,7 @@ import { SupervisionView } from "./views/SupervisionView";
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
   treeData?: TreeNode[];
-  onRefresh?: () => void;
+  onRefresh?: () => Promise<void> | void;
   onNavigateNode?: (node: TreeNode) => void;
 }
 
@@ -90,7 +90,18 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<{ id: string; full_name: string | null }[]>([]);
+  // Key to force complete remount of activity dashboard
+  const [contentKey, setContentKey] = useState(0);
 
+  // Enhanced refresh that triggers both data fetch AND component remount
+  const handleFullRefresh = useCallback(async () => {
+    console.log("Full refresh triggered");
+    if (onRefresh) {
+      await onRefresh();
+    }
+    // Force complete remount of content after data is fetched
+    setContentKey(k => k + 1);
+  }, [onRefresh]);
   // Fetch workflow ID and profiles
   useEffect(() => {
     const fetchContext = async () => {
@@ -328,37 +339,40 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
 
         if (isActivitiesFolder && hasChildActivities) {
           // Activities folder - show backlog of all activities
-          return <ActividadesBacklog node={selectedNode} allNodes={treeData} onRefresh={onRefresh} />;
+          return <ActividadesBacklog key={`backlog-${contentKey}`} node={selectedNode} allNodes={treeData} onRefresh={handleFullRefresh} />;
         }
 
         // Single activity - show detailed dashboard with steps table
-        return <ActividadDetailDashboard node={selectedNode} onRefresh={onRefresh} />;
+        return <ActividadDetailDashboard key={`activity-${selectedNode.id}-${contentKey}`} node={selectedNode} onRefresh={handleFullRefresh} />;
 
       case "input":
         return (
           <DataNotionView 
+            key={`input-${selectedNode.id}-${contentKey}`}
             node={selectedNode} 
             workflowId={workflowId || undefined}
-            onRefresh={onRefresh}
+            onRefresh={handleFullRefresh}
           />
         );
 
       case "tarea":
         return (
           <KanbanBoard
+            key={`tarea-${selectedNode.id}-${contentKey}`}
             node={selectedNode}
             workflowId={workflowId || undefined}
             profiles={profiles}
-            onRefresh={onRefresh}
+            onRefresh={handleFullRefresh}
           />
         );
 
       case "output":
         return (
           <DataNotionView 
+            key={`output-${selectedNode.id}-${contentKey}`}
             node={selectedNode} 
             workflowId={workflowId || undefined}
-            onRefresh={onRefresh}
+            onRefresh={handleFullRefresh}
           />
         );
 
@@ -366,10 +380,11 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
       case "supervision_item":
         return (
           <SupervisionView
+            key={`supervision-${selectedNode.id}-${contentKey}`}
             node={selectedNode}
             workflowId={workflowId || undefined}
             profiles={profiles}
-            onRefresh={onRefresh}
+            onRefresh={handleFullRefresh}
           />
         );
 
