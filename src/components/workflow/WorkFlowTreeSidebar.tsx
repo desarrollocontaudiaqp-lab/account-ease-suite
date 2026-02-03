@@ -273,13 +273,15 @@ export function WorkFlowTreeSidebar({
       "flex flex-col h-full bg-background border-r border-border transition-all duration-300 relative",
       isCollapsed ? "w-12" : "w-full"
     )}>
-      {/* Collapse Toggle */}
-      <button
-        onClick={onToggleCollapse}
-        className="absolute top-2 -right-3 z-10 p-1 rounded-full bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-sm"
-      >
-        {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
-      </button>
+      {/* Collapse Toggle - Positioned inside sidebar */}
+      {isCollapsed && (
+        <button
+          onClick={onToggleCollapse}
+          className="absolute top-2 right-1 z-10 p-1 rounded-md bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      )}
 
       {/* Header */}
       <div className={cn(
