@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { Gantt, Task, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
 import { addDays, differenceInDays } from "date-fns";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
 export interface GanttTaskData {
   id: string;
   label: string;
@@ -30,10 +31,10 @@ interface GanttTaskReactProps {
 
 // Color palette by type
 const typeColors: Record<string, { bar: string; barProgress: string }> = {
-  input: { bar: "#10b981", barProgress: "#059669" }, // emerald
-  tarea: { bar: "#f97316", barProgress: "#ea580c" }, // orange
-  output: { bar: "#a855f7", barProgress: "#9333ea" }, // purple
-  supervision: { bar: "#ef4444", barProgress: "#dc2626" }, // red
+  input: { bar: "#10b981", barProgress: "#059669" },
+  tarea: { bar: "#f97316", barProgress: "#ea580c" },
+  output: { bar: "#a855f7", barProgress: "#9333ea" },
+  supervision: { bar: "#ef4444", barProgress: "#dc2626" },
 };
 
 const parseLocalDate = (dateStr?: string): Date | null => {
@@ -56,33 +57,30 @@ export function GanttTaskReact({
 }: GanttTaskReactProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Day);
   const [savingTask, setSavingTask] = useState<string | null>(null);
-  
-  // Local state to force re-render when tasks are updated via drag
   const [localTasks, setLocalTasks] = useState<GanttTaskData[]>(tasks);
   const [ganttKey, setGanttKey] = useState(0);
-  const [isUpdating, setIsUpdating] = useState(false);
   
-  // Sync local tasks when props change, but only if we're not in the middle of an update
+  // Ref to track if we're currently saving to prevent sync overwrites
+  const isSavingRef = useRef(false);
+
+  // Sync with props only when not in the middle of a save operation
   useEffect(() => {
-    if (!isUpdating) {
+    if (!isSavingRef.current) {
       setLocalTasks(tasks);
     }
-  }, [tasks, isUpdating]);
+  }, [tasks]);
 
-  // Convert our data format to gantt-task-react format - use localTasks for optimistic updates
+  // Convert our data format to gantt-task-react format
   const ganttTasks: Task[] = useMemo(() => {
     const today = new Date();
     
-    return localTasks.map((task, index) => {
+    return localTasks.map((task) => {
       const startDate = parseLocalDate(task.fecha_inicio) || today;
       const endDate = parseLocalDate(task.fecha_termino) || addDays(startDate, 1);
       
-      // Ensure end date is after or equal to start date
       const validEndDate = endDate >= startDate ? endDate : addDays(startDate, 1);
-      
       const colors = typeColors[task.tipo] || typeColors.tarea;
       
-      // Build dependencies array (referencing other task IDs)
       const dependencies = task.dependencias
         ?.filter((depId) => localTasks.some((t) => t.id === depId))
         || [];
@@ -102,13 +100,12 @@ export function GanttTaskReact({
           progressSelectedColor: colors.barProgress,
         },
         dependencies,
-        // Custom properties for our logic
         project: task.contratoId,
       };
     });
   }, [localTasks]);
 
-  // Calculate stats - use localTasks for real-time updates
+  // Calculate stats
   const stats = useMemo(() => {
     const total = localTasks.length;
     const completed = localTasks.filter((t) => t.isCompleted).length;
@@ -121,25 +118,27 @@ export function GanttTaskReact({
   const updateWorkflowItem = useCallback(
     async (taskId: string, updates: { fecha_inicio: string; fecha_termino: string }) => {
       const task = localTasks.find((t) => t.id === taskId);
+      
       if (!task?.contratoId) {
         console.error("No contratoId found for task:", taskId);
         toast.error("No se puede actualizar: falta el ID del contrato");
         return false;
       }
 
-      // Mark that we're updating to prevent props sync from overwriting
-      setIsUpdating(true);
+      // Mark as saving to prevent prop sync from overwriting
+      isSavingRef.current = true;
+      setSavingTask(taskId);
 
-      // Optimistic update - update localTasks immediately
+      // Store previous state for rollback
       const previousTasks = [...localTasks];
+      
+      // Optimistic update - update local state immediately
       setLocalTasks(prev => prev.map(t => 
         t.id === taskId 
           ? { ...t, fecha_inicio: updates.fecha_inicio, fecha_termino: updates.fecha_termino }
           : t
       ));
-      setGanttKey(k => k + 1); // Force Gantt to re-render with new data
-
-      setSavingTask(taskId);
+      setGanttKey(k => k + 1);
 
       try {
         // Fetch the current workflow
@@ -157,17 +156,16 @@ export function GanttTaskReact({
         if (!workflow) {
           console.error("No workflow found for contrato_id:", task.contratoId);
           toast.error("No se encontró el workflow");
-          // Revert optimistic update
           setLocalTasks(previousTasks);
           setGanttKey(k => k + 1);
+          isSavingRef.current = false;
           setSavingTask(null);
-          setIsUpdating(false);
           return false;
         }
 
         const items = (workflow.items as any[]) || [];
 
-        // Find the item - search by id
+        // Find the item in the flat array
         const itemIndex = items.findIndex((item: any) => item.id === taskId);
         
         if (itemIndex === -1) {
@@ -176,21 +174,28 @@ export function GanttTaskReact({
           toast.error("No se encontró el item en el workflow");
           setLocalTasks(previousTasks);
           setGanttKey(k => k + 1);
+          isSavingRef.current = false;
           setSavingTask(null);
-          setIsUpdating(false);
           return false;
         }
 
-        // Update the specific item
+        // Create updated items array with the new dates
         const updatedItems = [...items];
-        updatedItems[itemIndex] = { ...items[itemIndex], ...updates };
+        updatedItems[itemIndex] = { 
+          ...items[itemIndex], 
+          fecha_inicio: updates.fecha_inicio,
+          fecha_termino: updates.fecha_termino
+        };
 
-        console.log("Updating item:", taskId, "with:", updates);
+        console.log("Saving to DB - Item:", taskId, "Updates:", updates);
 
         // Save to database
         const { error: updateError } = await supabase
           .from("workflows")
-          .update({ items: updatedItems, updated_at: new Date().toISOString() })
+          .update({ 
+            items: updatedItems, 
+            updated_at: new Date().toISOString() 
+          })
           .eq("id", workflow.id);
 
         if (updateError) {
@@ -198,27 +203,27 @@ export function GanttTaskReact({
           throw updateError;
         }
 
+        console.log("Successfully saved to database");
         toast.success("Fechas actualizadas");
 
-        // Wait a bit then allow sync again and trigger refresh
+        // Allow sync again and trigger refresh after delay
         setTimeout(() => {
-          setIsUpdating(false);
+          isSavingRef.current = false;
+          setSavingTask(null);
           if (onRefresh) {
             onRefresh();
           }
-        }, 300);
+        }, 500);
         
         return true;
       } catch (error) {
         console.error("Error updating workflow item:", error);
         toast.error("Error al guardar los cambios");
-        // Revert optimistic update on error
         setLocalTasks(previousTasks);
         setGanttKey(k => k + 1);
-        setIsUpdating(false);
-        return false;
-      } finally {
+        isSavingRef.current = false;
         setSavingTask(null);
+        return false;
       }
     },
     [localTasks, onRefresh]
@@ -226,7 +231,8 @@ export function GanttTaskReact({
 
   // Handle date change from Gantt (drag or resize)
   const handleDateChange = useCallback(
-    (task: Task, children: Task[]) => {
+    (task: Task) => {
+      console.log("handleDateChange called:", task.id, task.start, task.end);
       updateWorkflowItem(task.id, {
         fecha_inicio: formatDateForDB(task.start),
         fecha_termino: formatDateForDB(task.end),
@@ -238,8 +244,7 @@ export function GanttTaskReact({
 
   // Handle progress change
   const handleProgressChange = useCallback(
-    (task: Task, children: Task[]) => {
-      // Progress updates could be implemented here
+    (task: Task) => {
       console.log("Progress changed:", task.id, task.progress);
       return true;
     },
@@ -270,6 +275,12 @@ export function GanttTaskReact({
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">Diagrama Gantt</span>
+          {savingTask && (
+            <Badge variant="outline" className="gap-1 ml-2">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Guardando...
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
@@ -396,7 +407,8 @@ export function GanttTaskReact({
             <div className="text-xs">
               {tableTasks.map((task) => {
                 const duration = differenceInDays(task.end, task.start) + 1;
-                const colors = typeColors[(localTasks.find(t => t.id === task.id)?.tipo) || 'tarea'];
+                const originalTask = localTasks.find(t => t.id === task.id);
+                const colors = typeColors[originalTask?.tipo || 'tarea'];
                 return (
                   <div
                     key={task.id}
@@ -458,18 +470,13 @@ export function GanttTaskReact({
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Progreso:</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary rounded-full transition-all"
-                          style={{ width: `${task.progress}%` }}
-                        />
-                      </div>
-                      <span className="font-medium">{task.progress}%</span>
+                      <Progress value={task.progress} className="w-12 h-1.5" />
+                      <span>{task.progress}%</span>
                     </div>
                   </div>
                   {originalTask?.asignado_nombre && (
-                    <div className="flex justify-between pt-1 border-t border-border">
-                      <span className="text-muted-foreground">Responsable:</span>
+                    <div className="flex justify-between pt-1 border-t">
+                      <span className="text-muted-foreground">Asignado:</span>
                       <span className="font-medium">{originalTask.asignado_nombre}</span>
                     </div>
                   )}
@@ -478,38 +485,6 @@ export function GanttTaskReact({
             );
           }}
         />
-      </div>
-
-      {/* Loading indicator */}
-      {savingTask && (
-        <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm text-xs">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Guardando...
-        </div>
-      )}
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 p-3 border-t bg-muted/20 text-xs">
-        <span className="text-muted-foreground">Tipos:</span>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-emerald-500" />
-          <span>Data</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-orange-500" />
-          <span>Proceso</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-purple-500" />
-          <span>Output</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded bg-red-500" />
-          <span>Supervisión</span>
-        </div>
-        <div className="ml-auto text-muted-foreground">
-          Arrastra las barras para cambiar fechas
-        </div>
       </div>
     </div>
   );
