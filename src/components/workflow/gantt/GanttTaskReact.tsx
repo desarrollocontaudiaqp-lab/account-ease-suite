@@ -1,14 +1,13 @@
 import { useMemo, useCallback, useState } from "react";
 import { Gantt, Task, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
-import { addDays } from "date-fns";
+import { addDays, differenceInDays } from "date-fns";
 import { Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
 export interface GanttTaskData {
   id: string;
   label: string;
@@ -276,7 +275,38 @@ export function GanttTaskReact({
       </div>
 
       {/* Gantt Chart */}
-      <div className="gantt-wrapper overflow-x-auto">
+      <div className="gantt-wrapper overflow-x-auto gantt-custom-styles">
+        <style>{`
+          .gantt-custom-styles .gantt-task-list {
+            background: hsl(var(--card));
+          }
+          .gantt-custom-styles .gantt-task-list-header {
+            background: hsl(var(--muted));
+            font-weight: 600;
+            font-size: 11px;
+            color: hsl(var(--muted-foreground));
+          }
+          .gantt-custom-styles .gantt-task-list-wrapper {
+            border-right: 1px solid hsl(var(--border));
+          }
+          .gantt-custom-styles .gantt-task-list-cell {
+            border-bottom: 1px solid hsl(var(--border));
+            font-size: 12px;
+          }
+          .gantt-custom-styles ._3_ygE {
+            background: hsl(var(--card));
+          }
+          .gantt-custom-styles ._1nBOt {
+            fill: hsl(var(--muted-foreground));
+            font-size: 11px;
+          }
+          .gantt-custom-styles ._9w8d5 {
+            stroke: hsl(var(--border));
+          }
+          .gantt-custom-styles ._CZjuD {
+            fill: hsl(var(--primary) / 0.1);
+          }
+        `}</style>
         <Gantt
           tasks={ganttTasks}
           viewMode={viewMode}
@@ -284,11 +314,11 @@ export function GanttTaskReact({
           onProgressChange={handleProgressChange}
           onClick={handleTaskClick}
           locale="es"
-          listCellWidth=""
+          listCellWidth="155px"
           columnWidth={viewMode === ViewMode.Day ? 44 : viewMode === ViewMode.Week ? 120 : 180}
-          rowHeight={48}
+          rowHeight={42}
           barCornerRadius={4}
-          barFill={65}
+          barFill={60}
           handleWidth={8}
           todayColor="rgba(var(--primary), 0.1)"
           projectBackgroundColor="#f3f4f6"
@@ -299,28 +329,97 @@ export function GanttTaskReact({
           arrowIndent={20}
           fontFamily="inherit"
           fontSize="12px"
+          TaskListHeader={({ headerHeight }) => (
+            <div 
+              className="flex text-xs font-semibold text-muted-foreground bg-muted border-b border-border"
+              style={{ height: headerHeight }}
+            >
+              <div className="flex-1 px-2 flex items-center min-w-[140px]">Tarea</div>
+              <div className="w-[70px] px-1 flex items-center justify-center border-l border-border">Inicio</div>
+              <div className="w-[70px] px-1 flex items-center justify-center border-l border-border">Fin</div>
+              <div className="w-[45px] px-1 flex items-center justify-center border-l border-border">Días</div>
+              <div className="w-[45px] px-1 flex items-center justify-center border-l border-border">%</div>
+            </div>
+          )}
+          TaskListTable={({ tasks: tableTasks, rowHeight }) => (
+            <div className="text-xs">
+              {tableTasks.map((task) => {
+                const duration = differenceInDays(task.end, task.start) + 1;
+                const colors = typeColors[(tasks.find(t => t.id === task.id)?.tipo) || 'tarea'];
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center border-b border-border hover:bg-muted/50 transition-colors"
+                    style={{ height: rowHeight }}
+                  >
+                    <div className="flex-1 px-2 flex items-center gap-2 min-w-[140px] overflow-hidden">
+                      <div 
+                        className="w-2 h-2 rounded-sm flex-shrink-0"
+                        style={{ backgroundColor: colors?.bar || '#6b7280' }}
+                      />
+                      <span className="truncate font-medium" title={task.name}>
+                        {task.name}
+                      </span>
+                    </div>
+                    <div className="w-[70px] px-1 text-center text-muted-foreground border-l border-border">
+                      {task.start.toLocaleDateString('es', { day: '2-digit', month: 'short' })}
+                    </div>
+                    <div className="w-[70px] px-1 text-center text-muted-foreground border-l border-border">
+                      {task.end.toLocaleDateString('es', { day: '2-digit', month: 'short' })}
+                    </div>
+                    <div className="w-[45px] px-1 text-center font-medium border-l border-border">
+                      {duration}
+                    </div>
+                    <div className="w-[45px] px-1 text-center border-l border-border">
+                      <span 
+                        className={`font-medium ${
+                          task.progress >= 100 ? 'text-emerald-600' : 
+                          task.progress > 0 ? 'text-amber-600' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {task.progress}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           TooltipContent={({ task }) => {
             const originalTask = tasks.find((t) => t.id === task.id);
+            const duration = differenceInDays(task.end, task.start) + 1;
             return (
-              <div className="bg-popover border rounded-lg p-3 shadow-lg min-w-[200px]">
+              <div className="bg-popover border rounded-lg p-3 shadow-lg min-w-[220px]">
                 <p className="font-semibold text-sm mb-2">{task.name}</p>
-                <div className="space-y-1 text-xs">
+                <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Inicio:</span>
-                    <span>{task.start.toLocaleDateString("es")}</span>
+                    <span>{task.start.toLocaleDateString("es", { weekday: 'short', day: '2-digit', month: 'short' })}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Fin:</span>
-                    <span>{task.end.toLocaleDateString("es")}</span>
+                    <span>{task.end.toLocaleDateString("es", { weekday: 'short', day: '2-digit', month: 'short' })}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Duración:</span>
+                    <span>{duration} día{duration !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Progreso:</span>
-                    <span>{task.progress}%</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary rounded-full transition-all"
+                          style={{ width: `${task.progress}%` }}
+                        />
+                      </div>
+                      <span className="font-medium">{task.progress}%</span>
+                    </div>
                   </div>
                   {originalTask?.asignado_nombre && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between pt-1 border-t border-border">
                       <span className="text-muted-foreground">Responsable:</span>
-                      <span>{originalTask.asignado_nombre}</span>
+                      <span className="font-medium">{originalTask.asignado_nombre}</span>
                     </div>
                   )}
                 </div>
