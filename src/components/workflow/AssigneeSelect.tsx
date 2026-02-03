@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, ChevronsUpDown, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,16 @@ export function AssigneeSelect({
 }: AssigneeSelectProps) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // Local state for optimistic updates
+  const [localAssigneeId, setLocalAssigneeId] = useState<string | null | undefined>(currentAssigneeId);
+  const [localAssigneeName, setLocalAssigneeName] = useState<string | null | undefined>(currentAssigneeName);
+
+  // Sync with props when they change
+  useEffect(() => {
+    setLocalAssigneeId(currentAssigneeId);
+    setLocalAssigneeName(currentAssigneeName);
+  }, [currentAssigneeId, currentAssigneeName]);
 
   const handleAssign = async (profileId: string | null, profileName: string | null) => {
     if (!contratoId) {
@@ -56,6 +66,11 @@ export function AssigneeSelect({
     }
 
     setSaving(true);
+    
+    // Optimistic update
+    setLocalAssigneeId(profileId ?? undefined);
+    setLocalAssigneeName(profileName ?? undefined);
+    setOpen(false);
 
     try {
       // Fetch the current workflow
@@ -69,6 +84,9 @@ export function AssigneeSelect({
 
       if (!workflow) {
         toast.error("No se encontró el workflow");
+        // Revert optimistic update
+        setLocalAssigneeId(currentAssigneeId);
+        setLocalAssigneeName(currentAssigneeName);
         setSaving(false);
         return;
       }
@@ -103,9 +121,11 @@ export function AssigneeSelect({
     } catch (error) {
       console.error("Error updating assignee:", error);
       toast.error("Error al guardar los cambios");
+      // Revert optimistic update on error
+      setLocalAssigneeId(currentAssigneeId);
+      setLocalAssigneeName(currentAssigneeName);
     } finally {
       setSaving(false);
-      setOpen(false);
     }
   };
 
@@ -117,20 +137,20 @@ export function AssigneeSelect({
           size="sm"
           className={cn(
             "h-auto py-1 px-2 justify-start font-normal gap-2",
-            !currentAssigneeName && "text-muted-foreground"
+            !localAssigneeName && "text-muted-foreground"
           )}
           disabled={saving}
         >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
-          ) : currentAssigneeName ? (
+          ) : localAssigneeName ? (
             <>
               <Avatar className="h-5 w-5">
                 <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                  {getInitials(currentAssigneeName)}
+                  {getInitials(localAssigneeName)}
                 </AvatarFallback>
               </Avatar>
-              <span className="truncate max-w-[120px]">{currentAssigneeName}</span>
+              <span className="truncate max-w-[120px]">{localAssigneeName}</span>
             </>
           ) : (
             <>
@@ -155,7 +175,7 @@ export function AssigneeSelect({
               >
                 <User className="h-4 w-4 text-muted-foreground" />
                 <span>Sin asignar</span>
-                {!currentAssigneeId && (
+                {!localAssigneeId && (
                   <Check className="h-4 w-4 ml-auto" />
                 )}
               </CommandItem>
@@ -173,7 +193,7 @@ export function AssigneeSelect({
                     </AvatarFallback>
                   </Avatar>
                   <span className="truncate">{profile.full_name || "Sin nombre"}</span>
-                  {currentAssigneeId === profile.id && (
+                  {localAssigneeId === profile.id && (
                     <Check className="h-4 w-4 ml-auto" />
                   )}
                 </CommandItem>
