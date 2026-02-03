@@ -35,7 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { TreeNode } from "./WorkFlowTreeSidebar";
-import { GanttChart, GanttTask } from "./gantt";
+import { SvarGanttChart, GanttTask } from "./gantt";
 
 interface ActividadDetailDashboardProps {
   node: TreeNode;
@@ -296,7 +296,7 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
 
         {/* Gantt View */}
         <TabsContent value="gantt" className="mt-0">
-          <GanttChart tasks={ganttTasks} profiles={profiles} onRefresh={onRefresh} />
+          <SvarGanttChart tasks={ganttTasks} profiles={profiles} onRefresh={onRefresh} />
         </TabsContent>
 
         {/* Table View */}

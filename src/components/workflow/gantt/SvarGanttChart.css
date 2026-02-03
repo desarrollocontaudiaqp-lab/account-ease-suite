@@ -1,0 +1,178 @@
+/* Estilos personalizados para el Gantt de Svar */
+.svar-gantt-container {
+  --wx-gantt-bar-color: hsl(var(--primary));
+  --wx-gantt-milestone-color: hsl(var(--primary));
+  --wx-gantt-link-color: hsl(var(--primary) / 0.6);
+  --wx-gantt-today-marker: hsl(var(--primary) / 0.3);
+  --wx-gantt-grid-line: hsl(var(--border));
+  --wx-gantt-header-bg: hsl(var(--muted));
+  --wx-gantt-row-hover: hsl(var(--accent));
+  --wx-gantt-selected: hsl(var(--primary) / 0.1);
+}
+
+.svar-gantt-container .wx-gantt {
+  font-family: inherit;
+  border: none;
+  background: hsl(var(--background));
+}
+
+/* Header styles */
+.svar-gantt-container .wx-gantt-header {
+  background: hsl(var(--muted) / 0.5);
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.svar-gantt-container .wx-gantt-header-cell {
+  border-right: 1px solid hsl(var(--border) / 0.5);
+  color: hsl(var(--foreground));
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Grid area */
+.svar-gantt-container .wx-gantt-grid {
+  background: hsl(var(--background));
+}
+
+.svar-gantt-container .wx-gantt-row {
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.svar-gantt-container .wx-gantt-row:nth-child(even) {
+  background: hsl(var(--muted) / 0.1);
+}
+
+.svar-gantt-container .wx-gantt-row:hover {
+  background: hsl(var(--accent) / 0.5);
+}
+
+/* Cells */
+.svar-gantt-container .wx-gantt-cell {
+  border-right: 1px solid hsl(var(--border) / 0.3);
+  color: hsl(var(--foreground));
+  font-size: 0.8125rem;
+}
+
+/* Task bars */
+.svar-gantt-container .wx-gantt-bar {
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.svar-gantt-container .wx-gantt-bar:hover {
+  transform: scaleY(1.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Bar progress */
+.svar-gantt-container .wx-gantt-bar-progress {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+/* Bar text */
+.svar-gantt-container .wx-gantt-bar-text {
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Resize handles */
+.svar-gantt-container .wx-gantt-bar-resize {
+  width: 6px;
+  cursor: ew-resize;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.svar-gantt-container .wx-gantt-bar:hover .wx-gantt-bar-resize {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Links (dependencies) */
+.svar-gantt-container .wx-gantt-link {
+  stroke: hsl(var(--primary) / 0.6);
+  stroke-width: 2px;
+}
+
+.svar-gantt-container .wx-gantt-link-arrow {
+  fill: hsl(var(--primary) / 0.6);
+}
+
+.svar-gantt-container .wx-gantt-link:hover {
+  stroke: hsl(var(--primary));
+  stroke-width: 3px;
+}
+
+/* Today marker */
+.svar-gantt-container .wx-gantt-today {
+  background: hsl(var(--primary) / 0.1);
+  border-left: 2px solid hsl(var(--primary));
+}
+
+/* Milestones */
+.svar-gantt-container .wx-gantt-milestone {
+  background: hsl(var(--primary));
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+/* Scrollbars */
+.svar-gantt-container .wx-gantt-scrollbar {
+  background: hsl(var(--muted));
+}
+
+.svar-gantt-container .wx-gantt-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+.svar-gantt-container .wx-gantt-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Selected state */
+.svar-gantt-container .wx-gantt-bar.selected {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Split bar divider */
+.svar-gantt-container .wx-gantt-splitter {
+  background: hsl(var(--border));
+  cursor: col-resize;
+  transition: background 0.15s ease;
+}
+
+.svar-gantt-container .wx-gantt-splitter:hover {
+  background: hsl(var(--primary) / 0.5);
+}
+
+/* Tipos de tareas con colores específicos */
+.svar-gantt-container .wx-gantt-bar[data-type="input"] {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.svar-gantt-container .wx-gantt-bar[data-type="tarea"] {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.svar-gantt-container .wx-gantt-bar[data-type="output"] {
+  background: linear-gradient(135deg, #a855f7, #9333ea);
+}
+
+.svar-gantt-container .wx-gantt-bar[data-type="supervision"] {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+/* Dark mode adjustments */
+.dark .svar-gantt-container .wx-gantt-bar {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.dark .svar-gantt-container .wx-gantt-header {
+  background: hsl(var(--muted) / 0.3);
+}
