@@ -66,6 +66,13 @@ export function AppSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string | null } | null>(null);
 
+  // Auto-collapse sidebar when on WorkFlow page
+  useEffect(() => {
+    if (location.pathname === "/calendario-trabajo") {
+      setIsCollapsed(true);
+    }
+  }, [location.pathname]);
+
   useEffect(() => {
     const fetchProfile = async () => {
       if (user?.id) {
