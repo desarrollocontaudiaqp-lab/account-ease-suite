@@ -47,42 +47,54 @@ const parseDate = (dateStr?: string): Date | undefined => {
   return new Date(year, month - 1, day);
 };
 
+// Mapa para convertir IDs string a números
+const createIdMap = (tasks: GanttTask[]): Map<string, number> => {
+  const map = new Map<string, number>();
+  tasks.forEach((task, index) => {
+    map.set(task.id, index + 1); // IDs numéricos empezando desde 1
+  });
+  return map;
+};
+
 // Convertir GanttTask[] al formato de wx-react-gantt
-const convertToWxTasks = (tasks: GanttTask[]) => {
-  return tasks.map((task, index) => {
+const convertToWxTasks = (tasks: GanttTask[], idMap: Map<string, number>) => {
+  return tasks.map((task) => {
     const start = parseDate(task.fecha_inicio) || new Date();
     const end = parseDate(task.fecha_termino) || addDays(start, 1);
-    const color = typeColors[task.tipo] || "#6b7280";
+    const duration = Math.max(1, differenceInDays(end, start));
 
     return {
-      id: task.id,
+      id: idMap.get(task.id) || 0,
       text: task.label,
       start,
       end,
-      progress: task.progreso,
+      duration,
+      progress: task.progreso || 0,
       type: task.isCompleted ? "milestone" : "task",
-      // Campos custom para referencia
-      $taskType: task.tipo,
-      $assignee: task.asignado_nombre,
-      $color: color,
+      lazy: false,
       open: true,
     };
   });
 };
 
 // Convertir dependencias al formato de links de wx-react-gantt
-const convertToWxLinks = (tasks: GanttTask[]) => {
-  const links: { id: string; source: string; target: string; type: string }[] = [];
-  
+const convertToWxLinks = (tasks: GanttTask[], idMap: Map<string, number>) => {
+  const links: { id: number; source: number; target: number; type: string }[] = [];
+  let linkId = 1;
+
   tasks.forEach((task) => {
-    if (task.dependencias?.length) {
-      task.dependencias.forEach((depId, idx) => {
-        links.push({
-          id: `${depId}-${task.id}-${idx}`,
-          source: depId,
-          target: task.id,
-          type: "e2s", // end-to-start
-        });
+    if (task.dependencias && task.dependencias.length > 0) {
+      task.dependencias.forEach((depId) => {
+        const sourceId = idMap.get(depId);
+        const targetId = idMap.get(task.id);
+        if (sourceId && targetId) {
+          links.push({
+            id: linkId++,
+            source: sourceId,
+            target: targetId,
+            type: "e2s", // end-to-start
+          });
+        }
       });
     }
   });
@@ -93,9 +105,12 @@ const convertToWxLinks = (tasks: GanttTask[]) => {
 export function SvarGanttChart({ tasks, profiles, onRefresh }: SvarGanttChartProps) {
   const [savingTask, setSavingTask] = useState<string | null>(null);
 
+  // Crear mapa de IDs string a números
+  const idMap = useMemo(() => createIdMap(tasks), [tasks]);
+
   // Convertir tareas al formato de la librería
-  const wxTasks = useMemo(() => convertToWxTasks(tasks), [tasks]);
-  const wxLinks = useMemo(() => convertToWxLinks(tasks), [tasks]);
+  const wxTasks = useMemo(() => convertToWxTasks(tasks, idMap), [tasks, idMap]);
+  const wxLinks = useMemo(() => convertToWxLinks(tasks, idMap), [tasks, idMap]);
 
   // Configuración de escalas
   const scales = useMemo(() => [
