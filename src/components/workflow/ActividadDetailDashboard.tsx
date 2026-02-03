@@ -55,6 +55,7 @@ interface WorkflowStep {
   progreso?: number;
   enlaceSharepoint?: string;
   contratoId?: string;
+  _originalIndex?: number;
 }
 
 const typeIcons: Record<string, React.ElementType> = {
@@ -93,7 +94,8 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
     fetchProfiles();
   }, []);
 
-  // Collect all workflow steps from this activity
+  // Collect all workflow steps from this activity - preserving JSON order
+  // Steps are collected by preserving _originalIndex from the tree node data
   const steps = useMemo(() => {
     const result: WorkflowStep[] = [];
     // Get contratoId from the activity node's data
@@ -118,6 +120,8 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
           enlaceSharepoint: data.enlaceSharepoint,
           // Use contratoId from the item's data, or fallback to activity's contratoId
           contratoId: data.contratoId || activityContratoId,
+          // Preserve original index for sorting
+          _originalIndex: data._originalIndex,
         });
       }
 
@@ -130,7 +134,12 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
       node.children.forEach(collectSteps);
     }
 
-    return result;
+    // Sort by original JSON index to preserve the exact order from the database
+    return result.sort((a, b) => {
+      const indexA = (a as any)._originalIndex ?? Infinity;
+      const indexB = (b as any)._originalIndex ?? Infinity;
+      return indexA - indexB;
+    });
   }, [node]);
 
   // Convert steps to GanttTask format
