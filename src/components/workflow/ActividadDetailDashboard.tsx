@@ -297,7 +297,12 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
 
         {/* Gantt View */}
         <TabsContent value="gantt" className="mt-0">
-          <GanttTaskReact tasks={ganttTasks} profiles={profiles} onRefresh={onRefresh} />
+          <GanttTaskReact 
+            tasks={ganttTasks} 
+            profiles={profiles} 
+            onRefresh={onRefresh}
+            contratoId={node.data?.contratoId || ganttTasks[0]?.contratoId}
+          />
         </TabsContent>
 
         {/* Table View */}
