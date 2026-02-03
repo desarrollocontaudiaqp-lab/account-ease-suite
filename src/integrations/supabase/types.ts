@@ -1347,6 +1347,162 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_checklists: {
+        Row: {
+          created_at: string
+          estado: string | null
+          fecha_verificacion: string | null
+          id: string
+          items: Json | null
+          porcentaje_completado: number | null
+          titulo: string
+          updated_at: string
+          verificado_por: string | null
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Insert: {
+          created_at?: string
+          estado?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          items?: Json | null
+          porcentaje_completado?: number | null
+          titulo: string
+          updated_at?: string
+          verificado_por?: string | null
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Update: {
+          created_at?: string
+          estado?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          items?: Json | null
+          porcentaje_completado?: number | null
+          titulo?: string
+          updated_at?: string
+          verificado_por?: string | null
+          workflow_id?: string
+          workflow_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_checklists_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_kanban_cards: {
+        Row: {
+          asignado_a: string | null
+          created_at: string
+          descripcion: string | null
+          etiquetas: Json | null
+          fecha_vencimiento: string | null
+          id: string
+          orden: number
+          prioridad: string | null
+          status: string
+          titulo: string
+          updated_at: string
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Insert: {
+          asignado_a?: string | null
+          created_at?: string
+          descripcion?: string | null
+          etiquetas?: Json | null
+          fecha_vencimiento?: string | null
+          id?: string
+          orden?: number
+          prioridad?: string | null
+          status?: string
+          titulo: string
+          updated_at?: string
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Update: {
+          asignado_a?: string | null
+          created_at?: string
+          descripcion?: string | null
+          etiquetas?: Json | null
+          fecha_vencimiento?: string | null
+          id?: string
+          orden?: number
+          prioridad?: string | null
+          status?: string
+          titulo?: string
+          updated_at?: string
+          workflow_id?: string
+          workflow_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_kanban_cards_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_notes: {
+        Row: {
+          content: Json | null
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json | null
+          orden: number
+          tipo: string
+          titulo: string | null
+          updated_at: string
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          orden?: number
+          tipo?: string
+          titulo?: string | null
+          updated_at?: string
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json | null
+          orden?: number
+          tipo?: string
+          titulo?: string | null
+          updated_at?: string
+          workflow_id?: string
+          workflow_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_notes_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_secuencias: {
         Row: {
           anio_vigente: number
