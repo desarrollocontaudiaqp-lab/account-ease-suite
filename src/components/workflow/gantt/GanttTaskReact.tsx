@@ -116,8 +116,12 @@ export function GanttTaskReact({
 
   // Update workflow item in database
   const updateWorkflowItem = useCallback(
-    async (taskId: string, updates: { fecha_inicio: string; fecha_termino: string }) => {
+    async (taskId: string, updates: { fecha_inicio: string; fecha_termino: string }): Promise<boolean> => {
       const task = localTasks.find((t) => t.id === taskId);
+      
+      console.log("updateWorkflowItem called for:", taskId);
+      console.log("Task found:", task);
+      console.log("ContratoId:", task?.contratoId);
       
       if (!task?.contratoId) {
         console.error("No contratoId found for task:", taskId);
@@ -141,12 +145,17 @@ export function GanttTaskReact({
       setGanttKey(k => k + 1);
 
       try {
+        console.log("Fetching workflow for contrato_id:", task.contratoId);
+        
         // Fetch the current workflow
         const { data: workflow, error: wfError } = await supabase
           .from("workflows")
           .select("id, items")
           .eq("contrato_id", task.contratoId)
           .maybeSingle();
+
+        console.log("Workflow fetched:", workflow ? workflow.id : "null");
+        console.log("Workflow error:", wfError);
 
         if (wfError) {
           console.error("Error fetching workflow:", wfError);
@@ -164,9 +173,11 @@ export function GanttTaskReact({
         }
 
         const items = (workflow.items as any[]) || [];
+        console.log("Total items in workflow:", items.length);
 
         // Find the item in the flat array
         const itemIndex = items.findIndex((item: any) => item.id === taskId);
+        console.log("Item index found:", itemIndex);
         
         if (itemIndex === -1) {
           console.error("Item not found in workflow items:", taskId);
@@ -187,16 +198,22 @@ export function GanttTaskReact({
           fecha_termino: updates.fecha_termino
         };
 
+        console.log("Saving to DB - Workflow ID:", workflow.id);
         console.log("Saving to DB - Item:", taskId, "Updates:", updates);
+        console.log("Updated item will be:", updatedItems[itemIndex]);
 
         // Save to database
-        const { error: updateError } = await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from("workflows")
           .update({ 
             items: updatedItems, 
             updated_at: new Date().toISOString() 
           })
-          .eq("id", workflow.id);
+          .eq("id", workflow.id)
+          .select();
+
+        console.log("Update response data:", updateData);
+        console.log("Update response error:", updateError);
 
         if (updateError) {
           console.error("Error updating workflow:", updateError);
@@ -231,21 +248,23 @@ export function GanttTaskReact({
 
   // Handle date change from Gantt (drag or resize)
   const handleDateChange = useCallback(
-    (task: Task) => {
+    async (task: Task, children: Task[]): Promise<boolean> => {
       console.log("handleDateChange called:", task.id, task.start, task.end);
-      updateWorkflowItem(task.id, {
+      const result = await updateWorkflowItem(task.id, {
         fecha_inicio: formatDateForDB(task.start),
         fecha_termino: formatDateForDB(task.end),
       });
-      return true;
+      // Return the result - if false, gantt-task-react will undo the change
+      return result;
     },
     [updateWorkflowItem]
   );
 
   // Handle progress change
   const handleProgressChange = useCallback(
-    (task: Task) => {
+    async (task: Task, children: Task[]): Promise<boolean> => {
       console.log("Progress changed:", task.id, task.progress);
+      // TODO: Implement progress update
       return true;
     },
     []
