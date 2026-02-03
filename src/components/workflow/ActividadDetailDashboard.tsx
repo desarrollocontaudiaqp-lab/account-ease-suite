@@ -12,14 +12,12 @@ import {
   AlertTriangle,
   ExternalLink,
   Clock,
-  User,
   Calendar as CalendarIcon,
   LayoutGrid,
   GanttChart as GanttChartIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -36,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { TreeNode } from "./WorkFlowTreeSidebar";
 import { GanttTaskReact, GanttTaskData } from "./gantt";
+import { AssigneeSelect } from "./AssigneeSelect";
 
 interface ActividadDetailDashboardProps {
   node: TreeNode;
@@ -77,11 +76,6 @@ const typeLabels: Record<string, string> = {
   tarea: "Proceso",
   output: "Output",
   supervision_item: "Supervisión",
-};
-
-const getInitials = (name: string | null | undefined) => {
-  if (!name) return "?";
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
 export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDashboardProps) {
@@ -426,18 +420,14 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
                             </span>
                           </TableCell>
                           <TableCell>
-                            {step.asignado_nombre ? (
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-6 w-6">
-                                  <AvatarFallback className="text-[10px]">
-                                    {getInitials(step.asignado_nombre)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-sm">{step.asignado_nombre}</span>
-                              </div>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">Sin asignar</span>
-                            )}
+                            <AssigneeSelect
+                              taskId={step.id}
+                              contratoId={step.contratoId}
+                              currentAssigneeId={step.asignado_a}
+                              currentAssigneeName={step.asignado_nombre}
+                              profiles={profiles}
+                              onRefresh={onRefresh}
+                            />
                           </TableCell>
                           <TableCell>
                             {step.enlaceSharepoint && (
