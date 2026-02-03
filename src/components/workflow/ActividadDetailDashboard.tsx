@@ -334,14 +334,13 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30">
-                    <TableHead className="w-[50px]">Estado</TableHead>
-                    <TableHead className="w-[100px]">Tipo</TableHead>
-                    <TableHead>Paso</TableHead>
-                    <TableHead className="w-[90px]">Inicio</TableHead>
-                    <TableHead className="w-[90px]">Fin</TableHead>
+                    <TableHead className="w-[40px]"></TableHead>
+                    <TableHead>Tarea</TableHead>
+                    <TableHead className="w-[100px]">Inicio</TableHead>
+                    <TableHead className="w-[100px]">Fin</TableHead>
                     <TableHead className="w-[60px] text-center">Días</TableHead>
                     <TableHead className="w-[60px] text-center">%</TableHead>
-                    <TableHead>Asignado</TableHead>
+                    <TableHead className="w-[150px]">Asignado</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -383,26 +382,28 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
                             step.isCompleted && "opacity-60"
                           )}
                         >
-                          <TableCell>
+                          <TableCell className="w-[40px]">
                             {step.isCompleted ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
                             ) : isOverdue ? (
-                              <AlertTriangle className="h-5 w-5 text-red-500" />
+                              <AlertTriangle className="h-4 w-4 text-red-500" />
                             ) : (
-                              <Circle className="h-5 w-5 text-muted-foreground" />
+                              <Circle className="h-4 w-4 text-muted-foreground" />
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge className={cn("gap-1", typeColors[step.type])}>
-                              <Icon className="h-3 w-3" />
-                              {typeLabels[step.type]}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge className={cn("gap-1 text-[10px] px-1.5 py-0", typeColors[step.type])}>
+                                <Icon className="h-2.5 w-2.5" />
+                                {typeLabels[step.type]}
+                              </Badge>
+                              <span className="font-medium text-sm">{step.label}</span>
+                            </div>
                           </TableCell>
-                          <TableCell className="font-medium">{step.label}</TableCell>
                           <TableCell>
                             {fechaInicio ? (
-                              <span className="text-sm text-muted-foreground">
-                                {format(fechaInicio, "dd MMM", { locale: es })}
+                              <span className="text-sm">
+                                {format(fechaInicio, "dd/MM/yyyy", { locale: es })}
                               </span>
                             ) : (
                               <span className="text-sm text-muted-foreground">-</span>
@@ -410,8 +411,8 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
                           </TableCell>
                           <TableCell>
                             {fechaTermino ? (
-                              <span className="text-sm text-muted-foreground">
-                                {format(fechaTermino, "dd MMM", { locale: es })}
+                              <span className="text-sm">
+                                {format(fechaTermino, "dd/MM/yyyy", { locale: es })}
                               </span>
                             ) : (
                               <span className="text-sm text-muted-foreground">-</span>
