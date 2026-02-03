@@ -1,5 +1,5 @@
-import { useMemo, useRef, useCallback } from "react";
-import { format, parseISO, differenceInDays, addDays, isSameDay, isWeekend } from "date-fns";
+import { useState, useRef, useCallback } from "react";
+import { format, differenceInDays, addDays, isSameDay, isWeekend } from "date-fns";
 import { es } from "date-fns/locale";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -14,6 +14,7 @@ interface GanttTimelineProps {
   cellWidth: number;
   groupedDates: { label: string; days: Date[] }[];
   onDragEnd: (task: GanttTask, newStart: Date, newEnd: Date) => void;
+  onReorder?: (taskId: string, newIndex: number) => void;
 }
 
 const typeColors: Record<string, string> = {
@@ -28,15 +29,30 @@ const getInitials = (name: string | null | undefined) => {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
+type ResizeMode = "left" | "right" | null;
+
 export function GanttTimeline({
   tasks,
   dateRange,
   cellWidth,
   groupedDates,
   onDragEnd,
+  onReorder,
 }: GanttTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const totalWidth = dateRange.length * cellWidth;
+
+  // Resize state
+  const [resizing, setResizing] = useState<{
+    taskId: string;
+    mode: ResizeMode;
+    startX: number;
+    originalBar: { left: number; width: number; startDate: Date; endDate: Date };
+  } | null>(null);
+
+  // Drag reorder state
+  const [draggingRowId, setDraggingRowId] = useState<string | null>(null);
+  const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
 
   const parseDate = (dateStr?: string) => {
     if (!dateStr) return undefined;
@@ -109,43 +125,139 @@ export function GanttTimeline({
     return lines;
   };
 
-  const handleDragStart = (e: React.DragEvent, task: GanttTask, bar: ReturnType<typeof getTaskBar>) => {
-    if (!bar) return;
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("taskId", task.id);
-    e.dataTransfer.setData("offset", String(e.clientX - (e.target as HTMLElement).getBoundingClientRect().left));
-    e.dataTransfer.setData("duration", String(differenceInDays(bar.endDate!, bar.startDate!)));
+  // ---- RESIZE HANDLERS ----
+  const handleResizeStart = (
+    e: React.MouseEvent,
+    task: GanttTask,
+    mode: ResizeMode,
+    bar: NonNullable<ReturnType<typeof getTaskBar>>
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setResizing({
+      taskId: task.id,
+      mode,
+      startX: e.clientX,
+      originalBar: { left: bar.left, width: bar.width, startDate: bar.startDate, endDate: bar.endDate },
+    });
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!resizing && !resizing) return;
+      // State is captured via closure on initial call
+    };
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - e.clientX;
+      const daysDelta = Math.round(deltaX / cellWidth);
+
+      if (mode === "right") {
+        const newEndDate = addDays(bar.endDate, daysDelta);
+        if (newEndDate >= bar.startDate) {
+          // Live preview could be added here
+        }
+      } else if (mode === "left") {
+        const newStartDate = addDays(bar.startDate, daysDelta);
+        if (newStartDate <= bar.endDate) {
+          // Live preview could be added here
+        }
+      }
+    };
+
+    const onMouseUp = (upEvent: MouseEvent) => {
+      const deltaX = upEvent.clientX - e.clientX;
+      const daysDelta = Math.round(deltaX / cellWidth);
+
+      if (mode === "right") {
+        const newEndDate = addDays(bar.endDate, daysDelta);
+        if (newEndDate >= bar.startDate) {
+          onDragEnd(task, bar.startDate, newEndDate);
+        }
+      } else if (mode === "left") {
+        const newStartDate = addDays(bar.startDate, daysDelta);
+        if (newStartDate <= bar.endDate) {
+          onDragEnd(task, newStartDate, bar.endDate);
+        }
+      }
+
+      setResizing(null);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  // ---- BAR DRAG (move) HANDLERS ----
+  const handleBarDragStart = (
+    e: React.MouseEvent,
+    task: GanttTask,
+    bar: NonNullable<ReturnType<typeof getTaskBar>>
+  ) => {
     e.preventDefault();
-    const taskId = e.dataTransfer.getData("taskId");
-    const offset = parseInt(e.dataTransfer.getData("offset") || "0");
-    const duration = parseInt(e.dataTransfer.getData("duration") || "0");
+    const startX = e.clientX;
+    const duration = differenceInDays(bar.endDate, bar.startDate);
 
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      // Visual feedback handled by cursor
+    };
 
-    const scrollLeft = scrollRef.current?.scrollLeft || 0;
-    const containerRect = scrollRef.current?.getBoundingClientRect();
-    if (!containerRect) return;
+    const onMouseUp = (upEvent: MouseEvent) => {
+      const scrollLeft = scrollRef.current?.scrollLeft || 0;
+      const containerRect = scrollRef.current?.getBoundingClientRect();
+      if (!containerRect) return;
 
-    const x = e.clientX - containerRect.left + scrollLeft - offset;
-    const dayIndex = Math.floor(x / cellWidth);
-    const newStartDate = dateRange[Math.max(0, Math.min(dayIndex, dateRange.length - 1))];
+      const deltaX = upEvent.clientX - startX;
+      const daysDelta = Math.round(deltaX / cellWidth);
+      
+      const newStartDate = addDays(bar.startDate, daysDelta);
+      const newEndDate = addDays(newStartDate, duration);
 
-    if (!newStartDate) return;
+      // Validate within range
+      const startIdx = dateRange.findIndex(d => isSameDay(d, newStartDate));
+      if (startIdx >= 0) {
+        onDragEnd(task, newStartDate, newEndDate);
+      }
 
-    const newEndDate = addDays(newStartDate, duration);
-    onDragEnd(task, newStartDate, newEndDate);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
+  // ---- ROW REORDER HANDLERS ----
+  const handleRowDragStart = (e: React.DragEvent, taskId: string) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("reorderTaskId", taskId);
+    setDraggingRowId(taskId);
+  };
+
+  const handleRowDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    setDropTargetIdx(idx);
+  };
+
+  const handleRowDrop = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData("reorderTaskId");
+    if (taskId && onReorder) {
+      onReorder(taskId, targetIdx);
+    }
+    setDraggingRowId(null);
+    setDropTargetIdx(null);
+  };
+
+  const handleRowDragEnd = () => {
+    setDraggingRowId(null);
+    setDropTargetIdx(null);
   };
 
   return (
     <ScrollArea className="flex-1" ref={scrollRef as any}>
       <div 
         style={{ width: totalWidth, minWidth: "100%" }}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={handleDrop}
       >
         {/* Date Headers */}
         <div className="h-[56px] border-b flex flex-col sticky top-0 bg-card z-10">
@@ -200,15 +312,19 @@ export function GanttTimeline({
             />
           ))}
 
-          {/* Row backgrounds */}
-          {tasks.map((_, idx) => (
+          {/* Row backgrounds with drop zones */}
+          {tasks.map((task, idx) => (
             <div
-              key={idx}
+              key={task.id}
               className={cn(
-                "absolute left-0 right-0 h-12 border-b border-border/30",
-                idx % 2 === 0 ? "bg-background/50" : "bg-transparent"
+                "absolute left-0 right-0 h-12 border-b transition-colors",
+                idx % 2 === 0 ? "bg-background/50" : "bg-transparent",
+                draggingRowId === task.id && "opacity-50",
+                dropTargetIdx === idx && draggingRowId !== task.id && "bg-primary/10 border-primary"
               )}
               style={{ top: idx * 48 }}
+              onDragOver={(e) => handleRowDragOver(e, idx)}
+              onDrop={(e) => handleRowDrop(e, idx)}
             />
           ))}
 
@@ -234,6 +350,9 @@ export function GanttTimeline({
                     top: idx * 48 + 8,
                     width: 120,
                   }}
+                  draggable
+                  onDragStart={(e) => handleRowDragStart(e, task.id)}
+                  onDragEnd={handleRowDragEnd}
                 >
                   <span className="text-xs text-muted-foreground">Sin fechas</span>
                 </div>
@@ -247,41 +366,56 @@ export function GanttTimeline({
                 <TooltipTrigger asChild>
                   <div
                     className={cn(
-                      "absolute h-8 rounded-md shadow-sm cursor-move transition-all",
+                      "absolute h-8 rounded-md shadow-sm transition-all group",
                       "flex items-center gap-1.5 px-2 text-white text-xs font-medium",
                       "bg-gradient-to-r",
                       gradientColor,
                       "hover:shadow-md hover:scale-[1.02]",
-                      task.isCompleted && "opacity-60"
+                      task.isCompleted && "opacity-60",
+                      resizing?.taskId === task.id && "ring-2 ring-white/50"
                     )}
                     style={{
                       left: bar.left + 2,
                       top: idx * 48 + 8,
                       width: bar.width,
                     }}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, task, bar)}
                   >
                     {/* Progress overlay */}
                     <div
-                      className="absolute inset-0 rounded-md bg-white/20"
+                      className="absolute inset-0 rounded-md bg-white/20 pointer-events-none"
                       style={{ width: `${task.progreso}%` }}
                     />
 
-                    {/* Content */}
-                    <span className="relative truncate flex-1">{task.label}</span>
+                    {/* Left resize handle */}
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-white/30 rounded-l-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      onMouseDown={(e) => handleResizeStart(e, task, "left", bar)}
+                    >
+                      <div className="w-0.5 h-4 bg-white/60 rounded-full" />
+                    </div>
 
-                    {task.asignado_nombre && bar.width > 100 && (
-                      <Avatar className="h-5 w-5 border border-white/30 flex-shrink-0">
-                        <AvatarFallback className="text-[8px] bg-white/20 text-white">
-                          {getInitials(task.asignado_nombre)}
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
+                    {/* Main draggable area */}
+                    <div
+                      className="relative flex-1 cursor-move truncate flex items-center gap-1.5 mx-3"
+                      onMouseDown={(e) => handleBarDragStart(e, task, bar)}
+                    >
+                      <span className="truncate">{task.label}</span>
+                      {task.asignado_nombre && bar.width > 100 && (
+                        <Avatar className="h-5 w-5 border border-white/30 flex-shrink-0">
+                          <AvatarFallback className="text-[8px] bg-white/20 text-white">
+                            {getInitials(task.asignado_nombre)}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                    </div>
 
-                    {/* Resize handles */}
-                    <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/20 rounded-l-md" />
-                    <div className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/20 rounded-r-md" />
+                    {/* Right resize handle */}
+                    <div
+                      className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-white/30 rounded-r-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      onMouseDown={(e) => handleResizeStart(e, task, "right", bar)}
+                    >
+                      <div className="w-0.5 h-4 bg-white/60 rounded-full" />
+                    </div>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-[300px]">

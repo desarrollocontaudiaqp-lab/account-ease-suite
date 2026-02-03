@@ -157,6 +157,56 @@ export function GanttChart({ tasks, profiles, onRefresh }: GanttChartProps) {
     updateWorkflowItem(task, { dependencias: deps.filter(d => d !== depId) });
   }, [updateWorkflowItem]);
 
+  // Handle reordering tasks
+  const handleReorder = useCallback(async (taskId: string, newIndex: number) => {
+    // Find the task being moved
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.contratoId) return;
+
+    setSavingTask(taskId);
+
+    try {
+      const { data: workflow, error: wfError } = await supabase
+        .from("workflows")
+        .select("id, items")
+        .eq("contrato_id", task.contratoId)
+        .maybeSingle();
+
+      if (wfError) throw wfError;
+      if (!workflow) {
+        toast.error("No se encontró el workflow");
+        return;
+      }
+
+      const items = (workflow.items as any[]) || [];
+      
+      // Reorder items
+      const oldIndex = items.findIndex((item: any) => item.id === taskId);
+      if (oldIndex === -1 || oldIndex === newIndex) {
+        setSavingTask(null);
+        return;
+      }
+
+      const [movedItem] = items.splice(oldIndex, 1);
+      items.splice(newIndex, 0, movedItem);
+
+      const { error: updateError } = await supabase
+        .from("workflows")
+        .update({ items, updated_at: new Date().toISOString() })
+        .eq("id", workflow.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("Orden actualizado");
+      onRefresh?.();
+    } catch (error) {
+      console.error("Error reordering:", error);
+      toast.error("Error al reordenar");
+    }
+
+    setSavingTask(null);
+  }, [tasks, onRefresh]);
+
   const handleDragEnd = useCallback((task: GanttTask, newStart: Date, newEnd: Date) => {
     handleUpdateDates(task, newStart, newEnd);
   }, [handleUpdateDates]);
@@ -290,6 +340,7 @@ export function GanttChart({ tasks, profiles, onRefresh }: GanttChartProps) {
           cellWidth={cellWidth}
           groupedDates={groupedDates}
           onDragEnd={handleDragEnd}
+          onReorder={handleReorder}
         />
       </div>
 
