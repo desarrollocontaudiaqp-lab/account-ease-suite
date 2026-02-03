@@ -227,15 +227,21 @@ export function useWorkFlowTree() {
             const actividadNodes: TreeNode[] = [];
             
             if (workflow) {
-              const actividades = workflow.items
+              // Preserve the original JSON array order by using index
+              const itemsWithIndex = workflow.items.map((item, index) => ({ ...item, _originalIndex: index }));
+              
+              const actividades = itemsWithIndex
                 .filter((item) => item.tipo === "actividad")
-                .sort((a, b) => a.orden - b.orden);
+                .sort((a, b) => a._originalIndex - b._originalIndex);
 
               actividades.forEach((actividad) => {
-                // Get inputs for this activity
-                const inputs = workflow.items
-                  .filter((item) => item.tipo === "input" && item.parentId === actividad.id)
-                  .sort((a, b) => a.orden - b.orden);
+                // Get all child items for this activity and maintain JSON order
+                const activityItems = itemsWithIndex
+                  .filter((item) => item.parentId === actividad.id)
+                  .sort((a, b) => a._originalIndex - b._originalIndex);
+
+                // Get inputs for this activity - preserve JSON order
+                const inputs = activityItems.filter((item) => item.tipo === "input");
 
                 const inputNodes: TreeNode[] = inputs.map((input) => ({
                   id: input.id,
@@ -250,10 +256,11 @@ export function useWorkFlowTree() {
                   isCompleted: input.completado,
                 }));
 
-                // Get tareas (procesos)
-                const tareas = workflow.items
-                  .filter((item) => item.tipo === "tarea")
-                  .sort((a, b) => a.orden - b.orden);
+                // Get all tareas (procesos) that belong to any input of this activity - preserve JSON order
+                const inputIds = inputs.map(i => i.id);
+                const tareas = itemsWithIndex
+                  .filter((item) => item.tipo === "tarea" && inputIds.includes(item.parentId as string))
+                  .sort((a, b) => a._originalIndex - b._originalIndex);
 
                 const tareaNodes: TreeNode[] = tareas.map((tarea) => ({
                   id: tarea.id,
@@ -267,10 +274,8 @@ export function useWorkFlowTree() {
                   isCompleted: tarea.completado,
                 }));
 
-                // Get outputs
-                const outputs = workflow.items
-                  .filter((item) => item.tipo === "output")
-                  .sort((a, b) => a.orden - b.orden);
+                // Get outputs - preserve JSON order
+                const outputs = activityItems.filter((item) => item.tipo === "output");
 
                 const outputNodes: TreeNode[] = outputs.map((output) => ({
                   id: output.id,
@@ -284,10 +289,8 @@ export function useWorkFlowTree() {
                   isCompleted: output.completado,
                 }));
 
-                // Get supervision items
-                const supervisionItems = workflow.items
-                  .filter((item) => item.tipo === "supervision")
-                  .sort((a, b) => a.orden - b.orden);
+                // Get supervision items - preserve JSON order
+                const supervisionItems = activityItems.filter((item) => item.tipo === "supervision");
 
                 const supervisionNodes: TreeNode[] = supervisionItems.map((sup) => ({
                   id: sup.id,
