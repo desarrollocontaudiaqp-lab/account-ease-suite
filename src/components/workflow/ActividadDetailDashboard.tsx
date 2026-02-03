@@ -35,7 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import type { TreeNode } from "./WorkFlowTreeSidebar";
-import { GanttChart, GanttTask } from "./gantt";
+import { GanttTaskReact, GanttTaskData } from "./gantt";
 
 interface ActividadDetailDashboardProps {
   node: TreeNode;
@@ -140,7 +140,7 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
   }, [node]);
 
   // Convert steps to GanttTask format
-  const ganttTasks: GanttTask[] = useMemo(() => {
+  const ganttTasks: GanttTaskData[] = useMemo(() => {
     // Fallback contratoId from activity node
     const fallbackContratoId = node.data?.contratoId;
     
@@ -303,7 +303,7 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
 
         {/* Gantt View */}
         <TabsContent value="gantt" className="mt-0">
-          <GanttChart tasks={ganttTasks} profiles={profiles} onRefresh={onRefresh} />
+          <GanttTaskReact tasks={ganttTasks} profiles={profiles} onRefresh={onRefresh} />
         </TabsContent>
 
         {/* Table View */}
