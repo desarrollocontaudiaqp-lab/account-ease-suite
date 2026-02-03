@@ -57,20 +57,25 @@ export function GanttTaskReact({
 }: GanttTaskReactProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Day);
   const [savingTask, setSavingTask] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Use local state to manage task data independently
   const [localTasks, setLocalTasks] = useState<GanttTaskData[]>(tasks);
   
-  // Track if we're in a save operation to prevent external updates from overwriting
-  const isSavingRef = useRef(false);
-  
   // Key to force Gantt re-render
   const [ganttKey, setGanttKey] = useState(0);
+  
+  // Track the last tasks reference to detect real updates
+  const lastTasksRef = useRef<GanttTaskData[]>(tasks);
 
-  // Sync with parent tasks when they change (but not during save operations)
+  // Sync with parent tasks when they actually change
   useEffect(() => {
-    if (!isSavingRef.current) {
+    // Only update if the tasks have actually changed (new reference)
+    if (tasks !== lastTasksRef.current) {
+      console.log("Tasks updated from parent, syncing local state");
+      lastTasksRef.current = tasks;
       setLocalTasks(tasks);
+      setGanttKey(k => k + 1); // Force Gantt re-render
     }
   }, [tasks]);
 
@@ -130,7 +135,6 @@ export function GanttTaskReact({
       }
 
       // Set saving state
-      isSavingRef.current = true;
       setSavingTask(taskId);
 
       // Immediately update local state for optimistic UI
@@ -165,7 +169,6 @@ export function GanttTaskReact({
         if (!workflow) {
           console.error("No workflow found for contrato_id:", task.contratoId);
           toast.error("No se encontró el workflow");
-          isSavingRef.current = false;
           setSavingTask(null);
           return false;
         }
@@ -178,7 +181,6 @@ export function GanttTaskReact({
         if (itemIndex === -1) {
           console.error("Item not found in workflow items:", taskId);
           toast.error("No se encontró el item en el workflow");
-          isSavingRef.current = false;
           setSavingTask(null);
           return false;
         }
@@ -219,15 +221,12 @@ export function GanttTaskReact({
         }
 
         toast.success("Cambios guardados");
-        
-        // Wait before refreshing to let the DB settle
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Now allow external updates and refresh
-        isSavingRef.current = false;
         setSavingTask(null);
         
+        // CRITICAL: Call onRefresh to reload data from parent
+        // This ensures the tree and all views get fresh data
         if (onRefresh) {
+          console.log("Calling onRefresh to reload data");
           onRefresh();
         }
         
@@ -240,7 +239,6 @@ export function GanttTaskReact({
         setLocalTasks(tasks);
         setGanttKey(k => k + 1);
         
-        isSavingRef.current = false;
         setSavingTask(null);
         return false;
       }
@@ -279,10 +277,14 @@ export function GanttTaskReact({
   }, []);
 
   // Manual refresh handler
-  const handleManualRefresh = useCallback(() => {
+  const handleManualRefresh = useCallback(async () => {
+    setIsRefreshing(true);
     if (onRefresh) {
-      onRefresh();
+      await onRefresh();
     }
+    // Force re-render after refresh
+    setGanttKey(k => k + 1);
+    setTimeout(() => setIsRefreshing(false), 500);
   }, [onRefresh]);
 
   if (localTasks.length === 0) {
@@ -304,10 +306,27 @@ export function GanttTaskReact({
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">Diagrama Gantt</span>
+          {/* Refresh button - next to title for visibility */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 hover:bg-muted"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing || !!savingTask}
+            title="Actualizar diagrama"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
           {savingTask && (
-            <Badge variant="outline" className="gap-1 ml-2">
+            <Badge variant="outline" className="gap-1 ml-1">
               <Loader2 className="h-3 w-3 animate-spin" />
               Guardando...
+            </Badge>
+          )}
+          {isRefreshing && !savingTask && (
+            <Badge variant="outline" className="gap-1 ml-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Actualizando...
             </Badge>
           )}
         </div>
@@ -333,17 +352,6 @@ export function GanttTaskReact({
               </span>
             </div>
           </div>
-
-          {/* Refresh button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={handleManualRefresh}
-            title="Actualizar datos"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
 
           {/* View mode controls */}
           <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
