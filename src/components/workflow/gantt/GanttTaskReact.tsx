@@ -60,11 +60,14 @@ export function GanttTaskReact({
   // Local state to force re-render when tasks are updated via drag
   const [localTasks, setLocalTasks] = useState<GanttTaskData[]>(tasks);
   const [ganttKey, setGanttKey] = useState(0);
+  const [isUpdating, setIsUpdating] = useState(false);
   
-  // Sync local tasks when props change
+  // Sync local tasks when props change, but only if we're not in the middle of an update
   useEffect(() => {
-    setLocalTasks(tasks);
-  }, [tasks]);
+    if (!isUpdating) {
+      setLocalTasks(tasks);
+    }
+  }, [tasks, isUpdating]);
 
   // Convert our data format to gantt-task-react format - use localTasks for optimistic updates
   const ganttTasks: Task[] = useMemo(() => {
@@ -124,6 +127,9 @@ export function GanttTaskReact({
         return false;
       }
 
+      // Mark that we're updating to prevent props sync from overwriting
+      setIsUpdating(true);
+
       // Optimistic update - update localTasks immediately
       const previousTasks = [...localTasks];
       setLocalTasks(prev => prev.map(t => 
@@ -155,18 +161,31 @@ export function GanttTaskReact({
           setLocalTasks(previousTasks);
           setGanttKey(k => k + 1);
           setSavingTask(null);
+          setIsUpdating(false);
           return false;
         }
 
         const items = (workflow.items as any[]) || [];
 
+        // Find the item - search by id
+        const itemIndex = items.findIndex((item: any) => item.id === taskId);
+        
+        if (itemIndex === -1) {
+          console.error("Item not found in workflow items:", taskId);
+          console.log("Available items:", items.map((i: any) => ({ id: i.id, titulo: i.titulo })));
+          toast.error("No se encontró el item en el workflow");
+          setLocalTasks(previousTasks);
+          setGanttKey(k => k + 1);
+          setSavingTask(null);
+          setIsUpdating(false);
+          return false;
+        }
+
         // Update the specific item
-        const updatedItems = items.map((item: any) => {
-          if (item.id === taskId) {
-            return { ...item, ...updates };
-          }
-          return item;
-        });
+        const updatedItems = [...items];
+        updatedItems[itemIndex] = { ...items[itemIndex], ...updates };
+
+        console.log("Updating item:", taskId, "with:", updates);
 
         // Save to database
         const { error: updateError } = await supabase
@@ -181,10 +200,13 @@ export function GanttTaskReact({
 
         toast.success("Fechas actualizadas");
 
-        // Trigger refresh to update UI tree
-        if (onRefresh) {
-          onRefresh();
-        }
+        // Wait a bit then allow sync again and trigger refresh
+        setTimeout(() => {
+          setIsUpdating(false);
+          if (onRefresh) {
+            onRefresh();
+          }
+        }, 300);
         
         return true;
       } catch (error) {
@@ -193,6 +215,7 @@ export function GanttTaskReact({
         // Revert optimistic update on error
         setLocalTasks(previousTasks);
         setGanttKey(k => k + 1);
+        setIsUpdating(false);
         return false;
       } finally {
         setSavingTask(null);
