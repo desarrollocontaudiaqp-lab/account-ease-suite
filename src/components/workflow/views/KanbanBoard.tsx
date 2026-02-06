@@ -92,11 +92,13 @@ const getInitials = (name: string | null | undefined) => {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
-// Helper to format dates safely
+// Helper to format dates safely - handles ISO format with time component
 const formatDateSafe = (dateStr: string | undefined): string | null => {
-  if (!dateStr) return null;
+  if (!dateStr || !dateStr.trim()) return null;
   try {
-    const [year, month, day] = dateStr.split("-").map(Number);
+    // Handle ISO format with T separator (e.g., "2026-02-05T00:00:00.000Z")
+    const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+    const [year, month, day] = datePart.split("-").map(Number);
     const date = new Date(year, month - 1, day);
     return format(date, "dd MMM yyyy", { locale: es });
   } catch {
