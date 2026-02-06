@@ -8,13 +8,9 @@ import type { TeamMemberScore } from "@/hooks/useCarteraPerformance";
 interface TeamRankingCardProps {
   members: TeamMemberScore[];
   loading?: boolean;
+  maxDisplay?: number;
+  onMemberClick?: (member: TeamMemberScore, rank: number) => void;
 }
-
-const rankColors = [
-  "from-amber-400 to-yellow-500", // Gold
-  "from-slate-300 to-slate-400",   // Silver
-  "from-amber-600 to-amber-700",   // Bronze
-];
 
 const avatarColors = [
   "from-primary to-primary/80",
@@ -31,7 +27,10 @@ function getRankIcon(rank: number) {
   return <span className="text-xs font-bold text-muted-foreground w-4 text-center">{rank}</span>;
 }
 
-export function TeamRankingCard({ members, loading }: TeamRankingCardProps) {
+export function TeamRankingCard({ members, loading, maxDisplay = 5, onMemberClick }: TeamRankingCardProps) {
+  const displayMembers = members.slice(0, maxDisplay);
+  const hasMore = members.length > maxDisplay;
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
@@ -41,7 +40,7 @@ export function TeamRankingCard({ members, loading }: TeamRankingCardProps) {
             Ranking del Equipo
           </CardTitle>
           <Badge variant="secondary" className="text-xs">
-            {members.length} miembros
+            Top {Math.min(maxDisplay, members.length)}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -60,11 +59,12 @@ export function TeamRankingCard({ members, loading }: TeamRankingCardProps) {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {members.map((member, index) => (
+            {displayMembers.map((member, index) => (
               <div
                 key={member.id}
+                onClick={() => onMemberClick?.(member, index + 1)}
                 className={cn(
-                  "p-4 flex items-center gap-4 transition-colors",
+                  "p-4 flex items-center gap-4 transition-colors cursor-pointer hover:bg-muted/50",
                   index < 3 && "bg-muted/30"
                 )}
               >
@@ -82,7 +82,7 @@ export function TeamRankingCard({ members, loading }: TeamRankingCardProps) {
                   index === 2 && "ring-amber-600"
                 )}>
                   <AvatarFallback className={cn(
-                    "bg-gradient-to-br text-white text-sm font-bold",
+                    "bg-gradient-to-br text-primary-foreground text-sm font-bold",
                     avatarColors[index % avatarColors.length]
                   )}>
                     {member.initials}
@@ -127,6 +127,12 @@ export function TeamRankingCard({ members, loading }: TeamRankingCardProps) {
                 </div>
               </div>
             ))}
+            
+            {hasMore && (
+              <div className="p-3 text-center text-sm text-muted-foreground">
+                +{members.length - maxDisplay} más
+              </div>
+            )}
           </div>
         )}
       </CardContent>
