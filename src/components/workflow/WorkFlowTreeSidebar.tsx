@@ -20,12 +20,31 @@ import {
   Check,
   PanelLeftClose,
   PanelLeft,
+  User,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+// Helper to format dates safely
+const formatDateSafe = (dateStr: string | undefined): string | null => {
+  if (!dateStr) return null;
+  try {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return format(date, "dd/MM", { locale: es });
+  } catch {
+    return null;
+  }
+};
+
+// Check if node type should show metadata
+const shouldShowMetadata = (type: string): boolean => {
+  return ["input", "tarea", "output", "supervision_item"].includes(type);
+};
 
 // Tree node types
 export type NodeType = 
@@ -149,70 +168,97 @@ const TreeItem = ({
     <div className="select-none">
       <div
         className={cn(
-          "flex items-center gap-1 py-1 px-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors group",
+          "flex flex-col py-1 px-2 rounded-md cursor-pointer hover:bg-muted/50 transition-colors group",
           isSelected && "bg-primary/10 text-primary",
           node.isCompleted && "opacity-60"
         )}
         style={{ paddingLeft: `${level * 12 + 4}px` }}
         onClick={() => onSelectNode(node)}
       >
-        {/* Expand/Collapse button */}
-        {hasChildren ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleExpand(node.id);
-            }}
-            className="p-0.5 rounded hover:bg-muted"
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
-          </button>
-        ) : (
-          <span className="w-4" />
-        )}
+        {/* Main row */}
+        <div className="flex items-center gap-1">
+          {/* Expand/Collapse button */}
+          {hasChildren ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleExpand(node.id);
+              }}
+              className="p-0.5 rounded hover:bg-muted"
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+            </button>
+          ) : (
+            <span className="w-4" />
+          )}
 
-        {/* Icon */}
-        <Icon className={cn("h-4 w-4 flex-shrink-0", nodeColors[node.type])} />
+          {/* Icon */}
+          <Icon className={cn("h-4 w-4 flex-shrink-0", nodeColors[node.type])} />
 
-        {/* Label */}
-        <span className={cn(
-          "text-sm truncate flex-1",
-          isSelected ? "font-medium" : "text-foreground"
-        )}>
-          {node.label}
-        </span>
+          {/* Label */}
+          <span className={cn(
+            "text-sm truncate flex-1",
+            isSelected ? "font-medium" : "text-foreground"
+          )}>
+            {node.label}
+          </span>
 
-        {/* Badge */}
-        {node.badge !== undefined && node.badge > 0 && (
-          <Badge variant="secondary" className="h-5 min-w-[20px] px-1 text-[10px]">
-            {node.badge}
-          </Badge>
-        )}
+          {/* Badge */}
+          {node.badge !== undefined && node.badge > 0 && (
+            <Badge variant="secondary" className="h-5 min-w-[20px] px-1 text-[10px]">
+              {node.badge}
+            </Badge>
+          )}
 
-        {/* More actions button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </Button>
-
-        {/* Add button for certain node types */}
-        {(node.type === "mes" || node.type === "actividad" || node.type === "procesos" || node.type === "outputs") && (
+          {/* More actions button */}
           <Button
             variant="ghost"
             size="icon"
             className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={(e) => e.stopPropagation()}
           >
-            <Plus className="h-3.5 w-3.5" />
+            <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
+
+          {/* Add button for certain node types */}
+          {(node.type === "mes" || node.type === "actividad" || node.type === "procesos" || node.type === "outputs") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+
+        {/* Metadata row for child items (Data, Tarea, Output, Supervision) */}
+        {shouldShowMetadata(node.type) && node.data && (
+          <div className="flex items-center gap-2 ml-5 mt-0.5">
+            {/* Responsable */}
+            {node.data.asignado_nombre && (
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <User className="h-3 w-3" />
+                <span className="truncate max-w-[80px]">{node.data.asignado_nombre}</span>
+              </div>
+            )}
+            {/* Fechas */}
+            {(node.data.fecha_inicio || node.data.fecha_termino) && (
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <CalendarDays className="h-3 w-3" />
+                <span>
+                  {formatDateSafe(node.data.fecha_inicio) || "—"}
+                  {" - "}
+                  {formatDateSafe(node.data.fecha_termino) || "—"}
+                </span>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
