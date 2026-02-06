@@ -13,6 +13,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentContracts } from "@/components/dashboard/RecentContracts";
 import { UpcomingPayments } from "@/components/dashboard/UpcomingPayments";
 import { TeamPerformance } from "@/components/dashboard/TeamPerformance";
+import { WorkflowPerformance } from "@/components/dashboard/WorkflowPerformance";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { IncomeChart } from "@/components/dashboard/IncomeChart";
 import { ContractsChart } from "@/components/dashboard/ContractsChart";
@@ -148,11 +149,14 @@ const Dashboard = () => {
       {/* Recent Contracts */}
       <RecentContracts contracts={recentContracts} loading={loading} />
 
-      {/* Secondary Content Grid */}
+      {/* Workflow & Team Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <WorkflowPerformance />
         <UpcomingPayments payments={upcomingPayments} loading={loading} />
-        <TeamPerformance members={teamMembers} loading={loading} />
       </div>
+
+      {/* Team Performance */}
+      <TeamPerformance members={teamMembers} loading={loading} />
     </div>
   );
 };
