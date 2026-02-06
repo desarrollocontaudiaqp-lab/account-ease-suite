@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { format, parseISO, isPast } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { TreeNode } from "../WorkFlowTreeSidebar";
+import { useWorkflowItemProgress } from "@/hooks/useWorkflowItemProgress";
 
 interface KanbanBoardProps {
   node: TreeNode;
@@ -98,6 +100,23 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoa
   const [showNewCardDialog, setShowNewCardDialog] = useState(false);
   const [newCardColumn, setNewCardColumn] = useState<string>("pendiente");
   const [newCardTitle, setNewCardTitle] = useState("");
+
+  // Hook to sync progress to workflow JSON
+  const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);
+
+  // Calculate progress: cards in "completado" / total cards
+  const progress = useMemo(() => {
+    if (cards.length === 0) return 0;
+    const completed = cards.filter(c => c.status === "completado").length;
+    return Math.round((completed / cards.length) * 100);
+  }, [cards]);
+
+  // Sync progress when it changes
+  useEffect(() => {
+    if (!loading && cards.length > 0) {
+      syncProgress(progress);
+    }
+  }, [progress, loading, cards.length, syncProgress]);
 
   // Fetch cards
   useEffect(() => {
@@ -266,13 +285,13 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoa
   };
 
   // Stats
-  const stats = {
+  const stats = useMemo(() => ({
     total: cards.length,
     pendiente: cards.filter(c => c.status === "pendiente").length,
     en_progreso: cards.filter(c => c.status === "en_progreso").length,
     en_revision: cards.filter(c => c.status === "en_revision").length,
     completado: cards.filter(c => c.status === "completado").length,
-  };
+  }), [cards]);
 
   const renderCard = (card: KanbanCard) => {
     const isOverdue = card.fecha_vencimiento && !["completado"].includes(card.status) && isPast(parseISO(card.fecha_vencimiento));
@@ -364,7 +383,28 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoa
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Progress bar */}
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              <Progress 
+                value={progress} 
+                className={cn(
+                  "w-32 h-2",
+                  progress >= 100 && "[&>div]:bg-green-500",
+                  progress > 0 && progress < 100 && "[&>div]:bg-amber-500"
+                )} 
+              />
+              <span className={cn(
+                "text-sm font-bold min-w-[40px] text-right",
+                progress >= 100 && "text-green-600",
+                progress > 0 && progress < 100 && "text-amber-600"
+              )}>
+                {progress}%
+              </span>
+            </div>
+          </div>
+          
           {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           <Button
             size="sm"

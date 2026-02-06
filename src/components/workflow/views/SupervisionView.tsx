@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { TreeNode } from "../WorkFlowTreeSidebar";
+import { useWorkflowItemProgress } from "@/hooks/useWorkflowItemProgress";
 
 interface SupervisionViewProps {
   node: TreeNode;
@@ -61,6 +62,24 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newChecklistTitle, setNewChecklistTitle] = useState("");
+
+  // Hook to sync progress to workflow JSON
+  const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);
+
+  // Overall stats
+  const { totalItems, completedItems, overallProgress } = useMemo(() => {
+    const total = checklists.reduce((acc, c) => acc + c.items.length, 0);
+    const completed = checklists.reduce((acc, c) => acc + c.items.filter(i => i.completado).length, 0);
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { totalItems: total, completedItems: completed, overallProgress: progress };
+  }, [checklists]);
+
+  // Sync progress when it changes
+  useEffect(() => {
+    if (!loading && checklists.length > 0) {
+      syncProgress(overallProgress);
+    }
+  }, [overallProgress, loading, checklists.length, syncProgress]);
 
   // Fetch checklists
   useEffect(() => {
@@ -255,11 +274,6 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
     return profile?.full_name;
   };
 
-  // Overall stats
-  const totalItems = checklists.reduce((acc, c) => acc + c.items.length, 0);
-  const completedItems = checklists.reduce((acc, c) => acc + c.items.filter(i => i.completado).length, 0);
-  const overallProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-
   const getEstadoBadge = (estado: string) => {
     switch (estado) {
       case "completado":
@@ -288,9 +302,24 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Progress value={overallProgress} className="w-24 h-2" />
-            <span className="text-xs font-medium">{overallProgress}%</span>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              <Progress 
+                value={overallProgress} 
+                className={cn(
+                  "w-32 h-2",
+                  overallProgress >= 100 && "[&>div]:bg-green-500",
+                  overallProgress > 0 && overallProgress < 100 && "[&>div]:bg-amber-500"
+                )} 
+              />
+              <span className={cn(
+                "text-sm font-bold min-w-[40px] text-right",
+                overallProgress >= 100 && "text-green-600",
+                overallProgress > 0 && overallProgress < 100 && "text-amber-600"
+              )}>
+                {overallProgress}%
+              </span>
+            </div>
           </div>
           {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>

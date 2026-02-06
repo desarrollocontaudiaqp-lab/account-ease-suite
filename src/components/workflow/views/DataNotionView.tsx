@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { TreeNode } from "../WorkFlowTreeSidebar";
+import { useWorkflowItemProgress } from "@/hooks/useWorkflowItemProgress";
 
 interface DataNotionViewProps {
   node: TreeNode;
@@ -64,6 +65,47 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
   const [saving, setSaving] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+
+  // Hook to sync progress to workflow JSON
+  const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);
+
+  // Calculate progress based on completed elements
+  // Checklist: % of items completed
+  // Table: % of rows with estado="completado"
+  // Nota: considered complete if has content
+  const progress = useMemo(() => {
+    if (notes.length === 0) return 0;
+    
+    let totalElements = 0;
+    let completedElements = 0;
+
+    notes.forEach(note => {
+      if (note.tipo === "checklist") {
+        const items = note.content?.items || [];
+        totalElements += items.length;
+        completedElements += items.filter((i: any) => i.completado).length;
+      } else if (note.tipo === "tabla") {
+        const rows = note.content?.rows || [];
+        totalElements += rows.length;
+        completedElements += rows.filter((r: any) => r.Estado === "completado").length;
+      } else if (note.tipo === "nota") {
+        totalElements += 1;
+        // Nota is complete if it has text content
+        if (note.content?.text && note.content.text.trim().length > 0) {
+          completedElements += 1;
+        }
+      }
+    });
+
+    return totalElements > 0 ? Math.round((completedElements / totalElements) * 100) : 0;
+  }, [notes]);
+
+  // Sync progress when it changes
+  useEffect(() => {
+    if (!loading && notes.length > 0) {
+      syncProgress(progress);
+    }
+  }, [progress, loading, notes.length, syncProgress]);
 
   // Fetch notes for this item
   useEffect(() => {
@@ -189,10 +231,30 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
     setSaving(false);
   };
 
-  // Calculate progress for this data item
-  const progress = notes.length > 0 
-    ? Math.round((notes.filter(n => n.tipo === "checklist" && n.content?.items?.every((i: any) => i.completado)).length / notes.length) * 100)
-    : 0;
+  // Get completion stats for display
+  const completionStats = useMemo(() => {
+    let totalElements = 0;
+    let completedElements = 0;
+
+    notes.forEach(note => {
+      if (note.tipo === "checklist") {
+        const items = note.content?.items || [];
+        totalElements += items.length;
+        completedElements += items.filter((i: any) => i.completado).length;
+      } else if (note.tipo === "tabla") {
+        const rows = note.content?.rows || [];
+        totalElements += rows.length;
+        completedElements += rows.filter((r: any) => r.Estado === "completado").length;
+      } else if (note.tipo === "nota") {
+        totalElements += 1;
+        if (note.content?.text && note.content.text.trim().length > 0) {
+          completedElements += 1;
+        }
+      }
+    });
+
+    return { total: totalElements, completed: completedElements };
+  }, [notes]);
 
   const renderNoteBlock = (note: NoteBlock) => {
     const isEditing = editingNote === note.id;
@@ -450,9 +512,27 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Progress value={progress} className="w-24 h-2" />
-            <span className="text-xs font-medium">{progress}%</span>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              <Progress 
+                value={progress} 
+                className={cn(
+                  "w-32 h-2",
+                  progress >= 100 && "[&>div]:bg-green-500",
+                  progress > 0 && progress < 100 && "[&>div]:bg-amber-500"
+                )} 
+              />
+              <span className={cn(
+                "text-sm font-bold min-w-[40px] text-right",
+                progress >= 100 && "text-green-600",
+                progress > 0 && progress < 100 && "text-amber-600"
+              )}>
+                {progress}%
+              </span>
+            </div>
+            <span className="text-[10px] text-muted-foreground">
+              {completionStats.completed}/{completionStats.total} elementos
+            </span>
           </div>
           {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
