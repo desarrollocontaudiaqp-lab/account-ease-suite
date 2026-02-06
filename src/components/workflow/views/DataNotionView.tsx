@@ -13,6 +13,8 @@ import {
   Edit3,
   Save,
   X,
+  Package,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,12 +32,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { TreeNode } from "../WorkFlowTreeSidebar";
 import { useWorkflowItemProgress } from "@/hooks/useWorkflowItemProgress";
+import { FileTab } from "./FileTab";
 
 interface DataNotionViewProps {
   node: TreeNode;
@@ -68,10 +72,18 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
   const [saving, setSaving] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [activeTab, setActiveTab] = useState<"content" | "archivo">("content");
+  
+  // Track external URL for the file tab
+  const [externalUrl, setExternalUrl] = useState<string>(node.data?.enlaceSharepoint || "");
+  const [attachmentId, setAttachmentId] = useState<string | null>(node.data?.archivoId || null);
   
   // Local state for text inputs to allow fluid typing
   const [localValues, setLocalValues] = useState<Record<string, any>>({});
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  
+  // Determine if this is an output type
+  const isOutput = node.type === "output";
 
   // Hook to sync progress to workflow JSON
   const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);
@@ -258,6 +270,56 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
       Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer));
     };
   }, []);
+
+  // Save URL/attachment to workflow JSON
+  const saveFileInfo = async (updates: { enlaceSharepoint?: string; archivoId?: string | null }) => {
+    if (!workflowId) return;
+
+    try {
+      // Get current workflow
+      const { data: workflow, error: fetchError } = await supabase
+        .from("workflows")
+        .select("items")
+        .eq("id", workflowId)
+        .single();
+
+      if (fetchError || !workflow) return;
+
+      // Update the item in the JSON
+      const updateItemRecursive = (items: any[]): any[] => {
+        return items.map(item => {
+          if (item.id === node.id) {
+            return { ...item, ...updates };
+          }
+          if (item.children && item.children.length > 0) {
+            return { ...item, children: updateItemRecursive(item.children) };
+          }
+          return item;
+        });
+      };
+
+      const updatedItems = updateItemRecursive(workflow.items as any[]);
+
+      await supabase
+        .from("workflows")
+        .update({ items: updatedItems, updated_at: new Date().toISOString() })
+        .eq("id", workflowId);
+
+      onRefresh?.();
+    } catch (error) {
+      console.error("Error saving file info:", error);
+    }
+  };
+
+  const handleUrlChange = (url: string) => {
+    setExternalUrl(url);
+    saveFileInfo({ enlaceSharepoint: url });
+  };
+
+  const handleAttachmentChange = (id: string | null) => {
+    setAttachmentId(id);
+    saveFileInfo({ archivoId: id });
+  };
 
   // Delete note
   const deleteNote = async (noteId: string) => {
@@ -596,12 +658,23 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
       {/* Header with progress */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-            <Database className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <div className={cn(
+            "h-10 w-10 rounded-lg flex items-center justify-center",
+            isOutput 
+              ? "bg-purple-100 dark:bg-purple-900/30" 
+              : "bg-emerald-100 dark:bg-emerald-900/30"
+          )}>
+            {isOutput ? (
+              <Package className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            ) : (
+              <Database className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            )}
           </div>
           <div>
             <h3 className="font-semibold">{node.label}</h3>
-            <p className="text-xs text-muted-foreground">Vista de datos y anotaciones</p>
+            <p className="text-xs text-muted-foreground">
+              {isOutput ? "Entregable y documentación" : "Vista de datos y anotaciones"}
+            </p>
           </div>
         </div>
 
@@ -632,40 +705,70 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
         </div>
       </div>
 
-      {/* Add block buttons */}
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("nota")}>
-          <FileText className="h-3.5 w-3.5" />
-          Nota
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("tabla")}>
-          <TableIcon className="h-3.5 w-3.5" />
-          Tabla
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("checklist")}>
-          <CheckSquare className="h-3.5 w-3.5" />
-          Checklist
-        </Button>
-      </div>
+      {/* Tabs for Content and Files */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "content" | "archivo")} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="content" className="gap-1.5">
+            <Database className="h-3.5 w-3.5" />
+            Contenido
+          </TabsTrigger>
+          <TabsTrigger value="archivo" className="gap-1.5">
+            <FolderOpen className="h-3.5 w-3.5" />
+            Archivo
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Notes/blocks */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : notes.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Database className="h-12 w-12 mb-4 opacity-30" />
-            <p className="text-lg font-medium">Sin contenido</p>
-            <p className="text-sm">Agrega notas, tablas o checklists para organizar la información</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {notes.map(renderNoteBlock)}
-        </div>
-      )}
+        <TabsContent value="content" className="mt-4 space-y-4">
+          {/* Add block buttons */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("nota")}>
+              <FileText className="h-3.5 w-3.5" />
+              Nota
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("tabla")}>
+              <TableIcon className="h-3.5 w-3.5" />
+              Tabla
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("checklist")}>
+              <CheckSquare className="h-3.5 w-3.5" />
+              Checklist
+            </Button>
+          </div>
+
+          {/* Notes/blocks */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : notes.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <Database className="h-12 w-12 mb-4 opacity-30" />
+                <p className="text-lg font-medium">Sin contenido</p>
+                <p className="text-sm">Agrega notas, tablas o checklists para organizar la información</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {notes.map(renderNoteBlock)}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="archivo" className="mt-4">
+          {workflowId && (
+            <FileTab
+              workflowId={workflowId}
+              workflowItemId={node.id}
+              isOutput={isOutput}
+              externalUrl={externalUrl}
+              attachmentId={attachmentId || undefined}
+              onUrlChange={handleUrlChange}
+              onAttachmentChange={handleAttachmentChange}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1347,6 +1347,53 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_attachments: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          updated_at: string
+          uploaded_by: string | null
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          workflow_id?: string
+          workflow_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_attachments_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_checklists: {
         Row: {
           created_at: string
