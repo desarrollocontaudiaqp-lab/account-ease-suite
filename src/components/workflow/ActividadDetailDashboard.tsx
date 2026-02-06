@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { TreeNode } from "./WorkFlowTreeSidebar";
 import { GanttTaskReact, GanttTaskData } from "./gantt";
 import { AssigneeSelect } from "./AssigneeSelect";
+import { useActivityProgress } from "@/hooks/useActivityProgress";
 
 interface ActividadDetailDashboardProps {
   node: TreeNode;
@@ -82,6 +83,12 @@ const typeLabels: Record<string, string> = {
 export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDashboardProps) {
   const [activeView, setActiveView] = useState<"table" | "gantt">("gantt");
   const [profiles, setProfiles] = useState<{ id: string; full_name: string | null }[]>([]);
+  
+  // Get workflow ID from node data
+  const workflowId = node.data?.workflowId;
+  
+  // Use activity progress hook to calculate real progress from categories
+  const { progress: activityProgress, refresh: refreshProgress } = useActivityProgress(node, workflowId);
 
   // Fetch profiles
   useEffect(() => {
@@ -171,15 +178,22 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
       const [year, month, day] = s.fecha_vencimiento.split("T")[0].split("-").map(Number);
       return isPast(new Date(year, month - 1, day));
     }).length;
-    const progress = total > 0 ? (completed / total) * 100 : 0;
+    // Use real progress from activity categories
+    const progress = activityProgress.overall.percentage;
     return { total, completed, pending, overdue, progress };
-  }, [steps]);
+  }, [steps, activityProgress.overall.percentage]);
 
   const data = node.data || {};
+  
+  // Handle refresh that also recalculates progress
+  const handleRefresh = () => {
+    refreshProgress();
+    onRefresh?.();
+  };
 
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Header with Dynamic Progress Bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
@@ -188,16 +202,63 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
           <div>
             <h2 className="text-xl font-bold">{node.label}</h2>
             <p className="text-sm text-muted-foreground">
-              {stats.completed}/{stats.total} pasos completados
+              {activityProgress.overall.completed}/{activityProgress.overall.total} categorías completadas
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-32">
-            <Progress value={stats.progress} className="h-2" />
-          </div>
-          <span className="text-lg font-bold text-primary">{Math.round(stats.progress)}%</span>
-          {node.isCompleted && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex flex-col items-end gap-1">
+                <div className="w-40">
+                  <Progress value={stats.progress} className="h-3" />
+                </div>
+                <div className="flex gap-2 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Database className="h-3 w-3 text-emerald-500" />
+                    {activityProgress.data.percentage}%
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <ListTodo className="h-3 w-3 text-orange-500" />
+                    {activityProgress.procesos.percentage}%
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Package className="h-3 w-3 text-purple-500" />
+                    {activityProgress.outputs.percentage}%
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <ShieldCheck className="h-3 w-3 text-cyan-500" />
+                    {activityProgress.supervision.percentage}%
+                  </span>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-xs">
+              <div className="space-y-2 text-xs">
+                <p className="font-semibold">Progreso por categoría:</p>
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span>Data:</span>
+                    <span>{activityProgress.data.completed}/{activityProgress.data.total} ({activityProgress.data.percentage}%)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Procesos:</span>
+                    <span>{activityProgress.procesos.completed}/{activityProgress.procesos.total} ({activityProgress.procesos.percentage}%)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Outputs:</span>
+                    <span>{activityProgress.outputs.completed}/{activityProgress.outputs.total} ({activityProgress.outputs.percentage}%)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Supervisión:</span>
+                    <span>{activityProgress.supervision.completed}/{activityProgress.supervision.total} ({activityProgress.supervision.percentage}%)</span>
+                  </div>
+                </div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+          <span className="text-lg font-bold text-primary">{stats.progress}%</span>
+          {stats.progress >= 100 && (
             <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
               <CheckCircle2 className="h-3 w-3 mr-1" />
               Completada

@@ -277,6 +277,7 @@ export function useWorkFlowTree() {
                   data: {
                     ...input,
                     contratoId: contrato.id,
+                    workflowId: workflow?.id,
                     enlaceSharepoint: input.enlaceSharepoint,
                     asignado_nombre: input.asignado_a ? profilesMap[input.asignado_a]?.full_name : null,
                   },
@@ -295,6 +296,7 @@ export function useWorkFlowTree() {
                   data: {
                     ...tarea,
                     contratoId: contrato.id,
+                    workflowId: workflow?.id,
                     asignado_nombre: tarea.asignado_a ? profilesMap[tarea.asignado_a]?.full_name : null,
                   },
                   isCompleted: tarea.completado,
@@ -312,6 +314,7 @@ export function useWorkFlowTree() {
                   data: {
                     ...output,
                     contratoId: contrato.id,
+                    workflowId: workflow?.id,
                     asignado_nombre: output.asignado_a ? profilesMap[output.asignado_a]?.full_name : null,
                   },
                   isCompleted: output.completado,
@@ -329,6 +332,7 @@ export function useWorkFlowTree() {
                   data: {
                     ...sup,
                     contratoId: contrato.id,
+                    workflowId: workflow?.id,
                     asignado_nombre: sup.asignado_a ? profilesMap[sup.asignado_a]?.full_name : null,
                   },
                   isCompleted: sup.completado,
@@ -381,6 +385,7 @@ export function useWorkFlowTree() {
                   data: {
                     ...actividad,
                     contratoId: contrato.id,
+                    workflowId: workflow?.id, // Add workflowId for progress calculation
                     fecha_inicio: actividad.fecha_inicio,
                     fecha_termino: actividad.fecha_termino,
                   },

@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { TreeNode } from "./WorkFlowTreeSidebar";
+import { calculateActivityProgressFromNode } from "@/hooks/useActivityProgress";
 import {
   ChartContainer,
   ChartTooltip,
@@ -54,6 +55,10 @@ interface ItemStats {
   porcentaje: number;
 }
 
+interface ActivityStats extends ItemStats {
+  progressSum: number;
+}
+
 const statusStyles: Record<string, string> = {
   borrador: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   aprobado: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
@@ -81,10 +86,10 @@ const COLORS = {
 export function ContratoDashboard({ node, onViewDetail }: ContratoDashboardProps) {
   const data = node.data || {};
 
-  // Calculate stats from workflow items
+  // Calculate stats from workflow items with real progress from categories
   const workflowStats = useMemo(() => {
     const stats = {
-      actividades: { total: 0, completados: 0, pendientes: 0, porcentaje: 0 } as ItemStats,
+      actividades: { total: 0, completados: 0, pendientes: 0, porcentaje: 0, progressSum: 0 } as ActivityStats,
       inputs: { total: 0, completados: 0, pendientes: 0, porcentaje: 0 } as ItemStats,
       procesos: { total: 0, completados: 0, pendientes: 0, porcentaje: 0 } as ItemStats,
       outputs: { total: 0, completados: 0, pendientes: 0, porcentaje: 0 } as ItemStats,
@@ -94,19 +99,28 @@ export function ContratoDashboard({ node, onViewDetail }: ContratoDashboardProps
     const processNode = (n: TreeNode) => {
       if (n.type === "actividad" && n.id !== `actividades-${node.id}`) {
         stats.actividades.total++;
-        if (n.isCompleted) stats.actividades.completados++;
+        // Calculate real progress from activity's categories
+        const activityProgress = calculateActivityProgressFromNode(n);
+        stats.actividades.progressSum += activityProgress;
+        if (activityProgress >= 100 || n.isCompleted) {
+          stats.actividades.completados++;
+        }
       } else if (n.type === "input") {
         stats.inputs.total++;
-        if (n.isCompleted) stats.inputs.completados++;
+        const progress = n.data?.progreso || 0;
+        if (progress >= 100 || n.isCompleted) stats.inputs.completados++;
       } else if (n.type === "tarea") {
         stats.procesos.total++;
-        if (n.isCompleted) stats.procesos.completados++;
+        const progress = n.data?.progreso || 0;
+        if (progress >= 100 || n.isCompleted) stats.procesos.completados++;
       } else if (n.type === "output") {
         stats.outputs.total++;
-        if (n.isCompleted) stats.outputs.completados++;
+        const progress = n.data?.progreso || 0;
+        if (progress >= 100 || n.isCompleted) stats.outputs.completados++;
       } else if (n.type === "supervision_item") {
         stats.supervision.total++;
-        if (n.isCompleted) stats.supervision.completados++;
+        const progress = n.data?.progreso || 0;
+        if (progress >= 100 || n.isCompleted) stats.supervision.completados++;
       }
 
       if (n.children) {
@@ -119,8 +133,15 @@ export function ContratoDashboard({ node, onViewDetail }: ContratoDashboardProps
     }
 
     // Calculate percentages and pending
-    Object.keys(stats).forEach((key) => {
-      const s = stats[key as keyof typeof stats];
+    // For activities, use average progress
+    stats.actividades.pendientes = stats.actividades.total - stats.actividades.completados;
+    stats.actividades.porcentaje = stats.actividades.total > 0 
+      ? Math.round(stats.actividades.progressSum / stats.actividades.total) 
+      : 0;
+
+    // For other categories, use completed ratio
+    (['inputs', 'procesos', 'outputs', 'supervision'] as const).forEach((key) => {
+      const s = stats[key];
       s.pendientes = s.total - s.completados;
       s.porcentaje = s.total > 0 ? Math.round((s.completados / s.total) * 100) : 0;
     });
