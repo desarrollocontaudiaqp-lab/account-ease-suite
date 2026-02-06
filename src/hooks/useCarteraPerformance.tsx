@@ -46,7 +46,9 @@ export interface CarteraPerformanceData {
 
 interface WorkflowItem {
   id: string;
-  label: string;
+  titulo?: string;
+  label?: string;
+  tipo?: string;
   type?: string;
   progreso?: number;
   completado?: boolean;
@@ -56,6 +58,7 @@ interface WorkflowItem {
   fecha_termino?: string;
   updated_at?: string;
   children?: WorkflowItem[];
+  parentId?: string | null;
 }
 
 function parseDate(dateStr: string | undefined): Date | null {
@@ -95,41 +98,88 @@ function calculateScore(
   }
 }
 
-function getCategoryType(label: string): CategoryScore["type"] | null {
+function getCategoryTypeFromTipo(tipo: string | undefined): CategoryScore["type"] | null {
+  if (!tipo) return null;
+  const lower = tipo.toLowerCase();
+  if (lower === "input" || lower === "data") return "data";
+  if (lower === "tarea") return "tarea";
+  if (lower === "entregable" || lower === "output") return "entregable";
+  if (lower === "output" || lower === "producto") return "output";
+  if (lower === "supervision") return "supervision";
+  return null;
+}
+
+function getCategoryTypeFromLabel(label: string | undefined): CategoryScore["type"] | null {
+  if (!label) return null;
   const lower = label.toLowerCase();
   if (lower.includes("data") || lower.startsWith("data")) return "data";
   if (lower.includes("tarea") || lower.startsWith("tarea")) return "tarea";
   if (lower.includes("entregable") || lower.startsWith("entregable")) return "entregable";
-  if (lower.includes("output") || lower.startsWith("output")) return "output";
+  if (lower.includes("output") || lower.includes("producto")) return "output";
   if (lower.includes("supervis") || lower.startsWith("supervis")) return "supervision";
   return null;
+}
+
+function buildHierarchy(flatItems: WorkflowItem[]): WorkflowItem[] {
+  const itemMap = new Map<string, WorkflowItem>();
+  const rootItems: WorkflowItem[] = [];
+
+  // First pass: create map of all items
+  for (const item of flatItems) {
+    itemMap.set(item.id, { ...item, children: [] });
+  }
+
+  // Second pass: build tree
+  for (const item of flatItems) {
+    const node = itemMap.get(item.id)!;
+    if (item.parentId && itemMap.has(item.parentId)) {
+      const parent = itemMap.get(item.parentId)!;
+      if (!parent.children) parent.children = [];
+      parent.children.push(node);
+    } else {
+      rootItems.push(node);
+    }
+  }
+
+  return rootItems;
 }
 
 function extractCategoryItems(
   items: WorkflowItem[],
   contractId: string,
   contractNumber: string,
+  profilesMap: Map<string, string>,
   parentActivityId: string = "",
   parentActivityName: string = ""
 ): CategoryScore[] {
   const results: CategoryScore[] = [];
 
   for (const item of items) {
-    const categoryType = getCategoryType(item.label);
+    const itemLabel = item.titulo || item.label || "";
+    const itemTipo = item.tipo || item.type;
+    
+    // Check category by tipo field first, then by label
+    const categoryType = getCategoryTypeFromTipo(itemTipo) || getCategoryTypeFromLabel(itemLabel);
+    
+    // Determine if this is an activity (tipo === "actividad")
+    const isActivity = itemTipo === "actividad";
 
     // If this item is a category type (Data, Tarea, Entregable, Output, Supervision)
     if (categoryType) {
       const dueDate = parseDate(item.fecha_termino);
       const completedDate = item.completado && item.updated_at ? parseDate(item.updated_at) : null;
-      const progress = item.progreso || 0;
+      const progress = item.progreso ?? (item.completado ? 100 : 0);
       const { score, status } = calculateScore(progress, dueDate, completedDate);
+      
+      // Get responsible name from profilesMap
+      const responsibleName = item.asignado_a ? (profilesMap.get(item.asignado_a) || item.asignado_nombre || null) : null;
 
       results.push({
         id: item.id,
-        name: item.label,
+        name: itemLabel,
         type: categoryType,
         responsibleId: item.asignado_a || null,
-        responsibleName: item.asignado_nombre || null,
+        responsibleName,
         contractId,
         contractNumber,
         activityId: parentActivityId,
@@ -144,13 +194,11 @@ function extractCategoryItems(
 
     // Recursively process children
     if (item.children && item.children.length > 0) {
-      // If this is an activity level (e.g., "Creación de Carpeta"), pass it as parent
-      const isActivity = !categoryType && item.children.some(c => getCategoryType(c.label));
       const activityId = isActivity ? item.id : parentActivityId;
-      const activityName = isActivity ? item.label : parentActivityName;
+      const activityName = isActivity ? itemLabel : parentActivityName;
 
       results.push(
-        ...extractCategoryItems(item.children, contractId, contractNumber, activityId, activityName)
+        ...extractCategoryItems(item.children, contractId, contractNumber, profilesMap, activityId, activityName)
       );
     }
   }
@@ -258,6 +306,19 @@ export function useCarteraPerformance(
         .eq("cartera_id", carteraId);
 
       const memberIds = members?.map(m => m.user_id) || [];
+      
+      // Get all profiles for name resolution
+      const { data: allProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name");
+      
+      // Build a map of user_id -> name
+      const profilesMap = new Map<string, string>();
+      for (const profile of allProfiles || []) {
+        if (profile.id) {
+          profilesMap.set(profile.id, profile.full_name || "Sin nombre");
+        }
+      }
 
       if (memberIds.length === 0) {
         setAllScores([]);
@@ -302,8 +363,10 @@ export function useCarteraPerformance(
         const contract = contractsList.find(c => c.id === workflow.contrato_id);
         if (!contract) continue;
 
-        const items = Array.isArray(workflow.items) ? (workflow.items as unknown as WorkflowItem[]) : [];
-        const workflowScores = extractCategoryItems(items, contract.id, contract.numero);
+        const flatItems = Array.isArray(workflow.items) ? (workflow.items as unknown as WorkflowItem[]) : [];
+        // Build hierarchy from flat items
+        const hierarchicalItems = buildHierarchy(flatItems);
+        const workflowScores = extractCategoryItems(hierarchicalItems, contract.id, contract.numero, profilesMap);
 
         // Filter by cartera members
         for (const score of workflowScores) {
