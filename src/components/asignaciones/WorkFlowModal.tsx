@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -49,6 +50,7 @@ interface WorkFlowItem {
   titulo: string;
   descripcion?: string;
   asignado_a?: string;
+  asignado_nombre?: string;
   rol?: string;
   completado: boolean;
   orden: number;
@@ -58,6 +60,7 @@ interface WorkFlowItem {
   enlaceSharepoint?: string; // SharePoint document link for inputs
   fecha_inicio?: string; // Activity start date
   fecha_termino?: string; // Activity end date
+  progreso?: number; // Progress percentage
 }
 
 interface MiembroCartera {
@@ -139,6 +142,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [supervisores, setSupervisores] = useState<SupervisorProfile[]>([]);
   const [workflowData, setWorkflowData] = useState<WorkflowData | null>(null);
+  const [profilesMap, setProfilesMap] = useState<Record<string, { full_name: string | null; email: string }>>({});
   const [, forceUpdate] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -175,8 +179,27 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     if (open) {
       loadWorkflow();
       loadSupervisores();
+      loadProfiles();
     }
   }, [open, contrato.id]);
+
+  const loadProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email");
+
+      if (error) throw error;
+
+      const map: Record<string, { full_name: string | null; email: string }> = {};
+      (data || []).forEach(p => {
+        map[p.id] = { full_name: p.full_name, email: p.email };
+      });
+      setProfilesMap(map);
+    } catch (error) {
+      console.error("Error loading profiles:", error);
+    }
+  };
 
   const loadSupervisores = async () => {
     try {
@@ -247,6 +270,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         titulo: item.titulo,
         descripcion: item.descripcion || null,
         asignado_a: item.asignado_a || null,
+        asignado_nombre: item.asignado_nombre || null,
         rol: item.rol || null,
         completado: item.completado,
         orden: item.orden,
@@ -256,6 +280,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         enlaceSharepoint: item.enlaceSharepoint || null,
         fecha_inicio: item.fecha_inicio || null,
         fecha_termino: item.fecha_termino || null,
+        progreso: item.progreso ?? null,
       }));
 
       if (workflowData?.id) {
@@ -739,6 +764,9 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                           }}
                           onCancelEdit={() => setEditingItem(null)}
                           variant="oval"
+                          selectedAsignado={actividad.asignado_a}
+                          selectedAsignadoNombre={actividad.asignado_nombre || (actividad.asignado_a ? profilesMap[actividad.asignado_a]?.full_name : undefined)}
+                          progreso={actividad.progreso}
                           onStartConnection={() => startConnection(actividad.id)}
                           onCompleteConnection={() => completeConnection(actividad.id)}
                           isConnecting={!!connectingFrom}
@@ -747,6 +775,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                           hasConnections={(actividad.conexiones?.length || 0) > 0}
                           setRef={(el) => setItemRef(actividad.id, el)}
                           connectionLabels={getConnectionLabels(actividad.id)}
+                          profilesMap={profilesMap}
                         />
                       </div>
                       {/* Empty Input Cell for Activity Row */}
@@ -786,6 +815,9 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                               onCancelEdit={() => setEditingItem(null)}
                               variant="diamond"
                               showSharepointLink={true}
+                              selectedAsignado={input.asignado_a}
+                              selectedAsignadoNombre={input.asignado_nombre || (input.asignado_a ? profilesMap[input.asignado_a]?.full_name : undefined)}
+                              progreso={input.progreso}
                               onStartConnection={() => startConnection(input.id)}
                               onCompleteConnection={() => completeConnection(input.id)}
                               isConnecting={!!connectingFrom}
@@ -794,6 +826,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                               hasConnections={(input.conexiones?.length || 0) > 0}
                               setRef={(el) => setItemRef(input.id, el)}
                               connectionLabels={getConnectionLabels(input.id)}
+                              profilesMap={profilesMap}
                             />
                           </div>
                           {/* Proceso Cells for this Input */}
@@ -822,7 +855,15 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                                           variant="default"
                                           miembros={rolMiembros}
                                           selectedAsignado={tarea.asignado_a}
-                                          onAsignar={(userId) => updateItem(tarea.id, { asignado_a: userId })}
+                                          selectedAsignadoNombre={tarea.asignado_nombre || (tarea.asignado_a ? profilesMap[tarea.asignado_a]?.full_name : undefined)}
+                                          progreso={tarea.progreso}
+                                          onAsignar={(userId) => {
+                                            const profile = profilesMap[userId];
+                                            updateItem(tarea.id, { 
+                                              asignado_a: userId,
+                                              asignado_nombre: profile?.full_name || null
+                                            });
+                                          }}
                                           onStartConnection={() => startConnection(tarea.id)}
                                           onCompleteConnection={() => completeConnection(tarea.id)}
                                           isConnecting={!!connectingFrom}
@@ -831,6 +872,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                                           hasConnections={(tarea.conexiones?.length || 0) > 0}
                                           setRef={(el) => setItemRef(tarea.id, el)}
                                           connectionLabels={getConnectionLabels(tarea.id)}
+                                          profilesMap={profilesMap}
                                         />
                                       ))}
                                       {newItemColumn === `tarea-${subColIndex}-${input.id}` ? (
@@ -883,6 +925,9 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                                 onCancelEdit={() => setEditingItem(null)}
                                 variant="rounded"
                                 showSharepointLink={true}
+                                selectedAsignado={output.asignado_a}
+                                selectedAsignadoNombre={output.asignado_nombre || (output.asignado_a ? profilesMap[output.asignado_a]?.full_name : undefined)}
+                                progreso={output.progreso}
                                 onStartConnection={() => startConnection(output.id)}
                                 onCompleteConnection={() => completeConnection(output.id)}
                                 isConnecting={!!connectingFrom}
@@ -891,6 +936,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                                 hasConnections={(output.conexiones?.length || 0) > 0}
                                 setRef={(el) => setItemRef(output.id, el)}
                                 connectionLabels={getConnectionLabels(output.id)}
+                                profilesMap={profilesMap}
                               />
                             ))}
                             {newItemColumn === `output-${input.id}` ? (
@@ -940,7 +986,15 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                                 variant="oval"
                                 supervisores={supervisores}
                                 selectedAsignado={supervision.asignado_a}
-                                onAsignar={(userId) => updateItem(supervision.id, { asignado_a: userId })}
+                                selectedAsignadoNombre={supervision.asignado_nombre || (supervision.asignado_a ? profilesMap[supervision.asignado_a]?.full_name : undefined)}
+                                progreso={supervision.progreso}
+                                onAsignar={(userId) => {
+                                  const profile = profilesMap[userId];
+                                  updateItem(supervision.id, { 
+                                    asignado_a: userId,
+                                    asignado_nombre: profile?.full_name || null
+                                  });
+                                }}
                                 onStartConnection={() => startConnection(supervision.id)}
                                 onCompleteConnection={() => completeConnection(supervision.id)}
                                 isConnecting={!!connectingFrom}
@@ -949,6 +1003,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                                 hasConnections={(supervision.conexiones?.length || 0) > 0}
                                 setRef={(el) => setItemRef(supervision.id, el)}
                                 connectionLabels={getConnectionLabels(supervision.id)}
+                                profilesMap={profilesMap}
                               />
                             ))}
                             {newItemColumn === `supervision-${input.id}` ? (
@@ -1109,6 +1164,8 @@ interface WorkFlowItemCardProps {
   miembros?: MiembroCartera[];
   supervisores?: SupervisorProfile[];
   selectedAsignado?: string;
+  selectedAsignadoNombre?: string;
+  progreso?: number;
   onAsignar?: (userId: string) => void;
   onStartConnection: () => void;
   onCompleteConnection: () => void;
@@ -1119,6 +1176,7 @@ interface WorkFlowItemCardProps {
   setRef: (el: HTMLDivElement | null) => void;
   connectionLabels: { outgoing: string[]; incoming: string[] };
   showSharepointLink?: boolean;
+  profilesMap?: Record<string, { full_name: string | null; email: string }>;
 }
 
 function WorkFlowItemCard({
@@ -1133,6 +1191,8 @@ function WorkFlowItemCard({
   miembros,
   supervisores,
   selectedAsignado,
+  selectedAsignadoNombre,
+  progreso,
   onAsignar,
   onStartConnection,
   onCompleteConnection,
@@ -1143,6 +1203,7 @@ function WorkFlowItemCard({
   setRef,
   connectionLabels,
   showSharepointLink = false,
+  profilesMap,
 }: WorkFlowItemCardProps) {
   const [editTitle, setEditTitle] = useState(item.titulo);
   const [editSharepointLink, setEditSharepointLink] = useState(item.enlaceSharepoint || "");
@@ -1296,55 +1357,137 @@ function WorkFlowItemCard({
               </a>
             )}
           </div>
-          {miembros && onAsignar && (
-            <div className="mt-1">
-              <Select value={selectedAsignado || ""} onValueChange={onAsignar}>
-                <SelectTrigger className="h-5 text-[10px]">
-                  <SelectValue placeholder="Asignar..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {miembros.map(m => (
-                    <SelectItem key={m.user_id} value={m.user_id}>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-4 w-4">
-                          <AvatarFallback className="text-[8px]">
-                            {getInitials(m.profile?.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs">{m.profile?.full_name || m.profile?.email}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          {supervisores && onAsignar && (
-            <div className="mt-1">
-              <Select value={selectedAsignado || ""} onValueChange={onAsignar}>
-                <SelectTrigger className="h-5 text-[10px]">
-                  <SelectValue placeholder="Asignar supervisor..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {supervisores.map(s => (
-                    <SelectItem key={s.id} value={s.id}>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-4 w-4">
-                          <AvatarFallback className="text-[8px]">
-                            {getInitials(s.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs">{s.full_name || s.email}</span>
-                        {s.puesto && (
-                          <span className="text-[9px] text-muted-foreground">({s.puesto})</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          
+          {/* Assignee and Progress Row */}
+          <div className="mt-1 flex items-center justify-between gap-2">
+            {/* Assignee display/select */}
+            {miembros && onAsignar ? (
+              selectedAsignado ? (
+                // Show assigned as circle with tooltip
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1">
+                      <Avatar className="h-5 w-5 border-2 border-primary/20">
+                        <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-semibold">
+                          {getInitials(selectedAsignadoNombre || miembros.find(m => m.user_id === selectedAsignado)?.profile?.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    <p className="font-medium">{selectedAsignadoNombre || miembros.find(m => m.user_id === selectedAsignado)?.profile?.full_name}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Select value="" onValueChange={onAsignar}>
+                  <SelectTrigger className="h-5 text-[10px] w-auto min-w-[70px]">
+                    <SelectValue placeholder="Asignar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {miembros.map(m => (
+                      <SelectItem key={m.user_id} value={m.user_id}>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-4 w-4">
+                            <AvatarFallback className="text-[8px]">
+                              {getInitials(m.profile?.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs">{m.profile?.full_name || m.profile?.email}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )
+            ) : supervisores && onAsignar ? (
+              selectedAsignado ? (
+                // Show supervisor as circle with tooltip
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1">
+                      <Avatar className="h-5 w-5 border-2 border-red-200">
+                        <AvatarFallback className="text-[9px] bg-red-100 text-red-700 font-semibold dark:bg-red-900/30 dark:text-red-300">
+                          {getInitials(selectedAsignadoNombre || supervisores.find(s => s.id === selectedAsignado)?.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {supervisores.find(s => s.id === selectedAsignado)?.puesto && (
+                        <span className="text-[9px] text-muted-foreground">
+                          ({supervisores.find(s => s.id === selectedAsignado)?.puesto})
+                        </span>
+                      )}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    <p className="font-medium">{selectedAsignadoNombre || supervisores.find(s => s.id === selectedAsignado)?.full_name}</p>
+                    {supervisores.find(s => s.id === selectedAsignado)?.puesto && (
+                      <p className="text-muted-foreground">{supervisores.find(s => s.id === selectedAsignado)?.puesto}</p>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Select value="" onValueChange={onAsignar}>
+                  <SelectTrigger className="h-5 text-[10px] w-auto min-w-[100px]">
+                    <SelectValue placeholder="Asignar supervisor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {supervisores.map(s => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-4 w-4">
+                            <AvatarFallback className="text-[8px]">
+                              {getInitials(s.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs">{s.full_name || s.email}</span>
+                          {s.puesto && (
+                            <span className="text-[9px] text-muted-foreground">({s.puesto})</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )
+            ) : selectedAsignado && selectedAsignadoNombre ? (
+              // Fallback: Show assignee from props (read-only)
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Avatar className="h-5 w-5 border-2 border-primary/20">
+                    <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-semibold">
+                      {getInitials(selectedAsignadoNombre)}
+                    </AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  <p className="font-medium">{selectedAsignadoNombre}</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
+            
+            {/* Progress percentage */}
+            {typeof progreso === 'number' && progreso > 0 && (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-[9px] px-1.5 py-0 h-4 font-semibold",
+                      progreso >= 100 
+                        ? "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700"
+                        : progreso >= 50
+                        ? "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700"
+                        : "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700"
+                    )}
+                  >
+                    {progreso}%
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  <p>Progreso: {progreso}%</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         </div>
       </div>
       
