@@ -93,17 +93,28 @@ export function AssigneeSelect({
 
       const items = (workflow.items as any[]) || [];
 
-      // Update the specific item
-      const updatedItems = items.map((item: any) => {
-        if (item.id === taskId) {
-          return { 
-            ...item, 
-            asignado_a: profileId,
-            asignado_nombre: profileName,
-          };
-        }
-        return item;
-      });
+      // Recursively update the specific item (handles nested children)
+      const updateItemRecursive = (itemsArray: any[]): any[] => {
+        return itemsArray.map((item: any) => {
+          if (item.id === taskId) {
+            return { 
+              ...item, 
+              asignado_a: profileId,
+              asignado_nombre: profileName,
+            };
+          }
+          // Check children recursively
+          if (item.children && Array.isArray(item.children)) {
+            return {
+              ...item,
+              children: updateItemRecursive(item.children),
+            };
+          }
+          return item;
+        });
+      };
+
+      const updatedItems = updateItemRecursive(items);
 
       // Save to database
       const { error: updateError } = await supabase
