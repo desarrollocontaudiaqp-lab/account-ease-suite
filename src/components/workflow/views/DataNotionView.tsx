@@ -690,7 +690,7 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
               {isOutput ? "Entregable y documentación" : "Vista de datos y anotaciones"}
             </p>
             {/* Metadata: Responsable and dates */}
-            {(node.data?.asignado_nombre || node.data?.fecha_inicio || node.data?.fecha_termino) && (
+            {(node.data?.asignado_nombre || (node.data?.fecha_inicio && node.data.fecha_inicio.trim()) || (node.data?.fecha_termino && node.data.fecha_termino.trim())) && (
               <div className="flex items-center gap-3 mt-1">
                 {node.data?.asignado_nombre && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -698,7 +698,7 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                     <span>{node.data.asignado_nombre}</span>
                   </div>
                 )}
-                {(node.data?.fecha_inicio || node.data?.fecha_termino) && (
+                {((node.data?.fecha_inicio && node.data.fecha_inicio.trim()) || (node.data?.fecha_termino && node.data.fecha_termino.trim())) && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <CalendarDays className="h-3 w-3" />
                     <span>

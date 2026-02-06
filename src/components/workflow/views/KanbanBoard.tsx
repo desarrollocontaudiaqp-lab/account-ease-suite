@@ -394,7 +394,7 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoa
               {stats.completado}/{stats.total} tareas completadas
             </p>
             {/* Metadata: Responsable and dates */}
-            {(node.data?.asignado_nombre || node.data?.fecha_inicio || node.data?.fecha_termino) && (
+            {(node.data?.asignado_nombre || (node.data?.fecha_inicio && node.data.fecha_inicio.trim()) || (node.data?.fecha_termino && node.data.fecha_termino.trim())) && (
               <div className="flex items-center gap-3 mt-1">
                 {node.data?.asignado_nombre && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -402,7 +402,7 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoa
                     <span>{node.data.asignado_nombre}</span>
                   </div>
                 )}
-                {(node.data?.fecha_inicio || node.data?.fecha_termino) && (
+                {((node.data?.fecha_inicio && node.data.fecha_inicio.trim()) || (node.data?.fecha_termino && node.data.fecha_termino.trim())) && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <CalendarDays className="h-3 w-3" />
                     <span>
