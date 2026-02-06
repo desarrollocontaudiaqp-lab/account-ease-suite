@@ -1,13 +1,16 @@
 import { useState } from "react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, BarChart3, Building2 } from "lucide-react";
+import { Loader2, BarChart3 } from "lucide-react";
 import { TeamRankingCard } from "./TeamRankingCard";
 import { CategoryMetricsPanel } from "./CategoryMetricsPanel";
 import { CategorySummaryCards } from "./CategorySummaryCards";
 import { PerformanceFilters } from "./PerformanceFilters";
-import { useCarteraPerformance, TimeFilter } from "@/hooks/useCarteraPerformance";
+import { MemberPerformanceModal } from "./MemberPerformanceModal";
+import { useCarteraPerformance, TimeFilterConfig, TeamMemberScore } from "@/hooks/useCarteraPerformance";
 
 interface CarteraPerformanceDashboardProps {
   carteraId: string;
@@ -18,13 +21,18 @@ export function CarteraPerformanceDashboard({
   carteraId,
   carteraNombre,
 }: CarteraPerformanceDashboardProps) {
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>("month");
+  const [filterConfig, setFilterConfig] = useState<TimeFilterConfig>({ type: "month" });
   const [contractFilter, setContractFilter] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<"contract" | "activity" | "responsible">("contract");
+  
+  // Member modal state
+  const [selectedMember, setSelectedMember] = useState<TeamMemberScore | null>(null);
+  const [selectedMemberRank, setSelectedMemberRank] = useState(0);
+  const [memberModalOpen, setMemberModalOpen] = useState(false);
 
   const { teamRanking, categoryScores, contracts, loading } = useCarteraPerformance(
     carteraId,
-    timeFilter,
+    filterConfig,
     contractFilter
   );
 
@@ -32,6 +40,40 @@ export function CarteraPerformanceDashboard({
   const totalScore = teamRanking.reduce((sum, m) => sum + m.totalScore, 0);
   const totalCompleted = categoryScores.filter(s => s.progress >= 100).length;
   const totalPending = categoryScores.filter(s => s.progress < 100).length;
+
+  // Get filter label for modal
+  const getFilterLabel = (): string => {
+    switch (filterConfig.type) {
+      case "today":
+        return "Hoy";
+      case "week":
+        return "Esta semana";
+      case "month":
+        if (filterConfig.selectedMonth) {
+          return format(filterConfig.selectedMonth, "MMMM yyyy", { locale: es });
+        }
+        return "Este mes";
+      case "range":
+        if (filterConfig.dateRange?.from) {
+          const from = format(filterConfig.dateRange.from, "dd/MM/yyyy", { locale: es });
+          const to = filterConfig.dateRange.to 
+            ? format(filterConfig.dateRange.to, "dd/MM/yyyy", { locale: es })
+            : from;
+          return `${from} - ${to}`;
+        }
+        return "Rango personalizado";
+      case "all":
+        return "Todo el tiempo";
+      default:
+        return "";
+    }
+  };
+
+  const handleMemberClick = (member: TeamMemberScore, rank: number) => {
+    setSelectedMember(member);
+    setSelectedMemberRank(rank);
+    setMemberModalOpen(true);
+  };
 
   if (loading) {
     return (
@@ -69,8 +111,8 @@ export function CarteraPerformanceDashboard({
 
       {/* Filters */}
       <PerformanceFilters
-        timeFilter={timeFilter}
-        onTimeFilterChange={setTimeFilter}
+        filterConfig={filterConfig}
+        onFilterChange={setFilterConfig}
         contractFilter={contractFilter}
         onContractFilterChange={setContractFilter}
         contracts={contracts}
@@ -83,7 +125,12 @@ export function CarteraPerformanceDashboard({
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Team Ranking */}
         <div className="xl:col-span-1">
-          <TeamRankingCard members={teamRanking} loading={loading} />
+          <TeamRankingCard 
+            members={teamRanking} 
+            loading={loading}
+            maxDisplay={5}
+            onMemberClick={handleMemberClick}
+          />
         </div>
 
         {/* Category Metrics */}
@@ -107,6 +154,16 @@ export function CarteraPerformanceDashboard({
           </Card>
         </div>
       </div>
+
+      {/* Member Performance Modal */}
+      <MemberPerformanceModal
+        open={memberModalOpen}
+        onOpenChange={setMemberModalOpen}
+        member={selectedMember}
+        rank={selectedMemberRank}
+        allScores={categoryScores}
+        filterLabel={getFilterLabel()}
+      />
     </div>
   );
 }

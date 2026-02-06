@@ -1,13 +1,35 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfDay, startOfWeek, startOfMonth, endOfDay, parseISO, isBefore, isAfter, isEqual } from "date-fns";
+import { 
+  startOfDay, 
+  startOfWeek, 
+  startOfMonth, 
+  endOfDay, 
+  endOfMonth,
+  parseISO, 
+  isBefore, 
+  isAfter, 
+  isEqual,
+  isWithinInterval 
+} from "date-fns";
 
 // Scoring constants
 const SCORE_ON_TIME = 10;
 const SCORE_BEFORE_DEADLINE = 15;
 const SCORE_AFTER_DEADLINE = 5;
 
-export type TimeFilter = "today" | "week" | "month" | "all";
+export type TimeFilter = "today" | "week" | "month" | "range" | "all";
+
+export interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
+
+export interface TimeFilterConfig {
+  type: TimeFilter;
+  selectedMonth?: Date; // For month filter with specific month selection
+  dateRange?: DateRange; // For range filter
+}
 
 export interface CategoryScore {
   id: string;
@@ -206,21 +228,33 @@ function extractCategoryItems(
   return results;
 }
 
-function filterByTime(scores: CategoryScore[], filter: TimeFilter): CategoryScore[] {
-  if (filter === "all") return scores;
+function filterByTime(scores: CategoryScore[], filterConfig: TimeFilterConfig): CategoryScore[] {
+  const { type, selectedMonth, dateRange } = filterConfig;
+  
+  if (type === "all") return scores;
 
   const now = new Date();
   let startDate: Date;
+  let endDate: Date | null = null;
 
-  switch (filter) {
+  switch (type) {
     case "today":
       startDate = startOfDay(now);
+      endDate = endOfDay(now);
       break;
     case "week":
       startDate = startOfWeek(now, { weekStartsOn: 1 });
       break;
     case "month":
-      startDate = startOfMonth(now);
+      // Use selectedMonth if provided, otherwise current month
+      const monthToUse = selectedMonth || now;
+      startDate = startOfMonth(monthToUse);
+      endDate = endOfMonth(monthToUse);
+      break;
+    case "range":
+      if (!dateRange?.from) return scores;
+      startDate = startOfDay(dateRange.from);
+      endDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
       break;
     default:
       return scores;
@@ -231,16 +265,22 @@ function filterByTime(scores: CategoryScore[], filter: TimeFilter): CategoryScor
     const dueDate = parseDate(score.dueDate || undefined);
     const completedDate = parseDate(score.completedDate || undefined);
 
-    if (dueDate && (isAfter(dueDate, startDate) || isEqual(dueDate, startDate))) {
+    const checkDateInRange = (date: Date | null): boolean => {
+      if (!date) return false;
+      if (endDate) {
+        return isWithinInterval(date, { start: startDate, end: endDate });
+      }
+      return isAfter(date, startDate) || isEqual(date, startDate);
+    };
+
+    if (checkDateInRange(dueDate)) return true;
+    if (checkDateInRange(completedDate)) return true;
+    
+    // For pending items with due date in the future and within range, include them
+    if (score.status === "pending" && dueDate && checkDateInRange(dueDate)) {
       return true;
     }
-    if (completedDate && (isAfter(completedDate, startDate) || isEqual(completedDate, startDate))) {
-      return true;
-    }
-    // For pending items, include if no date filter applies
-    if (score.status === "pending") {
-      return true;
-    }
+    
     return false;
   });
 }
@@ -283,7 +323,7 @@ function calculateTeamRanking(scores: CategoryScore[]): TeamMemberScore[] {
 
 export function useCarteraPerformance(
   carteraId: string | null,
-  timeFilter: TimeFilter = "month",
+  filterConfig: TimeFilterConfig = { type: "month" },
   contractFilter: string | null = null
 ) {
   const [loading, setLoading] = useState(true);
@@ -398,10 +438,10 @@ export function useCarteraPerformance(
     }
 
     // Apply time filter
-    result = filterByTime(result, timeFilter);
+    result = filterByTime(result, filterConfig);
 
     return result;
-  }, [allScores, timeFilter, contractFilter]);
+  }, [allScores, filterConfig, contractFilter]);
 
   // Calculate team ranking from filtered scores
   const teamRanking = useMemo(() => {
