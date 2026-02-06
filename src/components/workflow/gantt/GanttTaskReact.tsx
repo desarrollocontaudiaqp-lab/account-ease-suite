@@ -1,14 +1,18 @@
 import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { Gantt, Task, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
-import { addDays, differenceInDays } from "date-fns";
+import { addDays, differenceInDays, format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Calendar, Loader2, RefreshCw, Save, Maximize2, Minimize2, GitBranch } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export interface GanttTaskData {
   id: string;
@@ -51,6 +55,173 @@ const formatDateForDB = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}T00:00:00.000Z`;
 };
+
+// Interactive Date Cell Component
+function DatePickerCell({ 
+  date, 
+  label, 
+  type, 
+  taskId,
+  minDate,
+  onDateChange,
+  isSaving
+}: { 
+  date: Date;
+  label: string;
+  type: 'start' | 'end';
+  taskId: string;
+  minDate?: Date;
+  onDateChange: (newDate: Date) => void;
+  isSaving: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  
+  const handleSelect = (newDate: Date | undefined) => {
+    if (newDate) {
+      onDateChange(newDate);
+      setOpen(false);
+    }
+  };
+  
+  const borderColor = type === 'start' 
+    ? 'hover:border-emerald-400 focus:border-emerald-500' 
+    : 'hover:border-blue-400 focus:border-blue-500';
+  const hoverBg = type === 'start'
+    ? 'hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+    : 'hover:bg-blue-50 dark:hover:bg-blue-950/30';
+  
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          disabled={isSaving}
+          className={cn(
+            "w-full h-full flex items-center justify-center gap-1 text-xs cursor-pointer transition-all rounded-sm border border-transparent",
+            borderColor, hoverBg,
+            isSaving && "opacity-50 cursor-wait"
+          )}
+        >
+          <Calendar className="h-3 w-3 text-muted-foreground" />
+          <span>{format(date, "dd MMM", { locale: es })}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 z-[100]" align="start" sideOffset={4}>
+        <div className="p-2 border-b bg-muted/30">
+          <p className="text-xs font-semibold">
+            {type === 'start' ? 'Fecha de Inicio' : 'Fecha de Fin'}
+          </p>
+          <p className="text-[10px] text-muted-foreground">{label}</p>
+        </div>
+        <CalendarPicker
+          mode="single"
+          selected={date}
+          onSelect={handleSelect}
+          disabled={minDate ? (d) => d < minDate : undefined}
+          initialFocus
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// Task List Table with Calendar Controls
+function TaskListTableWithCalendar({ 
+  tableTasks, 
+  rowHeight, 
+  localTasks,
+  onDateChange,
+  savingTask
+}: { 
+  tableTasks: Task[];
+  rowHeight: number;
+  localTasks: GanttTaskData[];
+  onDateChange: (task: Task) => void;
+  savingTask: string | null;
+}) {
+  return (
+    <div className="text-xs">
+      {tableTasks.map((task) => {
+        const duration = differenceInDays(task.end, task.start) + 1;
+        const originalTask = localTasks.find(t => t.id === task.id);
+        const colors = typeColors[originalTask?.tipo || 'tarea'];
+        const isSaving = savingTask === task.id;
+        
+        const handleStartChange = (newDate: Date) => {
+          const newTask = { ...task, start: newDate };
+          // If end is before new start, adjust it
+          if (newTask.end < newDate) {
+            newTask.end = addDays(newDate, 1);
+          }
+          onDateChange(newTask);
+        };
+        
+        const handleEndChange = (newDate: Date) => {
+          const newTask = { ...task, end: newDate };
+          // If start is after new end, adjust it
+          if (newTask.start > newDate) {
+            newTask.start = newDate;
+          }
+          onDateChange(newTask);
+        };
+        
+        return (
+          <div
+            key={task.id}
+            className="flex items-center border-b border-border hover:bg-muted/50 transition-colors"
+            style={{ height: rowHeight }}
+          >
+            <div className="flex-1 px-2 flex items-center gap-2 min-w-[140px] overflow-hidden">
+              <div 
+                className="w-2 h-2 rounded-sm flex-shrink-0"
+                style={{ backgroundColor: colors?.bar || '#6b7280' }}
+              />
+              <span className="truncate font-medium" title={task.name}>
+                {task.name}
+              </span>
+              {isSaving && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+            </div>
+            <div className="w-[70px] px-0.5 border-l border-border">
+              <DatePickerCell
+                date={task.start}
+                label={task.name}
+                type="start"
+                taskId={task.id}
+                onDateChange={handleStartChange}
+                isSaving={isSaving}
+              />
+            </div>
+            <div className="w-[70px] px-0.5 border-l border-border">
+              <DatePickerCell
+                date={task.end}
+                label={task.name}
+                type="end"
+                taskId={task.id}
+                minDate={task.start}
+                onDateChange={handleEndChange}
+                isSaving={isSaving}
+              />
+            </div>
+            <div className="w-[45px] px-1 text-center font-medium border-l border-border">
+              {duration}
+            </div>
+            <div className="w-[45px] px-1 text-center border-l border-border">
+              <span 
+                className={cn(
+                  "font-medium",
+                  task.progress >= 100 ? 'text-green-600 dark:text-green-400' : 
+                  task.progress > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
+                )}
+              >
+                {task.progress}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function GanttTaskReact({
   tasks: propTasks,
@@ -485,49 +656,13 @@ export function GanttTaskReact({
             </div>
           )}
           TaskListTable={({ tasks: tableTasks, rowHeight }) => (
-            <div className="text-xs">
-              {tableTasks.map((task) => {
-                const duration = differenceInDays(task.end, task.start) + 1;
-                const originalTask = localTasks.find(t => t.id === task.id);
-                const colors = typeColors[originalTask?.tipo || 'tarea'];
-                return (
-                  <div
-                    key={task.id}
-                    className="flex items-center border-b border-border hover:bg-muted/50 transition-colors"
-                    style={{ height: rowHeight }}
-                  >
-                    <div className="flex-1 px-2 flex items-center gap-2 min-w-[140px] overflow-hidden">
-                      <div 
-                        className="w-2 h-2 rounded-sm flex-shrink-0"
-                        style={{ backgroundColor: colors?.bar || '#6b7280' }}
-                      />
-                      <span className="truncate font-medium" title={task.name}>
-                        {task.name}
-                      </span>
-                    </div>
-                    <div className="w-[70px] px-1 text-center text-muted-foreground border-l border-border">
-                      {task.start.toLocaleDateString('es', { day: '2-digit', month: 'short' })}
-                    </div>
-                    <div className="w-[70px] px-1 text-center text-muted-foreground border-l border-border">
-                      {task.end.toLocaleDateString('es', { day: '2-digit', month: 'short' })}
-                    </div>
-                    <div className="w-[45px] px-1 text-center font-medium border-l border-border">
-                      {duration}
-                    </div>
-                    <div className="w-[45px] px-1 text-center border-l border-border">
-                      <span 
-                        className={`font-medium ${
-                          task.progress >= 100 ? 'text-emerald-600' : 
-                          task.progress > 0 ? 'text-amber-600' : 'text-muted-foreground'
-                        }`}
-                      >
-                        {task.progress}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <TaskListTableWithCalendar 
+              tableTasks={tableTasks} 
+              rowHeight={rowHeight}
+              localTasks={localTasks}
+              onDateChange={handleDateChange}
+              savingTask={savingTask}
+            />
           )}
           TooltipContent={({ task }) => {
             const originalTask = localTasks.find((t) => t.id === task.id);
