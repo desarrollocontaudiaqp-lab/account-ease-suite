@@ -160,18 +160,24 @@ export function GanttTaskRow({
       <Popover open={startOpen} onOpenChange={setStartOpen}>
         <PopoverTrigger asChild>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             className={cn(
-              "h-7 px-2 gap-1 text-xs",
-              !startDate && "text-muted-foreground"
+              "h-7 px-2.5 gap-1.5 text-xs font-medium border-dashed hover:border-solid transition-all",
+              startDate 
+                ? "border-emerald-300 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-100/80 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400" 
+                : "text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
-            <Calendar className="h-3 w-3" />
-            {startDate ? format(startDate, "dd MMM", { locale: es }) : "Inicio"}
+            <Calendar className="h-3.5 w-3.5" />
+            {startDate ? format(startDate, "dd MMM yy", { locale: es }) : "Inicio"}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 shadow-lg border-2" align="start" sideOffset={8}>
+          <div className="p-3 border-b bg-muted/30">
+            <p className="text-xs font-semibold text-foreground">Fecha de Inicio</p>
+            <p className="text-[10px] text-muted-foreground">Selecciona cuándo comienza esta tarea</p>
+          </div>
           <CalendarComponent
             mode="single"
             selected={startDate}
@@ -182,24 +188,30 @@ export function GanttTaskRow({
         </PopoverContent>
       </Popover>
 
-      <span className="text-muted-foreground">→</span>
+      <span className="text-muted-foreground/60 text-xs">→</span>
 
       {/* End Date */}
       <Popover open={endOpen} onOpenChange={setEndOpen}>
         <PopoverTrigger asChild>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             className={cn(
-              "h-7 px-2 gap-1 text-xs",
-              !endDate && "text-muted-foreground"
+              "h-7 px-2.5 gap-1.5 text-xs font-medium border-dashed hover:border-solid transition-all",
+              endDate 
+                ? "border-blue-300 bg-blue-50/50 text-blue-700 hover:bg-blue-100/80 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-400" 
+                : "text-muted-foreground hover:text-foreground hover:border-primary/50"
             )}
           >
-            <Calendar className="h-3 w-3" />
-            {endDate ? format(endDate, "dd MMM", { locale: es }) : "Fin"}
+            <Calendar className="h-3.5 w-3.5" />
+            {endDate ? format(endDate, "dd MMM yy", { locale: es }) : "Fin"}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 shadow-lg border-2" align="start" sideOffset={8}>
+          <div className="p-3 border-b bg-muted/30">
+            <p className="text-xs font-semibold text-foreground">Fecha de Fin</p>
+            <p className="text-[10px] text-muted-foreground">Selecciona cuándo termina esta tarea</p>
+          </div>
           <CalendarComponent
             mode="single"
             selected={endDate}
