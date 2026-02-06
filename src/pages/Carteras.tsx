@@ -14,6 +14,7 @@ import {
   UserMinus,
   Eye,
   Settings,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
 import { useRolePermisos } from "@/hooks/useRolePermisos";
+import { CarteraPerformanceDashboard } from "@/components/carteras/CarteraPerformanceDashboard";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -595,6 +597,10 @@ const Carteras = () => {
               <Building2 className="h-4 w-4" />
               Carteras
             </TabsTrigger>
+            <TabsTrigger value="rendimiento" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Rendimiento
+            </TabsTrigger>
             <TabsTrigger value="personal" className="gap-2">
               <Users className="h-4 w-4" />
               Personal
@@ -602,20 +608,43 @@ const Carteras = () => {
           </TabsList>
 
           <div className="flex gap-2">
-            <div className="relative max-w-xs">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={activeTab === "carteras" ? "Buscar carteras..." : "Buscar personal..."}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            {activeTab === "carteras" && (
-              <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
-                <Plus className="h-4 w-4" />
-                Nueva Cartera
-              </Button>
+            {activeTab === "rendimiento" ? (
+              <Select
+                value={selectedCartera?.id || ""}
+                onValueChange={(value) => {
+                  const cartera = carteras.find(c => c.id === value);
+                  setSelectedCartera(cartera || null);
+                }}
+              >
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Seleccionar cartera..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {carteras.filter(c => c.activa).map((cartera) => (
+                    <SelectItem key={cartera.id} value={cartera.id}>
+                      {cartera.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <>
+                <div className="relative max-w-xs">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={activeTab === "carteras" ? "Buscar carteras..." : "Buscar personal..."}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {activeTab === "carteras" && (
+                  <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                    Nueva Cartera
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -836,6 +865,23 @@ const Carteras = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Rendimiento */}
+        <TabsContent value="rendimiento" className="mt-6">
+          {selectedCartera ? (
+            <CarteraPerformanceDashboard
+              carteraId={selectedCartera.id}
+              carteraNombre={selectedCartera.nombre}
+            />
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <p className="text-muted-foreground">Selecciona una cartera para ver el rendimiento del equipo</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
