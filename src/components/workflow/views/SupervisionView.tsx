@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -57,11 +57,18 @@ const getInitials = (name: string | null | undefined) => {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
+// Debounce delay in ms
+const DEBOUNCE_DELAY = 800;
+
 export function SupervisionView({ node, workflowId, profiles, onRefresh }: SupervisionViewProps) {
   const [checklists, setChecklists] = useState<ChecklistData[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newChecklistTitle, setNewChecklistTitle] = useState("");
+
+  // Local state for text inputs to allow fluid typing
+  const [localValues, setLocalValues] = useState<Record<string, string>>({});
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Hook to sync progress to workflow JSON
   const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);
@@ -155,8 +162,8 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
     setSaving(false);
   };
 
-  // Update checklist
-  const updateChecklist = async (checklistId: string, updates: Partial<ChecklistData>) => {
+  // Update checklist (saves to DB)
+  const updateChecklist = async (checklistId: string, updates: Partial<ChecklistData>, showToast = false) => {
     setSaving(true);
     try {
       // Calculate progress
@@ -194,17 +201,60 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
 
       if (error) throw error;
 
-      setChecklists(checklists.map(c => 
+      setChecklists(prev => prev.map(c => 
         c.id === checklistId 
           ? { ...c, ...updates, porcentaje_completado: porcentaje, estado } 
           : c
       ));
+      
+      if (showToast) {
+        toast.success("Guardado", { duration: 1500 });
+      }
     } catch (error) {
       console.error("Error updating checklist:", error);
       toast.error("Error al actualizar");
     }
     setSaving(false);
   };
+
+  // Debounced update for text fields
+  const debouncedUpdateChecklist = useCallback((
+    checklistId: string,
+    updates: Partial<ChecklistData>,
+    localKey: string,
+    localValue: string
+  ) => {
+    // Update local state immediately for fluid typing
+    setLocalValues(prev => ({ ...prev, [localKey]: localValue }));
+    
+    // Clear existing timer for this key
+    if (debounceTimers.current[localKey]) {
+      clearTimeout(debounceTimers.current[localKey]);
+    }
+    
+    // Set new timer for DB save
+    debounceTimers.current[localKey] = setTimeout(() => {
+      updateChecklist(checklistId, updates, false);
+      // Clear local value after save to use DB value
+      setLocalValues(prev => {
+        const newValues = { ...prev };
+        delete newValues[localKey];
+        return newValues;
+      });
+    }, DEBOUNCE_DELAY);
+  }, []);
+
+  // Get value with local override for fluid typing
+  const getLocalOrDbValue = (localKey: string, dbValue: string) => {
+    return localValues[localKey] !== undefined ? localValues[localKey] : dbValue;
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer));
+    };
+  }, []);
 
   // Delete checklist
   const deleteChecklist = async (checklistId: string) => {
@@ -254,11 +304,12 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
     updateChecklist(checklist.id, { items: newItems });
   };
 
-  // Update item text
-  const updateItemText = (checklist: ChecklistData, itemIdx: number, texto: string) => {
+  // Update item text with debounce
+  const updateItemTextDebounced = (checklist: ChecklistData, itemIdx: number, texto: string, itemId: string) => {
+    const localKey = `${checklist.id}-item-${itemId}`;
     const newItems = [...checklist.items];
     newItems[itemIdx] = { ...newItems[itemIdx], texto };
-    updateChecklist(checklist.id, { items: newItems });
+    debouncedUpdateChecklist(checklist.id, { items: newItems }, localKey, texto);
   };
 
   // Delete item
@@ -363,11 +414,16 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
             <Card key={checklist.id} className="overflow-hidden">
               <CardHeader className="pb-2 flex flex-row items-center justify-between bg-muted/30">
                 <div className="flex items-center gap-3">
-                  <ClipboardCheck className="h-5 w-5 text-red-500" />
+                  <ClipboardCheck className="h-5 w-5 text-destructive" />
                   <div>
                     <Input
-                      value={checklist.titulo}
-                      onChange={(e) => updateChecklist(checklist.id, { titulo: e.target.value })}
+                      value={getLocalOrDbValue(`${checklist.id}-titulo`, checklist.titulo)}
+                      onChange={(e) => debouncedUpdateChecklist(
+                        checklist.id, 
+                        { titulo: e.target.value },
+                        `${checklist.id}-titulo`,
+                        e.target.value
+                      )}
                       className="h-7 font-semibold border-none shadow-none focus-visible:ring-0 px-0 bg-transparent"
                     />
                   </div>
@@ -397,8 +453,8 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
                         className={cn(
                           "h-5 w-5 mt-0.5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0",
                           item.completado
-                            ? "bg-green-500 border-green-500 text-white"
-                            : "border-muted-foreground/30 hover:border-green-500"
+                            ? "bg-primary border-primary text-primary-foreground"
+                            : "border-muted-foreground/30 hover:border-primary"
                         )}
                         onClick={() => toggleItem(checklist, idx)}
                       >
@@ -407,8 +463,8 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
                       
                       <div className="flex-1 min-w-0">
                         <Input
-                          value={item.texto}
-                          onChange={(e) => updateItemText(checklist, idx, e.target.value)}
+                          value={getLocalOrDbValue(`${checklist.id}-item-${item.id}`, item.texto)}
+                          onChange={(e) => updateItemTextDebounced(checklist, idx, e.target.value, item.id)}
                           className={cn(
                             "h-auto py-0 px-0 text-sm border-none shadow-none focus-visible:ring-0 bg-transparent",
                             item.completado && "line-through text-muted-foreground"

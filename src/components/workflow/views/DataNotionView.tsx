@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -59,12 +59,19 @@ const statusColors: Record<string, string> = {
   bloqueado: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 };
 
+// Debounce delay in ms
+const DEBOUNCE_DELAY = 800;
+
 export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewProps) {
   const [notes, setNotes] = useState<NoteBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  
+  // Local state for text inputs to allow fluid typing
+  const [localValues, setLocalValues] = useState<Record<string, any>>({});
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Hook to sync progress to workflow JSON
   const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);
@@ -188,8 +195,8 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
     setSaving(false);
   };
 
-  // Update note content
-  const updateNote = async (noteId: string, updates: Partial<NoteBlock>) => {
+  // Update note content (saves to DB)
+  const updateNote = async (noteId: string, updates: Partial<NoteBlock>, showToast = true) => {
     setSaving(true);
     try {
       const { error } = await supabase
@@ -202,14 +209,55 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
 
       if (error) throw error;
 
-      setNotes(notes.map(n => n.id === noteId ? { ...n, ...updates } : n));
-      toast.success("Guardado");
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ...updates } : n));
+      if (showToast) {
+        toast.success("Guardado", { duration: 1500 });
+      }
     } catch (error) {
       console.error("Error updating note:", error);
       toast.error("Error al guardar");
     }
     setSaving(false);
   };
+
+  // Debounced update for text fields - updates local state immediately, saves to DB after delay
+  const debouncedUpdate = useCallback((
+    noteId: string, 
+    updates: Partial<NoteBlock>,
+    localKey: string,
+    localValue: any
+  ) => {
+    // Update local state immediately for fluid typing
+    setLocalValues(prev => ({ ...prev, [localKey]: localValue }));
+    
+    // Clear existing timer for this key
+    if (debounceTimers.current[localKey]) {
+      clearTimeout(debounceTimers.current[localKey]);
+    }
+    
+    // Set new timer for DB save
+    debounceTimers.current[localKey] = setTimeout(() => {
+      updateNote(noteId, updates, false);
+      // Clear local value after save to use DB value
+      setLocalValues(prev => {
+        const newValues = { ...prev };
+        delete newValues[localKey];
+        return newValues;
+      });
+    }, DEBOUNCE_DELAY);
+  }, []);
+
+  // Get value with local override for fluid typing
+  const getLocalOrDbValue = (localKey: string, dbValue: any) => {
+    return localValues[localKey] !== undefined ? localValues[localKey] : dbValue;
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(debounceTimers.current).forEach(timer => clearTimeout(timer));
+    };
+  }, []);
 
   // Delete note
   const deleteNote = async (noteId: string) => {
@@ -261,15 +309,22 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
 
     switch (note.tipo) {
       case "nota":
+        const noteTitleKey = `${note.id}-titulo`;
+        const noteTextKey = `${note.id}-text`;
         return (
           <Card key={note.id} className="group">
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <div className="flex items-center gap-2">
                 <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab opacity-0 group-hover:opacity-100" />
-                <FileText className="h-4 w-4 text-blue-500" />
+                <FileText className="h-4 w-4 text-primary" />
                 <Input
-                  value={note.titulo || ""}
-                  onChange={(e) => updateNote(note.id, { titulo: e.target.value })}
+                  value={getLocalOrDbValue(noteTitleKey, note.titulo || "")}
+                  onChange={(e) => debouncedUpdate(
+                    note.id, 
+                    { titulo: e.target.value },
+                    noteTitleKey,
+                    e.target.value
+                  )}
                   className="h-7 w-auto font-medium border-none shadow-none focus-visible:ring-0 px-1"
                 />
               </div>
@@ -284,8 +339,13 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
             </CardHeader>
             <CardContent>
               <Textarea
-                value={note.content?.text || ""}
-                onChange={(e) => updateNote(note.id, { content: { text: e.target.value } })}
+                value={getLocalOrDbValue(noteTextKey, note.content?.text || "")}
+                onChange={(e) => debouncedUpdate(
+                  note.id,
+                  { content: { text: e.target.value } },
+                  noteTextKey,
+                  e.target.value
+                )}
                 placeholder="Escribe tus notas aquí..."
                 className="min-h-[100px] resize-none"
               />
@@ -294,6 +354,7 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
         );
 
       case "tabla":
+        const tableTitleKey = `${note.id}-tabla-titulo`;
         const columns = note.content?.columns || ["Campo", "Valor", "Estado"];
         const rows = note.content?.rows || [];
 
@@ -302,10 +363,16 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
           updateNote(note.id, { content: { columns, rows: [...rows, newRow] } });
         };
 
-        const updateCell = (rowIdx: number, col: string, value: string) => {
+        const updateCellDebounced = (rowIdx: number, col: string, value: string) => {
+          const cellKey = `${note.id}-cell-${rowIdx}-${col}`;
           const newRows = [...rows];
           newRows[rowIdx] = { ...newRows[rowIdx], [col]: value };
-          updateNote(note.id, { content: { columns, rows: newRows } });
+          debouncedUpdate(
+            note.id,
+            { content: { columns, rows: newRows } },
+            cellKey,
+            value
+          );
         };
 
         const deleteRow = (rowIdx: number) => {
@@ -318,10 +385,15 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <div className="flex items-center gap-2">
                 <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab opacity-0 group-hover:opacity-100" />
-                <TableIcon className="h-4 w-4 text-purple-500" />
+                <TableIcon className="h-4 w-4 text-secondary-foreground" />
                 <Input
-                  value={note.titulo || ""}
-                  onChange={(e) => updateNote(note.id, { titulo: e.target.value })}
+                  value={getLocalOrDbValue(tableTitleKey, note.titulo || "")}
+                  onChange={(e) => debouncedUpdate(
+                    note.id,
+                    { titulo: e.target.value },
+                    tableTitleKey,
+                    e.target.value
+                  )}
                   className="h-7 w-auto font-medium border-none shadow-none focus-visible:ring-0 px-1"
                 />
               </div>
@@ -347,32 +419,39 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                 <TableBody>
                   {rows.map((row: any, rowIdx: number) => (
                     <TableRow key={row.id || rowIdx}>
-                      {columns.map((col: string, colIdx: number) => (
-                        <TableCell key={colIdx} className="py-1">
-                          {col === "Estado" ? (
-                            <Select
-                              value={row[col] || "pendiente"}
-                              onValueChange={(v) => updateCell(rowIdx, col, v)}
-                            >
-                              <SelectTrigger className="h-7 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pendiente">Pendiente</SelectItem>
-                                <SelectItem value="en_progreso">En Progreso</SelectItem>
-                                <SelectItem value="completado">Completado</SelectItem>
-                                <SelectItem value="bloqueado">Bloqueado</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input
-                              value={row[col] || ""}
-                              onChange={(e) => updateCell(rowIdx, col, e.target.value)}
-                              className="h-7 text-xs"
-                            />
-                          )}
-                        </TableCell>
-                      ))}
+                      {columns.map((col: string, colIdx: number) => {
+                        const cellKey = `${note.id}-cell-${rowIdx}-${col}`;
+                        return (
+                          <TableCell key={colIdx} className="py-1">
+                            {col === "Estado" ? (
+                              <Select
+                                value={row[col] || "pendiente"}
+                                onValueChange={(v) => {
+                                  const newRows = [...rows];
+                                  newRows[rowIdx] = { ...newRows[rowIdx], [col]: v };
+                                  updateNote(note.id, { content: { columns, rows: newRows } });
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pendiente">Pendiente</SelectItem>
+                                  <SelectItem value="en_progreso">En Progreso</SelectItem>
+                                  <SelectItem value="completado">Completado</SelectItem>
+                                  <SelectItem value="bloqueado">Bloqueado</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                value={getLocalOrDbValue(cellKey, row[col] || "")}
+                                onChange={(e) => updateCellDebounced(rowIdx, col, e.target.value)}
+                                className="h-7 text-xs"
+                              />
+                            )}
+                          </TableCell>
+                        );
+                      })}
                       <TableCell className="py-1">
                         <Button
                           variant="ghost"
@@ -398,6 +477,7 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
         );
 
       case "checklist":
+        const checklistTitleKey = `${note.id}-checklist-titulo`;
         const items = note.content?.items || [];
 
         const toggleItem = (itemIdx: number) => {
@@ -411,10 +491,16 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
           updateNote(note.id, { content: { items: [...items, newItem] } });
         };
 
-        const updateItemText = (itemIdx: number, texto: string) => {
+        const updateItemTextDebounced = (itemIdx: number, texto: string, itemId: string) => {
+          const itemKey = `${note.id}-item-${itemId}`;
           const newItems = [...items];
           newItems[itemIdx] = { ...newItems[itemIdx], texto };
-          updateNote(note.id, { content: { items: newItems } });
+          debouncedUpdate(
+            note.id,
+            { content: { items: newItems } },
+            itemKey,
+            texto
+          );
         };
 
         const deleteItem = (itemIdx: number) => {
@@ -430,10 +516,15 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <div className="flex items-center gap-2">
                 <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab opacity-0 group-hover:opacity-100" />
-                <CheckSquare className="h-4 w-4 text-green-500" />
+                <CheckSquare className="h-4 w-4 text-accent-foreground" />
                 <Input
-                  value={note.titulo || ""}
-                  onChange={(e) => updateNote(note.id, { titulo: e.target.value })}
+                  value={getLocalOrDbValue(checklistTitleKey, note.titulo || "")}
+                  onChange={(e) => debouncedUpdate(
+                    note.id,
+                    { titulo: e.target.value },
+                    checklistTitleKey,
+                    e.target.value
+                  )}
                   className="h-7 w-auto font-medium border-none shadow-none focus-visible:ring-0 px-1"
                 />
               </div>
@@ -452,37 +543,40 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
             <CardContent className="space-y-2">
               <Progress value={itemProgress} className="h-1.5" />
               <div className="space-y-1">
-                {items.map((item: any, idx: number) => (
-                  <div key={item.id || idx} className="flex items-center gap-2 group/item">
-                    <button
-                      className={cn(
-                        "h-5 w-5 rounded border-2 flex items-center justify-center transition-colors",
-                        item.completado
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "border-muted-foreground/30 hover:border-green-500"
-                      )}
-                      onClick={() => toggleItem(idx)}
-                    >
-                      {item.completado && <CheckSquare className="h-3 w-3" />}
-                    </button>
-                    <Input
-                      value={item.texto}
-                      onChange={(e) => updateItemText(idx, e.target.value)}
-                      className={cn(
-                        "h-7 flex-1 text-sm border-none shadow-none focus-visible:ring-0 px-1",
-                        item.completado && "line-through text-muted-foreground"
-                      )}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover/item:opacity-100"
-                      onClick={() => deleteItem(idx)}
-                    >
-                      <Trash2 className="h-3 w-3 text-destructive" />
-                    </Button>
-                  </div>
-                ))}
+                {items.map((item: any, idx: number) => {
+                  const itemKey = `${note.id}-item-${item.id}`;
+                  return (
+                    <div key={item.id || idx} className="flex items-center gap-2 group/item">
+                      <button
+                        className={cn(
+                          "h-5 w-5 rounded border-2 flex items-center justify-center transition-colors",
+                          item.completado
+                            ? "bg-primary border-primary text-primary-foreground"
+                            : "border-muted-foreground/30 hover:border-primary"
+                        )}
+                        onClick={() => toggleItem(idx)}
+                      >
+                        {item.completado && <CheckSquare className="h-3 w-3" />}
+                      </button>
+                      <Input
+                        value={getLocalOrDbValue(itemKey, item.texto)}
+                        onChange={(e) => updateItemTextDebounced(idx, e.target.value, item.id)}
+                        className={cn(
+                          "h-7 flex-1 text-sm border-none shadow-none focus-visible:ring-0 px-1",
+                          item.completado && "line-through text-muted-foreground"
+                        )}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover/item:opacity-100"
+                        onClick={() => deleteItem(idx)}
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
               <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={addItem}>
                 <Plus className="h-3 w-3" />
