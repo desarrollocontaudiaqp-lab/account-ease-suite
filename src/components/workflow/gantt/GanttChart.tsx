@@ -115,19 +115,30 @@ export function GanttChart({ tasks, profiles, onRefresh }: GanttChartProps) {
 
       const items = (workflow.items as any[]) || [];
       
-      // Update the specific item
-      const updatedItems = items.map((item: any) => {
-        if (item.id === task.id) {
-          const newItem = { ...item, ...updates };
-          // Find assignee name
-          if (updates.asignado_a !== undefined) {
-            const profile = profiles.find(p => p.id === updates.asignado_a);
-            newItem.asignado_nombre = profile?.full_name || null;
+      // Recursively update the specific item (handles nested children)
+      const updateItemRecursive = (itemsArray: any[]): any[] => {
+        return itemsArray.map((item: any) => {
+          if (item.id === task.id) {
+            const newItem = { ...item, ...updates };
+            // Find assignee name
+            if (updates.asignado_a !== undefined) {
+              const profile = profiles.find(p => p.id === updates.asignado_a);
+              newItem.asignado_nombre = profile?.full_name || null;
+            }
+            return newItem;
           }
-          return newItem;
-        }
-        return item;
-      });
+          // Check children recursively
+          if (item.children && Array.isArray(item.children)) {
+            return {
+              ...item,
+              children: updateItemRecursive(item.children),
+            };
+          }
+          return item;
+        });
+      };
+      
+      const updatedItems = updateItemRecursive(items);
 
       // Save to database
       const { error: updateError } = await supabase
