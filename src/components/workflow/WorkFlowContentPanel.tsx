@@ -41,6 +41,7 @@ import { WorkFlowBreadcrumb } from "./WorkFlowBreadcrumb";
 import { DataNotionView } from "./views/DataNotionView";
 import { KanbanBoard } from "./views/KanbanBoard";
 import { SupervisionView } from "./views/SupervisionView";
+import { ProcesosDashboard } from "./ProcesosDashboard";
 
 interface WorkFlowContentPanelProps {
   selectedNode: TreeNode | null;
@@ -340,6 +341,16 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
             node={selectedNode} 
             workflowId={workflowId || undefined}
             onRefresh={onRefresh}
+          />
+        );
+
+      case "procesos":
+        return (
+          <ProcesosDashboard
+            node={selectedNode}
+            workflowId={workflowId || undefined}
+            profiles={profiles}
+            onNavigateToTask={(taskNode) => onNavigateNode?.(taskNode)}
           />
         );
 
