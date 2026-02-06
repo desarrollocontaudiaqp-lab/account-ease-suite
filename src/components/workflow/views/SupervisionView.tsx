@@ -12,6 +12,7 @@ import {
   Calendar,
   ClipboardCheck,
   AlertTriangle,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +56,18 @@ interface ChecklistItem {
 const getInitials = (name: string | null | undefined) => {
   if (!name) return "?";
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+};
+
+// Helper to format dates safely
+const formatDateSafe = (dateStr: string | undefined): string | null => {
+  if (!dateStr) return null;
+  try {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return format(date, "dd MMM yyyy", { locale: es });
+  } catch {
+    return null;
+  }
 };
 
 // Debounce delay in ms
@@ -349,6 +362,25 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
             <p className="text-xs text-muted-foreground">
               {completedItems}/{totalItems} verificaciones completadas
             </p>
+            {/* Metadata: Responsable and dates */}
+            {(node.data?.asignado_nombre || node.data?.fecha_inicio || node.data?.fecha_termino) && (
+              <div className="flex items-center gap-3 mt-1">
+                {node.data?.asignado_nombre && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <User className="h-3 w-3" />
+                    <span>{node.data.asignado_nombre}</span>
+                  </div>
+                )}
+                {(node.data?.fecha_inicio || node.data?.fecha_termino) && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <CalendarDays className="h-3 w-3" />
+                    <span>
+                      {formatDateSafe(node.data.fecha_inicio) || "—"} - {formatDateSafe(node.data.fecha_termino) || "—"}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

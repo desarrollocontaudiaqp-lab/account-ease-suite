@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Database,
@@ -15,6 +15,8 @@ import {
   X,
   Package,
   FolderOpen,
+  User,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +42,18 @@ import { toast } from "sonner";
 import type { TreeNode } from "../WorkFlowTreeSidebar";
 import { useWorkflowItemProgress } from "@/hooks/useWorkflowItemProgress";
 import { FileTab } from "./FileTab";
+
+// Helper to format dates safely
+const formatDateSafe = (dateStr: string | undefined): string | null => {
+  if (!dateStr) return null;
+  try {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return format(date, "dd MMM yyyy", { locale: es });
+  } catch {
+    return null;
+  }
+};
 
 interface DataNotionViewProps {
   node: TreeNode;
@@ -675,6 +689,25 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
             <p className="text-xs text-muted-foreground">
               {isOutput ? "Entregable y documentación" : "Vista de datos y anotaciones"}
             </p>
+            {/* Metadata: Responsable and dates */}
+            {(node.data?.asignado_nombre || node.data?.fecha_inicio || node.data?.fecha_termino) && (
+              <div className="flex items-center gap-3 mt-1">
+                {node.data?.asignado_nombre && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <User className="h-3 w-3" />
+                    <span>{node.data.asignado_nombre}</span>
+                  </div>
+                )}
+                {(node.data?.fecha_inicio || node.data?.fecha_termino) && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <CalendarDays className="h-3 w-3" />
+                    <span>
+                      {formatDateSafe(node.data.fecha_inicio) || "—"} - {formatDateSafe(node.data.fecha_termino) || "—"}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
