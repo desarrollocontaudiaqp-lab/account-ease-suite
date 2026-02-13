@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarDays, AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { BlurredValue } from "@/components/ui/BlurredValue";
 
 interface Payment {
   id: string;
@@ -101,9 +102,11 @@ export function UpcomingPayments({ payments, loading }: UpcomingPaymentsProps) {
               </div>
               <div className="text-right flex items-center gap-4">
                 <div>
-                  <p className="font-bold text-foreground">
-                    S/ {payment.monto.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
-                  </p>
+                  <BlurredValue>
+                    <p className="font-bold text-foreground">
+                      S/ {payment.monto.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                    </p>
+                  </BlurredValue>
                   <span className={cn("status-badge text-xs mt-1", statusConfig[payment.status].badge)}>
                     {statusConfig[payment.status].label}
                   </span>

@@ -16,6 +16,7 @@ import { ImportServiciosDialog } from "@/components/configuracion/ImportServicio
 import { DocumentosPagoManager } from "@/components/configuracion/DocumentosPagoManager";
 import { MetodosPagoManager } from "@/components/configuracion/MetodosPagoManager";
 import { CalendarioPagosConfig } from "@/components/configuracion/CalendarioPagosConfig";
+import { VisibilidadFinancieraConfig } from "@/components/configuracion/VisibilidadFinancieraConfig";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
 import {
@@ -392,6 +393,9 @@ const Configuracion = () => {
                 </div>
               </div>
             </div>
+
+            {/* Visibilidad Financiera por Rol */}
+            <VisibilidadFinancieraConfig />
 
             {/* Opciones Avanzadas */}
             <div className="bg-card rounded-xl border border-border p-6">
