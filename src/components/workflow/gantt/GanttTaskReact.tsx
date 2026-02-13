@@ -33,6 +33,7 @@ interface GanttTaskReactProps {
   profiles: { id: string; full_name: string | null }[];
   onRefresh?: () => void;
   contratoId?: string;
+  canEditProgress?: boolean;
 }
 
 // Color palette by type
@@ -228,6 +229,7 @@ export function GanttTaskReact({
   profiles,
   onRefresh,
   contratoId,
+  canEditProgress = false,
 }: GanttTaskReactProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Day);
   const [savingTask, setSavingTask] = useState<string | null>(null);
@@ -625,7 +627,7 @@ export function GanttTaskReact({
           tasks={ganttTasks}
           viewMode={viewMode}
           onDateChange={handleDateChange}
-          onProgressChange={handleProgressChange}
+          onProgressChange={canEditProgress ? handleProgressChange : undefined}
           onClick={handleTaskClick}
           locale="es"
           listCellWidth="155px"

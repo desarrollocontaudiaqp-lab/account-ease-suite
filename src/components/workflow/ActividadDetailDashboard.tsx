@@ -36,6 +36,7 @@ import type { TreeNode } from "./WorkFlowTreeSidebar";
 import { GanttTaskReact, GanttTaskData } from "./gantt";
 import { AssigneeSelect } from "./AssigneeSelect";
 import { useActivityProgress } from "@/hooks/useActivityProgress";
+import { useCanEditProgress } from "@/hooks/useCanEditProgress";
 
 interface ActividadDetailDashboardProps {
   node: TreeNode;
@@ -89,6 +90,9 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
   
   // Use activity progress hook to calculate real progress from categories
   const { progress: activityProgress, refresh: refreshProgress } = useActivityProgress(node, workflowId);
+  
+  // Check if user can edit progress
+  const { canEditProgress } = useCanEditProgress();
 
   // Fetch profiles
   useEffect(() => {
@@ -372,6 +376,7 @@ export function ActividadDetailDashboard({ node, onRefresh }: ActividadDetailDas
             profiles={profiles} 
             onRefresh={onRefresh}
             contratoId={node.data?.contratoId || ganttTasks[0]?.contratoId}
+            canEditProgress={canEditProgress}
           />
         </TabsContent>
 
