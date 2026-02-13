@@ -33,6 +33,8 @@ interface SupervisionViewProps {
   workflowId?: string;
   profiles: { id: string; full_name: string | null }[];
   onRefresh?: () => void;
+  canEditAll?: boolean;
+  currentUserId?: string | null;
 }
 
 interface ChecklistData {
@@ -75,11 +77,14 @@ const formatDateSafe = (dateStr: string | undefined): string | null => {
 // Debounce delay in ms
 const DEBOUNCE_DELAY = 800;
 
-export function SupervisionView({ node, workflowId, profiles, onRefresh }: SupervisionViewProps) {
+export function SupervisionView({ node, workflowId, profiles, onRefresh, canEditAll = false, currentUserId }: SupervisionViewProps) {
   const [checklists, setChecklists] = useState<ChecklistData[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newChecklistTitle, setNewChecklistTitle] = useState("");
+
+  // Determine if current user can edit this item
+  const canEdit = canEditAll || (currentUserId != null && currentUserId === node.data?.asignado_a);
 
   // Local state for text inputs to allow fluid typing
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
@@ -411,23 +416,25 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
       </div>
 
       {/* Add checklist */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Nombre del checklist de supervisión..."
-              value={newChecklistTitle}
-              onChange={(e) => setNewChecklistTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addChecklist()}
-              className="flex-1"
-            />
-            <Button onClick={addChecklist} disabled={!newChecklistTitle.trim() || saving}>
-              <Plus className="h-4 w-4 mr-1" />
-              Agregar Checklist
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {canEdit && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Nombre del checklist de supervisión..."
+                value={newChecklistTitle}
+                onChange={(e) => setNewChecklistTitle(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addChecklist()}
+                className="flex-1"
+              />
+              <Button onClick={addChecklist} disabled={!newChecklistTitle.trim() || saving}>
+                <Plus className="h-4 w-4 mr-1" />
+                Agregar Checklist
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Checklists */}
       {loading ? (
@@ -465,14 +472,16 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
                 <div className="flex items-center gap-2">
                   {getEstadoBadge(checklist.estado)}
                   <span className="text-xs text-muted-foreground">{checklist.porcentaje_completado}%</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => deleteChecklist(checklist.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => deleteChecklist(checklist.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-4 space-y-2">
@@ -490,7 +499,8 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
                             ? "bg-primary border-primary text-primary-foreground"
                             : "border-muted-foreground/30 hover:border-primary"
                         )}
-                        onClick={() => toggleItem(checklist, idx)}
+                        onClick={() => canEdit && toggleItem(checklist, idx)}
+                        disabled={!canEdit}
                       >
                         {item.completado && <CheckCircle2 className="h-3 w-3" />}
                       </button>
@@ -503,6 +513,7 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
                             "h-auto py-0 px-0 text-sm border-none shadow-none focus-visible:ring-0 bg-transparent",
                             item.completado && "line-through text-muted-foreground"
                           )}
+                          readOnly={!canEdit}
                         />
                         
                         {item.completado && verifierName && (
@@ -522,27 +533,31 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh }: Super
                         )}
                       </div>
                       
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                        onClick={() => deleteItem(checklist, idx)}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                          onClick={() => deleteItem(checklist, idx)}
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
                 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs gap-1 mt-2"
-                  onClick={() => addItem(checklist)}
-                >
-                  <Plus className="h-3 w-3" />
-                  Agregar verificación
-                </Button>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1 mt-2"
+                    onClick={() => addItem(checklist)}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Agregar verificación
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}

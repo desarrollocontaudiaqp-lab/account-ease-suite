@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
+import { useCanEditProgress } from "@/hooks/useCanEditProgress";
 import { es } from "date-fns/locale";
 import { 
   Activity, 
@@ -91,6 +92,7 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<{ id: string; full_name: string | null }[]>([]);
+  const { canEditAll, currentUserId } = useCanEditProgress();
 
   // Fetch workflow ID and profiles
   useEffect(() => {
@@ -341,6 +343,8 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
             node={selectedNode} 
             workflowId={workflowId || undefined}
             onRefresh={onRefresh}
+            canEditAll={canEditAll}
+            currentUserId={currentUserId}
           />
         );
 
@@ -361,6 +365,8 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
             workflowId={workflowId || undefined}
             profiles={profiles}
             onRefresh={onRefresh}
+            canEditAll={canEditAll}
+            currentUserId={currentUserId}
           />
         );
 
@@ -370,6 +376,8 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
             node={selectedNode} 
             workflowId={workflowId || undefined}
             onRefresh={onRefresh}
+            canEditAll={canEditAll}
+            currentUserId={currentUserId}
           />
         );
 
@@ -381,6 +389,8 @@ export function WorkFlowContentPanel({ selectedNode, treeData = [], onRefresh, o
             workflowId={workflowId || undefined}
             profiles={profiles}
             onRefresh={onRefresh}
+            canEditAll={canEditAll}
+            currentUserId={currentUserId}
           />
         );
 

@@ -47,6 +47,8 @@ interface KanbanBoardProps {
   workflowId?: string;
   profiles: { id: string; full_name: string | null }[];
   onRefresh?: () => void;
+  canEditAll?: boolean;
+  currentUserId?: string | null;
 }
 
 interface KanbanCard {
@@ -276,7 +278,7 @@ function ColumnConfigDialog({
   );
 }
 
-export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoardProps) {
+export function KanbanBoard({ node, workflowId, profiles, onRefresh, canEditAll = false, currentUserId }: KanbanBoardProps) {
   const [cards, setCards] = useState<KanbanCard[]>([]);
   const [columns, setColumns] = useState<KanbanColumn[]>(DEFAULT_COLUMNS);
   const [loading, setLoading] = useState(true);
@@ -289,6 +291,20 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoa
   const [newCardTitle, setNewCardTitle] = useState("");
 
   const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);
+
+  // Ownership check: can the current user edit this specific card?
+  const canEditCard = useCallback((card: KanbanCard) => {
+    if (canEditAll) return true;
+    if (!currentUserId) return false;
+    // Check single assignee
+    if (card.asignado_a === currentUserId) return true;
+    // Check multiple assignees
+    if (card.asignados && card.asignados.includes(currentUserId)) return true;
+    return false;
+  }, [canEditAll, currentUserId]);
+
+  // Can the user create new cards? (always yes, they'll be assigned to themselves)
+  const canCreate = canEditAll || !!currentUserId;
 
   // Find the "completed" column (last column or one named completado)
   const completedColumnId = useMemo(() => {
@@ -532,9 +548,9 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoa
           !card.color_tarjeta && "bg-card"
         )}
         style={card.color_tarjeta ? { backgroundColor: card.color_tarjeta } : undefined}
-        draggable
-        onDragStart={(e) => handleDragStart(e, card.id)}
-        onClick={() => setEditingCard({ ...card })}
+        draggable={canEditCard(card)}
+        onDragStart={(e) => canEditCard(card) && handleDragStart(e, card.id)}
+        onClick={() => canEditCard(card) && setEditingCard({ ...card })}
       >
         {/* Tags - now show label text */}
         {card.etiquetas.length > 0 && (
@@ -675,17 +691,19 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoa
             <Settings2 className="h-3.5 w-3.5" />
             Columnas
           </Button>
-          <Button
-            size="sm"
-            className="gap-1.5 h-8"
-            onClick={() => {
-              setNewCardColumn(columns[0]?.id || "pendiente");
-              setShowNewCardDialog(true);
-            }}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Nueva Tarjeta
-          </Button>
+          {canCreate && (
+            <Button
+              size="sm"
+              className="gap-1.5 h-8"
+              onClick={() => {
+                setNewCardColumn(columns[0]?.id || "pendiente");
+                setShowNewCardDialog(true);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nueva Tarjeta
+            </Button>
+          )}
         </div>
       </div>
 
@@ -715,17 +733,19 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh }: KanbanBoa
                       {columnCards.length}
                     </Badge>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => {
-                      setNewCardColumn(column.id);
-                      setShowNewCardDialog(true);
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  {canCreate && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        setNewCardColumn(column.id);
+                        setShowNewCardDialog(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
 
                 <ScrollArea className="h-[calc(100vh-350px)]">

@@ -51,5 +51,18 @@ export function useCanEditProgress() {
     check();
   }, [user, role]);
 
-  return { canEditProgress: canEdit, loading };
+  /**
+   * Check if user is a privileged role (admin/supervisor/gerente)
+   * that can edit all workflow items regardless of assignment.
+   */
+  const isPrivileged = canEdit || role === "gerente" || role === "supervisor";
+
+  return { 
+    canEditProgress: canEdit, 
+    /** Whether the user can edit all items (supervisor/admin/gerente) */
+    canEditAll: isPrivileged,
+    /** Current user ID for ownership checks */
+    currentUserId: user?.id || null,
+    loading 
+  };
 }
