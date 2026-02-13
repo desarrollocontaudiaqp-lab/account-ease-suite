@@ -1447,6 +1447,8 @@ export type Database = {
       workflow_kanban_cards: {
         Row: {
           asignado_a: string | null
+          asignados: Json | null
+          color_tarjeta: string | null
           created_at: string
           descripcion: string | null
           etiquetas: Json | null
@@ -1462,6 +1464,8 @@ export type Database = {
         }
         Insert: {
           asignado_a?: string | null
+          asignados?: Json | null
+          color_tarjeta?: string | null
           created_at?: string
           descripcion?: string | null
           etiquetas?: Json | null
@@ -1477,6 +1481,8 @@ export type Database = {
         }
         Update: {
           asignado_a?: string | null
+          asignados?: Json | null
+          color_tarjeta?: string | null
           created_at?: string
           descripcion?: string | null
           etiquetas?: Json | null
@@ -1493,6 +1499,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "workflow_kanban_cards_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_kanban_config: {
+        Row: {
+          columnas: Json
+          created_at: string
+          id: string
+          updated_at: string
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Insert: {
+          columnas?: Json
+          created_at?: string
+          id?: string
+          updated_at?: string
+          workflow_id: string
+          workflow_item_id: string
+        }
+        Update: {
+          columnas?: Json
+          created_at?: string
+          id?: string
+          updated_at?: string
+          workflow_id?: string
+          workflow_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_kanban_config_workflow_id_fkey"
             columns: ["workflow_id"]
             isOneToOne: false
             referencedRelation: "workflows"
