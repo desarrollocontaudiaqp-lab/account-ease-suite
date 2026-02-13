@@ -21,6 +21,7 @@ import { ProformasChart } from "@/components/dashboard/ProformasChart";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Button } from "@/components/ui/button";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
+import { BlurredValue, BlurredSection } from "@/components/ui/BlurredValue";
 
 const Dashboard = () => {
   const { stats, recentContracts, upcomingPayments, teamMembers, loading, userName, refetch } = useDashboardStats();
@@ -109,6 +110,7 @@ const Dashboard = () => {
           variant="secondary"
           delay={150}
           href="/calendario-pagos"
+          isFinancial
         />
         <StatCard
           title="Conversión"
@@ -127,14 +129,15 @@ const Dashboard = () => {
           variant="warning"
           delay={250}
           href="/calendario-pagos"
+          isFinancial
         />
       </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+        <BlurredSection className="lg:col-span-2">
           <IncomeChart />
-        </div>
+        </BlurredSection>
         <ProformasChart />
       </div>
 

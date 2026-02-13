@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { BlurredValue } from "@/components/ui/BlurredValue";
 
 interface StatCardProps {
   title: string;
@@ -14,6 +15,7 @@ interface StatCardProps {
   variant?: "default" | "primary" | "secondary" | "warning";
   delay?: number;
   href?: string;
+  isFinancial?: boolean;
 }
 
 const variantStyles = {
@@ -48,6 +50,7 @@ export function StatCard({
   variant = "default",
   delay = 0,
   href,
+  isFinancial = false,
 }: StatCardProps) {
   const navigate = useNavigate();
   const styles = variantStyles[variant];
@@ -80,7 +83,11 @@ export function StatCard({
           >
             {title}
           </p>
-          <p className="text-3xl font-bold tracking-tight">{value}</p>
+          {isFinancial ? (
+            <BlurredValue><p className="text-3xl font-bold tracking-tight">{value}</p></BlurredValue>
+          ) : (
+            <p className="text-3xl font-bold tracking-tight">{value}</p>
+          )}
           
           <div className="flex items-center gap-3">
             {trend && (

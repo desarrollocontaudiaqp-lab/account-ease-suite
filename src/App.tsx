@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { SystemConfigProvider } from "@/hooks/useSystemConfig";
 import { PaymentNotificationProvider } from "@/hooks/usePaymentNotifications";
+import { FinancialVisibilityProvider } from "@/hooks/useFinancialVisibility";
+import { FinancialPageGuard } from "@/components/ui/FinancialPageGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
@@ -59,9 +61,9 @@ const AppRoutes = () => {
         <Route path="/contratos" element={<Contratos />} />
         <Route path="/asignaciones" element={<Asignaciones />} />
         <Route path="/carteras" element={<Carteras />} />
-        <Route path="/calendario-pagos" element={<CalendarioPagos />} />
+        <Route path="/calendario-pagos" element={<FinancialPageGuard><CalendarioPagos /></FinancialPageGuard>} />
         <Route path="/calendario-trabajo" element={<CalendarioTrabajo />} />
-        <Route path="/reportes/*" element={<Reportes />} />
+        <Route path="/reportes/*" element={<FinancialPageGuard><Reportes /></FinancialPageGuard>} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/configuracion" element={<Configuracion />} />
       </Route>
@@ -79,7 +81,9 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
-              <AppRoutes />
+              <FinancialVisibilityProvider>
+                <AppRoutes />
+              </FinancialVisibilityProvider>
             </AuthProvider>
           </BrowserRouter>
         </PaymentNotificationProvider>
