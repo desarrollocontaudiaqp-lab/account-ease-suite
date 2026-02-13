@@ -61,6 +61,8 @@ interface DataNotionViewProps {
   node: TreeNode;
   workflowId?: string;
   onRefresh?: () => void;
+  canEditAll?: boolean;
+  currentUserId?: string | null;
 }
 
 interface NoteBlock {
@@ -82,7 +84,7 @@ const statusColors: Record<string, string> = {
 // Debounce delay in ms
 const DEBOUNCE_DELAY = 800;
 
-export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewProps) {
+export function DataNotionView({ node, workflowId, onRefresh, canEditAll = false, currentUserId }: DataNotionViewProps) {
   const [notes, setNotes] = useState<NoteBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -100,6 +102,9 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
   
   // Determine if this is an output type
   const isOutput = node.type === "output";
+  
+  // Determine if current user can edit this item
+  const canEdit = canEditAll || (currentUserId != null && currentUserId === node.data?.asignado_a);
 
   // Hook to sync progress to workflow JSON
   const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);
@@ -404,16 +409,19 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                     e.target.value
                   )}
                   className="h-7 w-auto font-medium border-none shadow-none focus-visible:ring-0 px-1"
+                  readOnly={!canEdit}
                 />
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100"
-                onClick={() => deleteNote(note.id)}
-              >
-                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-              </Button>
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                  onClick={() => deleteNote(note.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <Textarea
@@ -426,6 +434,7 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                 )}
                 placeholder="Escribe tus notas aquí..."
                 className="min-h-[100px] resize-none"
+                readOnly={!canEdit}
               />
             </CardContent>
           </Card>
@@ -473,16 +482,19 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                     e.target.value
                   )}
                   className="h-7 w-auto font-medium border-none shadow-none focus-visible:ring-0 px-1"
+                  readOnly={!canEdit}
                 />
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100"
-                onClick={() => deleteNote(note.id)}
-              >
-                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-              </Button>
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                  onClick={() => deleteNote(note.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -504,6 +516,7 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                             {col === "Estado" ? (
                               <Select
                                 value={row[col] || "pendiente"}
+                                disabled={!canEdit}
                                 onValueChange={(v) => {
                                   const newRows = [...rows];
                                   newRows[rowIdx] = { ...newRows[rowIdx], [col]: v };
@@ -525,31 +538,36 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                                 value={getLocalOrDbValue(cellKey, row[col] || "")}
                                 onChange={(e) => updateCellDebounced(rowIdx, col, e.target.value)}
                                 className="h-7 text-xs"
+                                readOnly={!canEdit}
                               />
                             )}
                           </TableCell>
                         );
                       })}
-                      <TableCell className="py-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => deleteRow(rowIdx)}
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
-                      </TableCell>
+                      {canEdit && (
+                        <TableCell className="py-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => deleteRow(rowIdx)}
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-              <div className="p-2 border-t">
-                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={addRow}>
-                  <Plus className="h-3 w-3" />
-                  Agregar fila
-                </Button>
-              </div>
+              {canEdit && (
+                <div className="p-2 border-t">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={addRow}>
+                    <Plus className="h-3 w-3" />
+                    Agregar fila
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         );
@@ -604,18 +622,21 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                     e.target.value
                   )}
                   className="h-7 w-auto font-medium border-none shadow-none focus-visible:ring-0 px-1"
+                  readOnly={!canEdit}
                 />
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{completedCount}/{items.length}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100"
-                  onClick={() => deleteNote(note.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                </Button>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                    onClick={() => deleteNote(note.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -632,7 +653,8 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                             ? "bg-primary border-primary text-primary-foreground"
                             : "border-muted-foreground/30 hover:border-primary"
                         )}
-                        onClick={() => toggleItem(idx)}
+                        onClick={() => canEdit && toggleItem(idx)}
+                        disabled={!canEdit}
                       >
                         {item.completado && <CheckSquare className="h-3 w-3" />}
                       </button>
@@ -643,23 +665,28 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
                           "h-7 flex-1 text-sm border-none shadow-none focus-visible:ring-0 px-1",
                           item.completado && "line-through text-muted-foreground"
                         )}
+                        readOnly={!canEdit}
                       />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover/item:opacity-100"
-                        onClick={() => deleteItem(idx)}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 group-hover/item:opacity-100"
+                          onClick={() => deleteItem(idx)}
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
               </div>
-              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={addItem}>
-                <Plus className="h-3 w-3" />
-                Agregar item
-              </Button>
+              {canEdit && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={addItem}>
+                  <Plus className="h-3 w-3" />
+                  Agregar item
+                </Button>
+              )}
             </CardContent>
           </Card>
         );
@@ -754,21 +781,22 @@ export function DataNotionView({ node, workflowId, onRefresh }: DataNotionViewPr
         </TabsList>
 
         <TabsContent value="content" className="mt-4 space-y-4">
-          {/* Add block buttons */}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("nota")}>
-              <FileText className="h-3.5 w-3.5" />
-              Nota
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("tabla")}>
-              <TableIcon className="h-3.5 w-3.5" />
-              Tabla
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("checklist")}>
-              <CheckSquare className="h-3.5 w-3.5" />
-              Checklist
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("nota")}>
+                <FileText className="h-3.5 w-3.5" />
+                Nota
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("tabla")}>
+                <TableIcon className="h-3.5 w-3.5" />
+                Tabla
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNoteBlock("checklist")}>
+                <CheckSquare className="h-3.5 w-3.5" />
+                Checklist
+              </Button>
+            </div>
+          )}
 
           {/* Notes/blocks */}
           {loading ? (

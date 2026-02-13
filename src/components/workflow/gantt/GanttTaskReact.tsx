@@ -132,13 +132,15 @@ function TaskListTableWithCalendar({
   rowHeight, 
   localTasks,
   onDateChange,
-  savingTask
+  savingTask,
+  canEdit
 }: { 
   tableTasks: Task[];
   rowHeight: number;
   localTasks: GanttTaskData[];
   onDateChange: (task: Task) => void;
   savingTask: string | null;
+  canEdit: boolean;
 }) {
   return (
     <div className="text-xs">
@@ -183,25 +185,37 @@ function TaskListTableWithCalendar({
               {isSaving && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
             </div>
             <div className="w-[70px] px-0.5 border-l border-border">
-              <DatePickerCell
-                date={task.start}
-                label={task.name}
-                type="start"
-                taskId={task.id}
-                onDateChange={handleStartChange}
-                isSaving={isSaving}
-              />
+              {canEdit ? (
+                <DatePickerCell
+                  date={task.start}
+                  label={task.name}
+                  type="start"
+                  taskId={task.id}
+                  onDateChange={handleStartChange}
+                  isSaving={isSaving}
+                />
+              ) : (
+                <span className="flex items-center justify-center text-xs text-muted-foreground h-full">
+                  {format(task.start, "dd MMM", { locale: es })}
+                </span>
+              )}
             </div>
             <div className="w-[70px] px-0.5 border-l border-border">
-              <DatePickerCell
-                date={task.end}
-                label={task.name}
-                type="end"
-                taskId={task.id}
-                minDate={task.start}
-                onDateChange={handleEndChange}
-                isSaving={isSaving}
-              />
+              {canEdit ? (
+                <DatePickerCell
+                  date={task.end}
+                  label={task.name}
+                  type="end"
+                  taskId={task.id}
+                  minDate={task.start}
+                  onDateChange={handleEndChange}
+                  isSaving={isSaving}
+                />
+              ) : (
+                <span className="flex items-center justify-center text-xs text-muted-foreground h-full">
+                  {format(task.end, "dd MMM", { locale: es })}
+                </span>
+              )}
             </div>
             <div className="w-[45px] px-1 text-center font-medium border-l border-border">
               {duration}
@@ -623,10 +637,10 @@ export function GanttTaskReact({
             fill: hsl(var(--primary) / 0.1);
           }
         `}</style>
-        <Gantt
+          <Gantt
           tasks={ganttTasks}
           viewMode={viewMode}
-          onDateChange={handleDateChange}
+          onDateChange={canEditProgress ? handleDateChange : undefined}
           onProgressChange={canEditProgress ? handleProgressChange : undefined}
           onClick={handleTaskClick}
           locale="es"
@@ -664,6 +678,7 @@ export function GanttTaskReact({
               localTasks={localTasks}
               onDateChange={handleDateChange}
               savingTask={savingTask}
+              canEdit={canEditProgress}
             />
           )}
           TooltipContent={({ task }) => {
