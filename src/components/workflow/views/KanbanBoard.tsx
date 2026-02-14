@@ -289,6 +289,40 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh, canEditAll 
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [newCardColumn, setNewCardColumn] = useState<string>("pendiente");
   const [newCardTitle, setNewCardTitle] = useState("");
+  const [memberRoles, setMemberRoles] = useState<Record<string, string>>({});
+
+  // Fetch cartera member roles for role badges
+  useEffect(() => {
+    const fetchMemberRoles = async () => {
+      const { data } = await supabase.from("cartera_miembros").select("user_id, rol_en_cartera");
+      if (data) {
+        const roles: Record<string, string> = {};
+        data.forEach((r) => { roles[r.user_id] = r.rol_en_cartera; });
+        setMemberRoles(roles);
+      }
+    };
+    fetchMemberRoles();
+  }, []);
+
+  // Calculate card progress based on column position
+  const getCardProgress = useCallback((card: KanbanCard) => {
+    const colIndex = columns.findIndex((c) => c.id === card.status);
+    if (colIndex < 0 || columns.length <= 1) return 0;
+    return Math.round((colIndex / (columns.length - 1)) * 100);
+  }, [columns]);
+
+  // Get unique roles for cards in a column
+  const getColumnRoles = useCallback((columnCards: KanbanCard[]) => {
+    const roles = new Set<string>();
+    columnCards.forEach((card) => {
+      const assignees = card.asignados?.length ? card.asignados : card.asignado_a ? [card.asignado_a] : [];
+      assignees.forEach((uid) => {
+        const role = memberRoles[uid];
+        if (role) roles.add(role);
+      });
+    });
+    return [...roles];
+  }, [memberRoles]);
 
   const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);
 
@@ -624,6 +658,27 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh, canEditAll 
             </div>
           </TooltipProvider>
         </div>
+
+        {/* Discrete progress indicator */}
+        {(() => {
+          const cardProg = getCardProgress(card);
+          return (
+            <div className="mt-2 flex items-center gap-1.5">
+              <Progress
+                value={cardProg}
+                className={cn(
+                  "h-1 flex-1",
+                  cardProg >= 100 && "[&>div]:bg-emerald-500",
+                  cardProg > 0 && cardProg < 100 && "[&>div]:bg-amber-400",
+                  cardProg === 0 && "[&>div]:bg-muted-foreground/30"
+                )}
+              />
+              <span className="text-[9px] text-muted-foreground/70 min-w-[24px] text-right">
+                {cardProg}%
+              </span>
+            </div>
+          );
+        })()}
       </div>
     );
   };
@@ -726,26 +781,46 @@ export function KanbanBoard({ node, workflowId, profiles, onRefresh, canEditAll 
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, column.id)}
               >
-                <div className="p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-sm">{column.label}</h3>
-                    <Badge variant="secondary" className="h-5 text-xs">
-                      {columnCards.length}
-                    </Badge>
+                <div className="p-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-sm">{column.label}</h3>
+                      <Badge variant="secondary" className="h-5 text-xs">
+                        {columnCards.length}
+                      </Badge>
+                    </div>
+                    {canCreate && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          setNewCardColumn(column.id);
+                          setShowNewCardDialog(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  {canCreate && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => {
-                        setNewCardColumn(column.id);
-                        setShowNewCardDialog(true);
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  )}
+                  {/* Role badges for column assignees */}
+                  {(() => {
+                    const roles = getColumnRoles(columnCards);
+                    if (roles.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-1">
+                        {roles.map((role) => (
+                          <Badge
+                            key={role}
+                            variant="outline"
+                            className="text-[10px] h-5 font-normal bg-primary/5 text-primary border-primary/20"
+                          >
+                            {role}
+                          </Badge>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <ScrollArea className="h-[calc(100vh-350px)]">
