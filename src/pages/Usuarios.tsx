@@ -179,11 +179,22 @@ const Usuarios = () => {
     if (!selectedUser) return;
     setActionLoading(true);
     try {
-      toast.info('El cambio de contraseña requiere acceso de administrador. Contacte al soporte técnico.');
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-update-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ action: 'change_password', userId: selectedUser.id, newPassword }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Error al cambiar contraseña');
+      toast.success('Contraseña actualizada correctamente');
       setPasswordDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error changing password:', error);
-      toast.error('Error al cambiar contraseña');
+      toast.error(error.message || 'Error al cambiar contraseña');
     } finally {
       setActionLoading(false);
     }
@@ -193,11 +204,23 @@ const Usuarios = () => {
     if (!selectedUser) return;
     setActionLoading(true);
     try {
-      toast.info('La eliminación de usuarios requiere acceso de administrador. Contacte al soporte técnico.');
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-update-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ action: 'delete_user', userId: selectedUser.id }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Error al eliminar usuario');
+      toast.success('Usuario eliminado correctamente');
       setDeleteDialogOpen(false);
-    } catch (error) {
+      fetchData();
+    } catch (error: any) {
       console.error('Error deleting user:', error);
-      toast.error('Error al eliminar usuario');
+      toast.error(error.message || 'Error al eliminar usuario');
     } finally {
       setActionLoading(false);
     }
