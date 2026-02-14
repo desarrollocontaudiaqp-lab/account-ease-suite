@@ -179,18 +179,11 @@ const Usuarios = () => {
     if (!selectedUser) return;
     setActionLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await supabase.functions.invoke('admin-update-user', {
-        body: { action: 'change_password', userId: selectedUser.id, password: newPassword },
-      });
-      if (res.error || res.data?.error) {
-        throw new Error(res.data?.error || res.error?.message || 'Error desconocido');
-      }
-      toast.success('Contraseña actualizada correctamente');
+      toast.info('El cambio de contraseña requiere acceso de administrador. Contacte al soporte técnico.');
       setPasswordDialogOpen(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error changing password:', error);
-      toast.error(error.message || 'Error al cambiar contraseña');
+      toast.error('Error al cambiar contraseña');
     } finally {
       setActionLoading(false);
     }
@@ -200,18 +193,11 @@ const Usuarios = () => {
     if (!selectedUser) return;
     setActionLoading(true);
     try {
-      const res = await supabase.functions.invoke('admin-update-user', {
-        body: { action: 'delete_user', userId: selectedUser.id },
-      });
-      if (res.error || res.data?.error) {
-        throw new Error(res.data?.error || res.error?.message || 'Error desconocido');
-      }
-      toast.success('Usuario eliminado correctamente');
+      toast.info('La eliminación de usuarios requiere acceso de administrador. Contacte al soporte técnico.');
       setDeleteDialogOpen(false);
-      fetchData();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting user:', error);
-      toast.error(error.message || 'Error al eliminar usuario');
+      toast.error('Error al eliminar usuario');
     } finally {
       setActionLoading(false);
     }
