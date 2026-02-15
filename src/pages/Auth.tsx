@@ -138,7 +138,7 @@ const Auth = () => {
             </div>
             
             <h1 className="text-2xl font-bold text-foreground">Bienvenido</h1>
-            <p className="text-muted-foreground text-sm">Sistema de Gestión Contable</p>
+            <p className="text-muted-foreground text-sm">Sistema de Gestión de Servicios <Contables></Contables></p>
           </CardHeader>
 
           <Tabs defaultValue="login" className="w-full">
