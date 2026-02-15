@@ -124,7 +124,7 @@ export function AppSidebar() {
                 Contadores
               </span>
               <span className="text-sm text-sidebar-foreground/70 font-medium">
-                & Auditores Arequipa
+                & Auditores
               </span>
             </div>
           )}
