@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -25,6 +25,7 @@ import {
   ArrowLeft,
   ExternalLink,
   Hash,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -143,6 +145,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   const [supervisores, setSupervisores] = useState<SupervisorProfile[]>([]);
   const [workflowData, setWorkflowData] = useState<WorkflowData | null>(null);
   const [profilesMap, setProfilesMap] = useState<Record<string, { full_name: string | null; email: string }>>({});
+  const [subColumnRoles, setSubColumnRoles] = useState<string[]>([]);
   const [, forceUpdate] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -174,6 +177,42 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
   while (uniqueRoles.length < subColumnCount) {
     uniqueRoles.push(`Rol ${uniqueRoles.length + 1}`);
   }
+
+  // All available roles for the role selector (cartera members + supervision roles)
+  const allAvailableRoles = useMemo(() => {
+    const roles = new Set<string>();
+    miembros.forEach(m => roles.add(m.rol_en_cartera));
+    supervisores.forEach(s => {
+      if (s.puesto?.toLowerCase() === 'gerente') {
+        roles.add('Supervisión Gerencial');
+      } else {
+        roles.add('Supervisión');
+      }
+    });
+    return [...roles];
+  }, [miembros, supervisores]);
+
+  // Initialize subColumnRoles from uniqueRoles
+  useEffect(() => {
+    if (subColumnRoles.length === 0 && uniqueRoles.length > 0) {
+      setSubColumnRoles([...uniqueRoles]);
+    }
+  }, [uniqueRoles]);
+
+  // Get members filtered by a selected role (handles supervision roles)
+  const getFilteredMembers = useCallback((rol: string): MiembroCartera[] => {
+    if (rol === 'Supervisión Gerencial') {
+      return supervisores
+        .filter(s => s.puesto?.toLowerCase() === 'gerente')
+        .map(s => ({ user_id: s.id, rol_en_cartera: rol, profile: { full_name: s.full_name, email: s.email } }));
+    }
+    if (rol === 'Supervisión') {
+      return supervisores
+        .filter(s => s.puesto?.toLowerCase() !== 'gerente')
+        .map(s => ({ user_id: s.id, rol_en_cartera: rol, profile: { full_name: s.full_name, email: s.email } }));
+    }
+    return miembros.filter(m => m.rol_en_cartera.toLowerCase() === rol.toLowerCase());
+  }, [miembros, supervisores]);
 
   useEffect(() => {
     if (open) {
@@ -709,14 +748,47 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
         <div /> {/* Empty space for I column */}
         <div className="border-x">
           <div className="grid" style={{ gridTemplateColumns: `repeat(${subColumnCount}, 1fr)` }}>
-            {uniqueRoles.map((rol, index) => (
-              <div key={rol} className="p-2 text-center border-r last:border-r-0">
-                <Badge 
-                  variant="outline" 
-                  className={cn("text-xs capitalize", roleColors[rol.toLowerCase()] || "bg-gray-100")}
-                >
-                  {rol}
-                </Badge>
+            {(subColumnRoles.length > 0 ? subColumnRoles : uniqueRoles).map((selectedRol, index) => (
+              <div key={index} className="p-2 text-center border-r last:border-r-0">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="inline-flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity">
+                      <Badge 
+                        variant="outline" 
+                        className={cn("text-xs capitalize", roleColors[selectedRol.toLowerCase()] || "bg-gray-100")}
+                      >
+                        {selectedRol}
+                      </Badge>
+                      <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-52 p-2" align="center">
+                    <p className="text-xs font-medium text-muted-foreground px-2 pb-1.5 border-b mb-1">Filtrar por rol</p>
+                    <div className="space-y-0.5">
+                      {allAvailableRoles.map(rol => (
+                        <button
+                          key={rol}
+                          className={cn(
+                            "w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted transition-colors flex items-center gap-2",
+                            selectedRol === rol && "bg-primary/10 font-medium"
+                          )}
+                          onClick={() => {
+                            const newRoles = [...(subColumnRoles.length > 0 ? subColumnRoles : uniqueRoles)];
+                            newRoles[index] = rol;
+                            setSubColumnRoles(newRoles);
+                          }}
+                        >
+                          <Badge 
+                            variant="outline" 
+                            className={cn("text-xs capitalize", roleColors[rol.toLowerCase()] || "bg-gray-100")}
+                          >
+                            {rol}
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             ))}
           </div>
@@ -832,12 +904,13 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                           {/* Proceso Cells for this Input */}
                           <div className="border-r bg-amber-50/50 dark:bg-amber-950/20 min-h-[70px]">
                             <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${subColumnCount}, 1fr)` }}>
-                              {uniqueRoles.map((rol, subColIndex) => {
-                                const rolMiembros = getMiembrosByRol(rol);
+                              {(subColumnRoles.length > 0 ? subColumnRoles : uniqueRoles).map((rol, subColIndex) => {
+                                const selectedRol = subColumnRoles[subColIndex] || uniqueRoles[subColIndex] || rol;
+                                const rolMiembros = getFilteredMembers(selectedRol);
                                 const tareasForInput = getItemsBySubColumna(subColIndex, input.id);
                                 
                                 return (
-                                  <div key={rol} className="border-r last:border-r-0 p-1">
+                                  <div key={`${rol}-${subColIndex}`} className="border-r last:border-r-0 p-1">
                                     <div className="space-y-1">
                                       {tareasForInput.map(tarea => (
                                         <WorkFlowItemCard
@@ -884,11 +957,11 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                                             className="h-6 text-[10px]"
                                             autoFocus
                                             onKeyDown={(e) => {
-                                              if (e.key === "Enter") addItem("tarea", rol, subColIndex, input.id);
+                                              if (e.key === "Enter") addItem("tarea", selectedRol, subColIndex, input.id);
                                               if (e.key === "Escape") setNewItemColumn(null);
                                             }}
                                           />
-                                          <Button size="sm" className="h-6 px-1" onClick={() => addItem("tarea", rol, subColIndex, input.id)}>
+                                          <Button size="sm" className="h-6 px-1" onClick={() => addItem("tarea", selectedRol, subColIndex, input.id)}>
                                             <Plus className="h-3 w-3" />
                                           </Button>
                                         </div>
