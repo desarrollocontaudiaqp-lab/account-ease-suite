@@ -258,9 +258,16 @@ export function useWorkFlowTree() {
               actividades.forEach((actividad) => {
                 // Get root input IDs from the activity's conexiones array
                 // This defines which inputs belong to this specific activity
-                const rootInputIds = (actividad.conexiones || []).filter((id: string) => 
+                let rootInputIds = (actividad.conexiones || []).filter((id: string) => 
                   itemsWithIndex.some(item => item.id === id && item.tipo === "input")
                 );
+                
+                // Fallback: if conexiones is empty, find inputs whose parentId is this activity
+                if (rootInputIds.length === 0) {
+                  rootInputIds = itemsWithIndex
+                    .filter(item => item.tipo === "input" && item.parentId === actividad.id)
+                    .map(item => item.id);
+                }
                 
                 // Get all descendant IDs starting from these root inputs
                 const activityDescendantIds = getActivityDescendantIds(rootInputIds);
