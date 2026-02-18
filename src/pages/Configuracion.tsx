@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard, Percent, DollarSign, FileSignature, CalendarClock } from "lucide-react";
+import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard, Percent, DollarSign, FileSignature, CalendarClock, Download, BookOpen, Loader2 } from "lucide-react";
+import { generateUserManual } from "@/lib/generateUserManual";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,7 @@ const Configuracion = () => {
   const [useThousandsSeparator, setUseThousandsSeparator] = useState(config.use_thousands_separator);
   const [defaultCurrency, setDefaultCurrency] = useState<"PEN" | "USD">(config.default_currency);
   const [proformaExpirationDays, setProformaExpirationDays] = useState(config.proforma_expiration_days);
+  const [generatingManual, setGeneratingManual] = useState(false);
 
   useEffect(() => {
     setIgvPercentage(config.igv_percentage);
@@ -54,6 +56,19 @@ const Configuracion = () => {
       proforma_expiration_days: proformaExpirationDays,
     });
     toast.success("Configuración del sistema guardada correctamente");
+  };
+
+  const handleDownloadManual = async () => {
+    setGeneratingManual(true);
+    try {
+      await generateUserManual();
+      toast.success("Manual de usuario descargado correctamente");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al generar el manual. Intente nuevamente.");
+    } finally {
+      setGeneratingManual(false);
+    }
   };
 
   return (
@@ -425,6 +440,34 @@ const Configuracion = () => {
             <Button className="w-fit btn-gradient" onClick={handleSaveSystemConfig}>
               Guardar cambios
             </Button>
+
+            {/* Manual de Usuario */}
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary" />
+                Manual de Usuario
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Descarga el manual de usuario completo del sistema en formato PDF. Incluye todos los módulos, flujos operativos, preguntas frecuentes y glosario de términos.
+              </p>
+              <Button
+                onClick={handleDownloadManual}
+                disabled={generatingManual}
+                className="btn-gradient gap-2"
+              >
+                {generatingManual ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generando manual...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    Descargar Manual de Usuario (PDF)
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
