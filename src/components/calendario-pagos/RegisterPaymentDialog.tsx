@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { parseLocalDate } from "@/lib/utils";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
@@ -269,7 +270,7 @@ export function RegisterPaymentDialog({
         });
         setIsRegistered(false);
       }
-      setCalendarMonth(new Date(payment.fecha_vencimiento));
+      setCalendarMonth(parseLocalDate(payment.fecha_vencimiento));
     };
 
     loadPaymentData();
@@ -447,7 +448,7 @@ export function RegisterPaymentDialog({
     return allPayments.filter(
       (p) =>
         p.contrato_id === payment.contrato_id &&
-        isSameMonth(new Date(p.fecha_vencimiento), calendarMonth)
+        isSameMonth(parseLocalDate(p.fecha_vencimiento), calendarMonth)
     );
   };
 
@@ -488,9 +489,9 @@ export function RegisterPaymentDialog({
           ))}
           {days.map((day) => {
             const dayPayments = paymentsForMonth.filter((p) =>
-              isSameDay(new Date(p.fecha_vencimiento), day)
+              isSameDay(parseLocalDate(p.fecha_vencimiento), day)
             );
-            const isCurrentPayment = payment && isSameDay(new Date(payment.fecha_vencimiento), day);
+            const isCurrentPayment = payment && isSameDay(parseLocalDate(payment.fecha_vencimiento), day);
 
             return (
               <div
@@ -522,7 +523,7 @@ export function RegisterPaymentDialog({
                 p.id === payment?.id ? "bg-primary/10 border border-primary" : "bg-muted/50"
               }`}
             >
-              <span>{format(new Date(p.fecha_vencimiento), "dd MMM", { locale: es })}</span>
+              <span>{format(parseLocalDate(p.fecha_vencimiento), "dd MMM", { locale: es })}</span>
               <span>{p.servicio || "Cuota"} #{p.cuota}</span>
               <Badge variant={p.status === "pagado" ? "default" : "outline"} className="text-xs">
                 {formatCurrency(p.monto, p.contrato.moneda)}
@@ -656,7 +657,7 @@ export function RegisterPaymentDialog({
                       <div className="flex justify-between">
                         <span className="text-xs text-muted-foreground">Fecha Emisión:</span>
                         <span className="font-medium">
-                          {format(new Date(form.fecha_emision), "dd/MM/yyyy")}
+                          {format(parseLocalDate(form.fecha_emision), "dd/MM/yyyy")}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -681,7 +682,7 @@ export function RegisterPaymentDialog({
                       <div className="flex justify-between">
                         <span className="text-xs text-muted-foreground">Fecha Pago:</span>
                         <span className="font-medium">
-                          {format(new Date(form.fecha_pago), "dd/MM/yyyy")}
+                          {format(parseLocalDate(form.fecha_pago), "dd/MM/yyyy")}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -728,7 +729,7 @@ export function RegisterPaymentDialog({
                       <div className="flex justify-between">
                         <span className="text-xs text-muted-foreground">Fecha Vencimiento:</span>
                         <span className="font-medium">
-                          {format(new Date(payment.fecha_vencimiento), "dd/MM/yyyy")}
+                          {format(parseLocalDate(payment.fecha_vencimiento), "dd/MM/yyyy")}
                         </span>
                       </div>
                     </div>
@@ -845,7 +846,7 @@ export function RegisterPaymentDialog({
                       <div>
                         <p className="text-muted-foreground">Vencimiento</p>
                         <p className="font-medium">
-                          {format(new Date(payment.fecha_vencimiento), "dd MMM yyyy", { locale: es })}
+                          {format(parseLocalDate(payment.fecha_vencimiento), "dd MMM yyyy", { locale: es })}
                         </p>
                       </div>
                     </div>
