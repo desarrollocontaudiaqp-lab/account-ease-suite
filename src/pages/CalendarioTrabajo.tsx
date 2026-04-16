@@ -75,6 +75,9 @@ const CalendarioTrabajo = () => {
         </Button>
       </div>
 
+      {/* Workflow Toolbar */}
+      <WorkflowToolbar onRefresh={refresh} />
+
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar with Resizable Handle */}
