@@ -780,6 +780,10 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                 </Button>
               </Badge>
             )}
+            <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
+              <FileDown className="h-4 w-4" />
+              Exportar
+            </Button>
             <Button variant="outline" size="sm" onClick={saveWorkflow} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Guardar
