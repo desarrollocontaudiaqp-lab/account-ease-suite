@@ -144,7 +144,7 @@ interface WorkflowData {
   fecha_creacion: string;
 }
 
-export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFlowModalProps) {
+export function WorkFlowModal({ open, onOpenChange, contrato, miembros, tipoWorkflow = "asignado", nombrePlantilla, initialItems, workflowIdOverride }: WorkFlowModalProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<WorkFlowItem[]>([]);
