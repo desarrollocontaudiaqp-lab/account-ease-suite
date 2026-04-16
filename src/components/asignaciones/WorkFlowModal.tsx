@@ -26,6 +26,7 @@ import {
   ExternalLink,
   Hash,
   Filter,
+  FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
 
 interface WorkFlowItem {
   id: string;
@@ -390,6 +392,73 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     setSaving(false);
   };
 
+  // Export workflow to Excel (compatible with import format)
+  const exportToExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const activities = items.filter(i => i.tipo === "actividad");
+    const inputs = items.filter(i => i.tipo === "input");
+    const tareas = items.filter(i => i.tipo === "tarea");
+    const outputs = items.filter(i => i.tipo === "output");
+    const supervisions = items.filter(i => i.tipo === "supervision");
+
+    // Build name maps
+    const idToName = new Map(items.map(i => [i.id, i.titulo]));
+
+    // Actividades sheet
+    const actData = [["Actividad", "Descripción", "Fecha Inicio (YYYY-MM-DD)", "Fecha Término (YYYY-MM-DD)"]];
+    activities.forEach(a => actData.push([a.titulo, a.descripcion || "", a.fecha_inicio || "", a.fecha_termino || ""]));
+    const wsAct = XLSX.utils.aoa_to_sheet(actData);
+    wsAct["!cols"] = [{ wch: 30 }, { wch: 45 }, { wch: 22 }, { wch: 22 }];
+    XLSX.utils.book_append_sheet(wb, wsAct, "Actividades");
+
+    // Inputs sheet
+    const inpData: string[][] = [["Actividad (nombre exacto)", "Input", "Descripción", "Enlace SharePoint"]];
+    inputs.forEach(inp => {
+      const actName = inp.parentId ? (idToName.get(inp.parentId) || "") : "";
+      inpData.push([actName, inp.titulo, inp.descripcion || "", inp.enlaceSharepoint || ""]);
+    });
+    const wsInp = XLSX.utils.aoa_to_sheet(inpData);
+    wsInp["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 45 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(wb, wsInp, "Inputs");
+
+    // Procesos sheet
+    const procData: string[][] = [["Actividad (nombre exacto)", "Input (nombre exacto)", "SubColumna (1, 2 o 3)", "Tarea", "Descripción", "Rol"]];
+    tareas.forEach(t => {
+      const inputItem = t.parentId ? items.find(i => i.id === t.parentId) : null;
+      const inputName = inputItem?.titulo || "";
+      const actItem = inputItem?.parentId ? items.find(i => i.id === inputItem.parentId) : null;
+      const actName = actItem?.titulo || "";
+      procData.push([actName, inputName, String((t.subColumna ?? 0) + 1), t.titulo, t.descripcion || "", t.rol || ""]);
+    });
+    const wsProc = XLSX.utils.aoa_to_sheet(procData);
+    wsProc["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 18 }, { wch: 30 }, { wch: 40 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, wsProc, "Procesos");
+
+    // Outputs sheet
+    const outData: string[][] = [["Actividad (nombre exacto)", "Output", "Descripción", "Enlace SharePoint"]];
+    outputs.forEach(o => {
+      const actName = o.parentId ? (idToName.get(o.parentId) || "") : "";
+      outData.push([actName, o.titulo, o.descripcion || "", o.enlaceSharepoint || ""]);
+    });
+    const wsOut = XLSX.utils.aoa_to_sheet(outData);
+    wsOut["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 45 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(wb, wsOut, "Outputs");
+
+    // Supervisión sheet
+    const supData: string[][] = [["Actividad (nombre exacto)", "Supervisión", "Descripción"]];
+    supervisions.forEach(s => {
+      const actName = s.parentId ? (idToName.get(s.parentId) || "") : "";
+      supData.push([actName, s.titulo, s.descripcion || ""]);
+    });
+    const wsSup = XLSX.utils.aoa_to_sheet(supData);
+    wsSup["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(wb, wsSup, "Supervisión");
+
+    const fileName = `Workflow_${workflowData?.codigo || contrato.numero}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast.success("Workflow exportado correctamente");
+  };
+
   const addItem = (tipo: string, rol?: string, subColumna?: number, parentId?: string) => {
     if (!newItemTitle.trim()) {
       toast.error("Ingresa un título");
@@ -711,6 +780,10 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
                 </Button>
               </Badge>
             )}
+            <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-2">
+              <FileDown className="h-4 w-4" />
+              Exportar
+            </Button>
             <Button variant="outline" size="sm" onClick={saveWorkflow} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Guardar
