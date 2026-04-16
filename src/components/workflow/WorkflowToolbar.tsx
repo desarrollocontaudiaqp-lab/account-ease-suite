@@ -116,6 +116,16 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
   const [targetContratoId, setTargetContratoId] = useState<string>("");
   const [showApplyDialog, setShowApplyDialog] = useState(false);
 
+  // Delete/Edit states
+  const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
+  const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
+  const [editingCode, setEditingCode] = useState("");
+
+  // Open workflow into modal states
+  const [openingWorkflowContrato, setOpeningWorkflowContrato] = useState<ContratoOption | null>(null);
+  const [openingMiembros, setOpeningMiembros] = useState<MiembroCartera[]>([]);
+  const [openWorkflowModalOpen, setOpenWorkflowModalOpen] = useState(false);
+
   // Import states
   const [importing, setImporting] = useState(false);
 
