@@ -60,6 +60,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { parseLocalDate } from "@/lib/utils";
 import { PaymentCalendarView } from "@/components/calendario-pagos/PaymentCalendarView";
 import { RegisterPaymentDialog } from "@/components/calendario-pagos/RegisterPaymentDialog";
 import { ContractCalendarModal } from "@/components/calendario-pagos/ContractCalendarModal";
@@ -284,13 +285,13 @@ export default function CalendarioPagos() {
     // Sort each contract's payments by fecha_vencimiento
     Object.keys(paymentsByContract).forEach((contratoId) => {
       paymentsByContract[contratoId].sort((a, b) => 
-        new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime()
+        parseLocalDate(a.fecha_vencimiento).getTime() - parseLocalDate(b.fecha_vencimiento).getTime()
       );
     });
 
     // Process real payments with correct cuota numbers based on chronological order
     const realPaymentsProcessed: UnifiedPayment[] = (pagosData || []).map((payment) => {
-      const dueDate = new Date(payment.fecha_vencimiento);
+      const dueDate = parseLocalDate(payment.fecha_vencimiento);
       dueDate.setHours(0, 0, 0, 0);
       
       let status = payment.status as UnifiedPayment["status"];
@@ -347,7 +348,24 @@ export default function CalendarioPagos() {
       if (!paymentSchedule || !Array.isArray(paymentSchedule)) return;
 
       paymentSchedule.forEach((scheduleItem: any, index: number) => {
-        const fechaVencimiento = scheduleItem.fecha ? new Date(scheduleItem.fecha).toISOString().split("T")[0] : null;
+        // Normalize fecha to YYYY-MM-DD without timezone shift
+        let fechaVencimiento: string | null = null;
+        if (scheduleItem.fecha) {
+          const raw = String(scheduleItem.fecha);
+          // If already in YYYY-MM-DD or ISO format, just take the date part
+          const datePart = raw.split("T")[0];
+          if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+            fechaVencimiento = datePart;
+          } else {
+            const d = parseLocalDate(raw);
+            if (!isNaN(d.getTime())) {
+              const yyyy = d.getFullYear();
+              const mm = String(d.getMonth() + 1).padStart(2, "0");
+              const dd = String(d.getDate()).padStart(2, "0");
+              fechaVencimiento = `${yyyy}-${mm}-${dd}`;
+            }
+          }
+        }
         if (!fechaVencimiento) return;
 
         const cuotaNumber = scheduleItem.cuota || index + 1;
@@ -384,7 +402,7 @@ export default function CalendarioPagos() {
 
     // Combine and sort all payments
     const allPayments = [...realPaymentsProcessed, ...projectedPayments].sort((a, b) => 
-      new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime()
+      parseLocalDate(a.fecha_vencimiento).getTime() - parseLocalDate(b.fecha_vencimiento).getTime()
     );
 
     setRealPayments(pagosData as Payment[]);
