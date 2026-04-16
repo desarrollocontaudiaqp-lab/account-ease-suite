@@ -268,37 +268,69 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros, tipoWork
   const loadWorkflow = async () => {
     setLoading(true);
     try {
-      // First check if workflow exists in workflows table
+      // 1. If we have an override workflow ID (opening an existing workflow / template), load by ID
+      if (workflowIdOverride) {
+        const { data, error } = await supabase
+          .from("workflows")
+          .select("id, codigo, fecha_creacion, items")
+          .eq("id", workflowIdOverride)
+          .maybeSingle();
+        if (error) throw error;
+        if (data) {
+          setWorkflowData({
+            id: data.id,
+            codigo: data.codigo,
+            fecha_creacion: data.fecha_creacion,
+          });
+          setItems((data.items as unknown as WorkFlowItem[]) || []);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // 2. If items were provided (new workflow from template), use those
+      if (initialItems && initialItems.length > 0) {
+        setItems(initialItems);
+        setWorkflowData(null);
+        setLoading(false);
+        return;
+      }
+
+      // 3. For plantilla type without override -> start empty
+      if (tipoWorkflow === "plantilla") {
+        setItems([]);
+        setWorkflowData(null);
+        setLoading(false);
+        return;
+      }
+
+      // 4. Default: check if asignado workflow exists for this contrato
       const { data: existingWorkflow, error: wfError } = await supabase
         .from("workflows")
         .select("id, codigo, fecha_creacion, items")
         .eq("contrato_id", contrato.id)
+        .eq("tipo", "asignado")
         .maybeSingle();
 
       if (wfError && wfError.code !== 'PGRST116') throw wfError;
 
       if (existingWorkflow) {
-        // Load from workflows table
         setWorkflowData({
           id: existingWorkflow.id,
           codigo: existingWorkflow.codigo,
           fecha_creacion: existingWorkflow.fecha_creacion,
         });
-        const workflowItems = (existingWorkflow.items as unknown as WorkFlowItem[]) || [];
-        setItems(workflowItems);
+        setItems((existingWorkflow.items as unknown as WorkFlowItem[]) || []);
       } else {
-        // Fallback: Load from contratos.datos_plantilla (legacy)
+        // Fallback: legacy datos_plantilla
         const { data, error } = await supabase
           .from("contratos")
           .select("datos_plantilla")
           .eq("id", contrato.id)
           .maybeSingle();
-
         if (error) throw error;
-
         const datosPlantilla = data?.datos_plantilla as Record<string, any> || {};
-        const workflowItems = datosPlantilla.workflow_items || [];
-        setItems(workflowItems);
+        setItems(datosPlantilla.workflow_items || []);
         setWorkflowData(null);
       }
     } catch (error) {
