@@ -88,7 +88,7 @@ export function SupervisionView({ node, workflowId, profiles, onRefresh, canEdit
 
   // Local state for text inputs to allow fluid typing
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
-  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Hook to sync progress to workflow JSON
   const { syncProgress } = useWorkflowItemProgress(workflowId, node.id, onRefresh);

@@ -62,7 +62,7 @@ export function FileTab({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Debounce URL save
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Fetch existing attachment
   useEffect(() => {
