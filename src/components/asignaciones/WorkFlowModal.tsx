@@ -366,12 +366,16 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros, tipoWork
 
       if (workflowData?.id) {
         // Update existing workflow
+        const updatePayload: any = {
+          items: workflowItemsJson as any,
+          updated_at: new Date().toISOString(),
+        };
+        if (tipoWorkflow === "plantilla" && nombrePlantilla) {
+          updatePayload.nombre_plantilla = nombrePlantilla;
+        }
         const { error } = await supabase
           .from("workflows")
-          .update({
-            items: workflowItemsJson as any,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq("id", workflowData.id);
 
         if (error) throw error;
@@ -384,14 +388,22 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros, tipoWork
 
         const newCodigo = codeData as string;
 
+        const insertPayload: any = {
+          codigo: newCodigo,
+          items: workflowItemsJson as any,
+          created_by: userData?.user?.id,
+          tipo: tipoWorkflow,
+        };
+        if (tipoWorkflow === "plantilla") {
+          insertPayload.nombre_plantilla = nombrePlantilla || `Plantilla ${newCodigo}`;
+          insertPayload.contrato_id = null;
+        } else {
+          insertPayload.contrato_id = contrato.id;
+        }
+
         const { data: newWorkflow, error: insertError } = await supabase
           .from("workflows")
-          .insert({
-            codigo: newCodigo,
-            contrato_id: contrato.id,
-            items: workflowItemsJson as any,
-            created_by: userData?.user?.id,
-          })
+          .insert(insertPayload)
           .select("id, codigo, fecha_creacion")
           .single();
 
@@ -404,25 +416,27 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros, tipoWork
         });
       }
 
-      // Also update legacy datos_plantilla for backwards compatibility
-      const { data: contratoData } = await supabase
-        .from("contratos")
-        .select("datos_plantilla")
-        .eq("id", contrato.id)
-        .maybeSingle();
+      // Sync legacy datos_plantilla only for asignado workflows
+      if (tipoWorkflow === "asignado") {
+        const { data: contratoData } = await supabase
+          .from("contratos")
+          .select("datos_plantilla")
+          .eq("id", contrato.id)
+          .maybeSingle();
 
-      const datosPlantilla = (contratoData?.datos_plantilla as Record<string, any>) || {};
-      
-      await supabase
-        .from("contratos")
-        .update({
-          datos_plantilla: {
-            ...datosPlantilla,
-            workflow_items: workflowItemsJson,
-            workflow_updated_at: new Date().toISOString(),
-          } as any
-        })
-        .eq("id", contrato.id);
+        const datosPlantilla = (contratoData?.datos_plantilla as Record<string, any>) || {};
+
+        await supabase
+          .from("contratos")
+          .update({
+            datos_plantilla: {
+              ...datosPlantilla,
+              workflow_items: workflowItemsJson,
+              workflow_updated_at: new Date().toISOString(),
+            } as any
+          })
+          .eq("id", contrato.id);
+      }
 
       toast.success("WorkFlow guardado correctamente");
     } catch (error) {
