@@ -938,14 +938,32 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
                   return (
                     <div
                       key={w.id}
-                      className="rounded-lg border p-3 hover:bg-muted/50 transition-colors cursor-pointer group"
+                      className="rounded-lg border p-3 hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="font-mono text-xs shrink-0">
-                              {w.codigo}
-                            </Badge>
+                            {editingWorkflowId === w.id ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  value={editingCode}
+                                  onChange={(e) => setEditingCode(e.target.value)}
+                                  className="h-6 text-xs font-mono w-32"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleRenameWorkflow();
+                                    if (e.key === "Escape") setEditingWorkflowId(null);
+                                  }}
+                                  autoFocus
+                                />
+                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={handleRenameWorkflow}>
+                                  <CheckIcon className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="font-mono text-xs shrink-0">
+                                {w.codigo}
+                              </Badge>
+                            )}
                             <span className="text-sm font-medium truncate">
                               {w.contrato?.cliente?.razon_social || "Sin cliente"}
                             </span>
@@ -955,34 +973,78 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
                           </p>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.acts} actividades
+                              {stats.acts} act
                             </Badge>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.inputs} inputs
+                              {stats.inputs} inp
                             </Badge>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.tareas} tareas
+                              {stats.tareas} proc
                             </Badge>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.outputs} outputs
+                              {stats.outputs} out
                             </Badge>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.sups} supervisión
+                              {stats.sups} sup
                             </Badge>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartApplyTemplate(w);
-                            }}
-                          >
-                            Usar como plantilla
-                          </Button>
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleOpenWorkflow(w)}
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Abrir workflow</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0"
+                                onClick={() => {
+                                  setEditingWorkflowId(w.id);
+                                  setEditingCode(w.codigo);
+                                }}
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Editar código</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                onClick={() => setDeletingWorkflowId(w.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Eliminar</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => handleStartApplyTemplate(w)}
+                              >
+                                Plantilla
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Usar como plantilla base</TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-1.5">
