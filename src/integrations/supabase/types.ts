@@ -1630,6 +1630,8 @@ export type Database = {
           fecha_creacion: string
           id: string
           items: Json
+          nombre_plantilla: string | null
+          tipo: string
           updated_at: string
         }
         Insert: {
@@ -1640,6 +1642,8 @@ export type Database = {
           fecha_creacion?: string
           id?: string
           items?: Json
+          nombre_plantilla?: string | null
+          tipo?: string
           updated_at?: string
         }
         Update: {
@@ -1650,6 +1654,8 @@ export type Database = {
           fecha_creacion?: string
           id?: string
           items?: Json
+          nombre_plantilla?: string | null
+          tipo?: string
           updated_at?: string
         }
         Relationships: []
