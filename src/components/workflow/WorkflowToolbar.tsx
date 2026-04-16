@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, FileDown, FileUp, FolderOpen, Download, Loader2, Search, Workflow, X, Building2, Calendar } from "lucide-react";
+import { Plus, FileDown, FileUp, FolderOpen, Download, Loader2, Search, Workflow, X, Building2, Calendar, Trash2, Edit2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
