@@ -123,8 +123,11 @@ export function AppSidebar() {
               <span className="text-base font-bold text-sidebar-foreground tracking-tight">
                 Contadores
               </span>
-              <span className="text-sm text-sidebar-foreground/70 font-medium">
+              <span className="text-base font-bold text-sidebar-foreground tracking-tight">
                 & Auditores
+              </span>
+              <span className="text-base font-bold text-sidebar-foreground tracking-tight">
+                Arequipa
               </span>
             </div>
           )}
