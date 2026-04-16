@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard, Percent, DollarSign, FileSignature, CalendarClock, Download, BookOpen, Loader2 } from "lucide-react";
+import { Settings, Shield, FileText, Bell, Database, Receipt, Users, ClipboardList, CreditCard, Percent, DollarSign, FileSignature, CalendarClock, Download, BookOpen, Loader2, Building2 } from "lucide-react";
+import { SedesManager } from "@/components/configuracion/SedesManager";
 import { generateUserManual } from "@/lib/generateUserManual";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +94,10 @@ const Configuracion = () => {
             <Shield className="h-4 w-4" />
             Roles
           </TabsTrigger>
+          <TabsTrigger value="sedes" className="gap-2">
+            <Building2 className="h-4 w-4" />
+            Sedes
+          </TabsTrigger>
           <TabsTrigger value="proformas" className="gap-2">
             <ClipboardList className="h-4 w-4" />
             Proformas
@@ -154,6 +159,11 @@ const Configuracion = () => {
         {/* Roles Tab */}
         <TabsContent value="roles">
           <RolesManager />
+        </TabsContent>
+
+        {/* Sedes Tab */}
+        <TabsContent value="sedes">
+          <SedesManager />
         </TabsContent>
 
         {/* Proformas Tab */}

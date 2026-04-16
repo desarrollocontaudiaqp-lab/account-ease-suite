@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useUserSede } from "@/hooks/useSedes";
+import { Building2 } from "lucide-react";
 
 interface SidebarItem {
   title: string;
@@ -61,6 +63,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, role, signOut } = useAuth();
+  const { sede, canViewAllSedes } = useUserSede();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Reportes"]);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -346,6 +349,12 @@ export function AppSidebar() {
                 {displayName}
               </p>
               <p className="text-xs text-sidebar-foreground/60">{roleDisplay}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <Building2 className="h-3 w-3 text-sidebar-foreground/60" />
+                <p className="text-[11px] text-sidebar-foreground/70 font-medium truncate">
+                  {canViewAllSedes ? 'Todas las sedes' : (sede?.nombre || 'Sin sede')}
+                </p>
+              </div>
             </div>
             <button 
               onClick={handleSignOut}
