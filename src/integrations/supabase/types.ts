@@ -29,6 +29,7 @@ export type Database = {
           id: string
           notas: string | null
           prioridad: Database["public"]["Enums"]["assignment_priority"]
+          sede_id: string | null
           status: Database["public"]["Enums"]["assignment_status"]
           titulo: string
           updated_at: string
@@ -47,6 +48,7 @@ export type Database = {
           id?: string
           notas?: string | null
           prioridad?: Database["public"]["Enums"]["assignment_priority"]
+          sede_id?: string | null
           status?: Database["public"]["Enums"]["assignment_status"]
           titulo: string
           updated_at?: string
@@ -65,6 +67,7 @@ export type Database = {
           id?: string
           notas?: string | null
           prioridad?: Database["public"]["Enums"]["assignment_priority"]
+          sede_id?: string | null
           status?: Database["public"]["Enums"]["assignment_status"]
           titulo?: string
           updated_at?: string
@@ -82,6 +85,13 @@ export type Database = {
             columns: ["contrato_id"]
             isOneToOne: false
             referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asignaciones_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
             referencedColumns: ["id"]
           },
         ]
@@ -239,6 +249,7 @@ export type Database = {
           id: string
           nombre: string
           responsable_id: string | null
+          sede_id: string | null
           updated_at: string
         }
         Insert: {
@@ -249,6 +260,7 @@ export type Database = {
           id?: string
           nombre: string
           responsable_id?: string | null
+          sede_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -259,9 +271,18 @@ export type Database = {
           id?: string
           nombre?: string
           responsable_id?: string | null
+          sede_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "carteras_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clientes: {
         Row: {
@@ -289,6 +310,7 @@ export type Database = {
           regimen_laboral: string | null
           regimen_tributario: string | null
           sector: string | null
+          sede_id: string | null
           telefono: string | null
           tipo_cliente: string
           updated_at: string
@@ -319,6 +341,7 @@ export type Database = {
           regimen_laboral?: string | null
           regimen_tributario?: string | null
           sector?: string | null
+          sede_id?: string | null
           telefono?: string | null
           tipo_cliente?: string
           updated_at?: string
@@ -349,6 +372,7 @@ export type Database = {
           regimen_laboral?: string | null
           regimen_tributario?: string | null
           sector?: string | null
+          sede_id?: string | null
           telefono?: string | null
           tipo_cliente?: string
           updated_at?: string
@@ -360,6 +384,13 @@ export type Database = {
             columns: ["motivo_suspension_id"]
             isOneToOne: false
             referencedRelation: "motivos_suspension"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clientes_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
             referencedColumns: ["id"]
           },
         ]
@@ -613,6 +644,7 @@ export type Database = {
           plantilla_id: string | null
           proforma_id: string | null
           responsable_id: string | null
+          sede_id: string | null
           status: Database["public"]["Enums"]["contract_status"]
           tipo_servicio: string
           updated_at: string
@@ -637,6 +669,7 @@ export type Database = {
           plantilla_id?: string | null
           proforma_id?: string | null
           responsable_id?: string | null
+          sede_id?: string | null
           status?: Database["public"]["Enums"]["contract_status"]
           tipo_servicio: string
           updated_at?: string
@@ -661,6 +694,7 @@ export type Database = {
           plantilla_id?: string | null
           proforma_id?: string | null
           responsable_id?: string | null
+          sede_id?: string | null
           status?: Database["public"]["Enums"]["contract_status"]
           tipo_servicio?: string
           updated_at?: string
@@ -685,6 +719,13 @@ export type Database = {
             columns: ["proforma_id"]
             isOneToOne: false
             referencedRelation: "proformas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
             referencedColumns: ["id"]
           },
         ]
@@ -797,6 +838,7 @@ export type Database = {
           referencia: string | null
           retencion_monto: number | null
           retencion_porcentaje: number | null
+          sede_id: string | null
           serie_comprobante: string | null
           status: Database["public"]["Enums"]["payment_status"]
           subtotal: number | null
@@ -827,6 +869,7 @@ export type Database = {
           referencia?: string | null
           retencion_monto?: number | null
           retencion_porcentaje?: number | null
+          sede_id?: string | null
           serie_comprobante?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           subtotal?: number | null
@@ -857,6 +900,7 @@ export type Database = {
           referencia?: string | null
           retencion_monto?: number | null
           retencion_porcentaje?: number | null
+          sede_id?: string | null
           serie_comprobante?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           subtotal?: number | null
@@ -879,6 +923,13 @@ export type Database = {
             referencedRelation: "proformas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pagos_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -892,6 +943,7 @@ export type Database = {
           id: string
           phone: string | null
           puesto: string | null
+          sede_id: string | null
           updated_at: string
         }
         Insert: {
@@ -904,6 +956,7 @@ export type Database = {
           id: string
           phone?: string | null
           puesto?: string | null
+          sede_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -916,9 +969,18 @@ export type Database = {
           id?: string
           phone?: string | null
           puesto?: string | null
+          sede_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       proforma_estados: {
         Row: {
@@ -1084,6 +1146,7 @@ export type Database = {
           moneda: string
           notas: string | null
           numero: string
+          sede_id: string | null
           status: Database["public"]["Enums"]["proforma_status"]
           subtotal: number
           tipo: string
@@ -1104,6 +1167,7 @@ export type Database = {
           moneda?: string
           notas?: string | null
           numero: string
+          sede_id?: string | null
           status?: Database["public"]["Enums"]["proforma_status"]
           subtotal?: number
           tipo?: string
@@ -1124,6 +1188,7 @@ export type Database = {
           moneda?: string
           notas?: string | null
           numero?: string
+          sede_id?: string | null
           status?: Database["public"]["Enums"]["proforma_status"]
           subtotal?: number
           tipo?: string
@@ -1143,6 +1208,13 @@ export type Database = {
             columns: ["contrato_id"]
             isOneToOne: false
             referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proformas_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
             referencedColumns: ["id"]
           },
         ]
@@ -1265,6 +1337,42 @@ export type Database = {
           nombre_display?: string
           permisos?: Json
           role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sedes: {
+        Row: {
+          activa: boolean
+          codigo: string
+          created_at: string
+          direccion: string | null
+          id: string
+          nombre: string
+          orden: number
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          codigo: string
+          created_at?: string
+          direccion?: string | null
+          id?: string
+          nombre: string
+          orden?: number
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          codigo?: string
+          created_at?: string
+          direccion?: string | null
+          id?: string
+          nombre?: string
+          orden?: number
+          telefono?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1631,6 +1739,7 @@ export type Database = {
           id: string
           items: Json
           nombre_plantilla: string | null
+          sede_id: string | null
           tipo: string
           updated_at: string
         }
@@ -1643,6 +1752,7 @@ export type Database = {
           id?: string
           items?: Json
           nombre_plantilla?: string | null
+          sede_id?: string | null
           tipo?: string
           updated_at?: string
         }
@@ -1655,22 +1765,33 @@ export type Database = {
           id?: string
           items?: Json
           nombre_plantilla?: string | null
+          sede_id?: string | null
           tipo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workflows_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      can_view_all_sedes: { Args: { _user_id: string }; Returns: boolean }
       get_next_proforma_number: { Args: { p_tipo: string }; Returns: string }
       get_next_workflow_code: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_user_sede: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
