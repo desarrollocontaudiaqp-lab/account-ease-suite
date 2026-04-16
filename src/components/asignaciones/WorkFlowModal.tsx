@@ -459,6 +459,7 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros }: WorkFl
     toast.success("Workflow exportado correctamente");
   };
 
+  const addItem = (tipo: string, rol?: string, subColumna?: number, parentId?: string) => {
     if (!newItemTitle.trim()) {
       toast.error("Ingresa un título");
       return;
