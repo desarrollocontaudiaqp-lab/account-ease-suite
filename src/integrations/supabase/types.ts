@@ -1624,7 +1624,7 @@ export type Database = {
       workflows: {
         Row: {
           codigo: string
-          contrato_id: string
+          contrato_id: string | null
           created_at: string
           created_by: string | null
           fecha_creacion: string
@@ -1636,7 +1636,7 @@ export type Database = {
         }
         Insert: {
           codigo: string
-          contrato_id: string
+          contrato_id?: string | null
           created_at?: string
           created_by?: string | null
           fecha_creacion?: string
@@ -1648,7 +1648,7 @@ export type Database = {
         }
         Update: {
           codigo?: string
-          contrato_id?: string
+          contrato_id?: string | null
           created_at?: string
           created_by?: string | null
           fecha_creacion?: string
