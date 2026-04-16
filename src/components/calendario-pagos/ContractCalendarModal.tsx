@@ -16,7 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 
 interface UnifiedPayment {
@@ -63,7 +63,7 @@ const statusConfig: Record<string, { label: string; bgColor: string; textColor: 
 // Sort payments by date and assign sequential cuota numbers
 function getPaymentWithCuotaNumber(payments: UnifiedPayment[]): (UnifiedPayment & { displayCuota: number })[] {
   return [...payments]
-    .sort((a, b) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime())
+    .sort((a, b) => parseLocalDate(a.fecha_vencimiento).getTime() - parseLocalDate(b.fecha_vencimiento).getTime())
     .map((payment, index) => ({
       ...payment,
       displayCuota: payment.cuota ?? index + 1
@@ -82,7 +82,7 @@ export function ContractCalendarModal({
   const sortedPayments = useMemo(() => getPaymentWithCuotaNumber(contractPayments), [contractPayments]);
   
   // Find the month range from all payments
-  const paymentDates = sortedPayments.map(p => new Date(p.fecha_vencimiento));
+  const paymentDates = sortedPayments.map(p => parseLocalDate(p.fecha_vencimiento));
   const firstPaymentDate = paymentDates.length > 0 
     ? new Date(Math.min(...paymentDates.map(d => d.getTime())))
     : new Date();
@@ -219,7 +219,7 @@ export function ContractCalendarModal({
                             </p>
                             {payment.fecha_pago && (
                               <p className="text-xs text-green-600">
-                                Pagado: {format(new Date(payment.fecha_pago), "dd MMM yyyy", { locale: es })}
+                                Pagado: {format(parseLocalDate(payment.fecha_pago), "dd MMM yyyy", { locale: es })}
                               </p>
                             )}
                           </div>
