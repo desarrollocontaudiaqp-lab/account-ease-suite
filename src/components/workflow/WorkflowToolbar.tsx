@@ -357,6 +357,125 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     if (contratos.length === 0) loadContratos();
   };
 
+  // Open workflow into the WorkFlowModal
+  const handleOpenWorkflow = async (workflow: SavedWorkflow) => {
+    // We need the contrato details + cartera + miembros
+    try {
+      const { data: contratoData, error: cError } = await supabase
+        .from("contratos")
+        .select("id, numero, descripcion, tipo_servicio, fecha_inicio, fecha_fin, cliente_id")
+        .eq("id", workflow.contrato_id)
+        .single();
+      if (cError) throw cError;
+
+      const { data: clienteData } = await supabase
+        .from("clientes")
+        .select("id, razon_social, codigo")
+        .eq("id", contratoData.cliente_id)
+        .single();
+
+      const { data: carteraCliente } = await supabase
+        .from("cartera_clientes")
+        .select("cartera_id")
+        .eq("cliente_id", contratoData.cliente_id)
+        .maybeSingle();
+
+      let cartera: { id: string; nombre: string; especialidad: string | null } | null = null;
+      if (carteraCliente) {
+        const { data: carteraData } = await supabase
+          .from("carteras")
+          .select("id, nombre, especialidad")
+          .eq("id", carteraCliente.cartera_id)
+          .single();
+        cartera = carteraData;
+      }
+
+      if (!cartera) {
+        toast.error("El contrato no tiene una cartera asignada");
+        return;
+      }
+
+      // Load miembros
+      const { data: miembrosData } = await supabase
+        .from("cartera_miembros")
+        .select("user_id, rol_en_cartera")
+        .eq("cartera_id", cartera.id);
+
+      const userIds = (miembrosData || []).map(m => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+      const mappedMiembros: MiembroCartera[] = (miembrosData || []).map(m => ({
+        user_id: m.user_id,
+        rol_en_cartera: m.rol_en_cartera,
+        profile: profileMap.get(m.user_id) || null,
+      }));
+
+      setOpeningWorkflowContrato({
+        id: contratoData.id,
+        numero: contratoData.numero,
+        descripcion: contratoData.descripcion,
+        tipo_servicio: contratoData.tipo_servicio,
+        fecha_inicio: contratoData.fecha_inicio,
+        fecha_fin: contratoData.fecha_fin,
+        cliente: {
+          razon_social: clienteData?.razon_social || "Sin cliente",
+          codigo: clienteData?.codigo || "",
+        },
+        cartera,
+      });
+      setOpeningMiembros(mappedMiembros);
+      setShowOpenDialog(false);
+      setOpenWorkflowModalOpen(true);
+    } catch (error) {
+      console.error("Error opening workflow:", error);
+      toast.error("Error al abrir el workflow");
+    }
+  };
+
+  // Delete workflow
+  const handleDeleteWorkflow = async () => {
+    if (!deletingWorkflowId) return;
+    try {
+      const { error } = await supabase
+        .from("workflows")
+        .delete()
+        .eq("id", deletingWorkflowId);
+      if (error) throw error;
+      toast.success("Workflow eliminado correctamente");
+      setSavedWorkflows(prev => prev.filter(w => w.id !== deletingWorkflowId));
+      setDeletingWorkflowId(null);
+      onRefresh();
+    } catch (error) {
+      console.error("Error deleting workflow:", error);
+      toast.error("Error al eliminar el workflow");
+    }
+  };
+
+  // Rename workflow
+  const handleRenameWorkflow = async () => {
+    if (!editingWorkflowId || !editingCode.trim()) return;
+    try {
+      const { error } = await supabase
+        .from("workflows")
+        .update({ codigo: editingCode.trim() })
+        .eq("id", editingWorkflowId);
+      if (error) throw error;
+      toast.success("Código actualizado correctamente");
+      setSavedWorkflows(prev => prev.map(w =>
+        w.id === editingWorkflowId ? { ...w, codigo: editingCode.trim() } : w
+      ));
+      setEditingWorkflowId(null);
+      setEditingCode("");
+    } catch (error) {
+      console.error("Error renaming workflow:", error);
+      toast.error("Error al renombrar el workflow");
+    }
+  };
+
   // Excel template download
   const downloadTemplate = () => {
     const wb = XLSX.utils.book_new();
