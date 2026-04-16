@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { WorkFlowTreeSidebar, TreeNode } from "@/components/workflow/WorkFlowTreeSidebar";
 import { WorkFlowContentPanel } from "@/components/workflow/WorkFlowContentPanel";
+import { WorkflowToolbar } from "@/components/workflow/WorkflowToolbar";
 import { useWorkFlowTree } from "@/hooks/useWorkFlowTree";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Workflow, GripVertical } from "lucide-react";
