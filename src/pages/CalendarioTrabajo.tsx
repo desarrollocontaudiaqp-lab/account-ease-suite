@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { WorkFlowTreeSidebar, TreeNode } from "@/components/workflow/WorkFlowTreeSidebar";
 import { WorkFlowContentPanel } from "@/components/workflow/WorkFlowContentPanel";
+import { WorkflowToolbar } from "@/components/workflow/WorkflowToolbar";
 import { useWorkFlowTree } from "@/hooks/useWorkFlowTree";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Workflow, GripVertical } from "lucide-react";
@@ -73,6 +74,9 @@ const CalendarioTrabajo = () => {
           Actualizar
         </Button>
       </div>
+
+      {/* Workflow Toolbar */}
+      <WorkflowToolbar onRefresh={refresh} />
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
