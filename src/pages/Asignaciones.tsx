@@ -57,6 +57,7 @@ import { cn } from "@/lib/utils";
 import { ContractDetailModal } from "@/components/contratos/ContractDetailModal";
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
+import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 
 type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
 
@@ -456,10 +457,33 @@ const Asignaciones = () => {
             Gestiona los contratos asignados a las carteras de trabajo
           </p>
         </div>
-        <Button variant="outline" onClick={fetchData} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <ExportExcelButton
+            allRows={contratos}
+            filteredRows={filteredContratos}
+            fileName="asignaciones"
+            sheetName="Asignaciones"
+            columns={[
+              { header: "Número", accessor: (c) => c.numero },
+              { header: "Cliente", accessor: (c) => c.cliente?.razon_social ?? "" },
+              { header: "RUC/DNI", accessor: (c) => c.cliente?.codigo ?? "" },
+              { header: "Tipo Servicio", accessor: (c) => c.tipo_servicio },
+              { header: "Descripción", accessor: (c) => c.descripcion },
+              { header: "Cartera", accessor: (c) => c.cartera?.nombre ?? "Sin asignar" },
+              { header: "Fecha Inicio", accessor: (c) => c.fecha_inicio },
+              { header: "Fecha Fin", accessor: (c) => c.fecha_fin ?? "" },
+              { header: "Moneda", accessor: (c) => c.moneda },
+              { header: "Monto Mensual", accessor: (c) => c.monto_mensual ?? "" },
+              { header: "Monto Total", accessor: (c) => c.monto_total ?? "" },
+              { header: "Estado", accessor: (c) => c.status },
+              { header: "Condición", accessor: (c) => c.condicion },
+            ]}
+          />
+          <Button variant="outline" onClick={fetchData} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}

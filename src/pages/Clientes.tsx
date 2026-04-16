@@ -29,6 +29,7 @@ import { EditClientDialog } from "@/components/clientes/EditClientDialog";
 import { DeleteClientDialog } from "@/components/clientes/DeleteClientDialog";
 import { SuspendClientDialog } from "@/components/clientes/SuspendClientDialog";
 import { ClientActions } from "@/components/clientes/ClientActions";
+import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -193,6 +194,29 @@ const Clientes = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <ExportExcelButton
+            allRows={clients}
+            filteredRows={filteredClients}
+            fileName="clientes"
+            sheetName="Clientes"
+            columns={[
+              { header: "Código", accessor: (c) => c.codigo },
+              { header: "Tipo", accessor: (c) => c.tipo_cliente },
+              { header: "Nombre / Razón Social", accessor: (c) => getClientName(c) ?? "" },
+              { header: "Email", accessor: (c) => c.email },
+              { header: "Teléfono", accessor: (c) => c.telefono },
+              { header: "Dirección", accessor: (c) => c.direccion },
+              { header: "Sector", accessor: (c) => c.sector },
+              { header: "Régimen Tributario", accessor: (c) => c.regimen_tributario },
+              { header: "Régimen Laboral", accessor: (c) => c.regimen_laboral },
+              { header: "Actividad Económica", accessor: (c) => c.actividad_economica },
+              { header: "N° Trabajadores", accessor: (c) => c.nro_trabajadores },
+              { header: "Contacto", accessor: (c) => c.contacto_nombre },
+              { header: "Tel. Contacto", accessor: (c) => c.contacto_telefono },
+              { header: "Email Contacto", accessor: (c) => c.contacto_email },
+              { header: "Estado", accessor: (c) => (c.activo ? "Activo" : "Inactivo") },
+            ]}
+          />
           <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
             <Upload className="h-4 w-4" />
             Importar CSV

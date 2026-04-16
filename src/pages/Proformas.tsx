@@ -34,6 +34,7 @@ import { SendEmailDialog } from "@/components/proformas/SendEmailDialog";
 import { ServiceFilterDropdown } from "@/components/proformas/ServiceFilterDropdown";
 import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
 import { getPDFStylesForType } from "@/hooks/usePDFStyles";
+import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { toast } from "sonner";
 
 type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
@@ -551,6 +552,26 @@ const Proformas = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ExportExcelButton
+            allRows={proformas as Proforma[]}
+            filteredRows={filteredProformas as Proforma[]}
+            fileName="proformas"
+            sheetName="Proformas"
+            columns={[
+              { header: "Número", accessor: (p) => p.numero },
+              { header: "Cliente", accessor: (p) => p.cliente?.razon_social ?? "" },
+              { header: "RUC/DNI", accessor: (p) => p.cliente?.codigo ?? "" },
+              { header: "Tipo", accessor: (p) => p.tipo },
+              { header: "Estado", accessor: (p) => p.status },
+              { header: "Fecha Emisión", accessor: (p) => p.fecha_emision },
+              { header: "Fecha Vencimiento", accessor: (p) => p.fecha_vencimiento },
+              { header: "Moneda", accessor: (p) => p.moneda },
+              { header: "Subtotal", accessor: (p) => Number(p.subtotal) },
+              { header: "IGV", accessor: (p) => Number(p.igv) },
+              { header: "Total", accessor: (p) => Number(p.total) },
+              { header: "Notas", accessor: (p) => p.notas ?? "" },
+            ]}
+          />
           <Button variant="outline" className="gap-2" onClick={() => setDesignerOpen(true)}>
             <Palette className="h-4 w-4" />
             Diseñador

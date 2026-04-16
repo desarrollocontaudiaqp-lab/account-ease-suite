@@ -72,6 +72,7 @@ import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
 import { useRolePermisos } from "@/hooks/useRolePermisos";
 import { CarteraPerformanceDashboard } from "@/components/carteras/CarteraPerformanceDashboard";
+import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -639,10 +640,27 @@ const Carteras = () => {
                   />
                 </div>
                 {activeTab === "carteras" && (
-                  <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
-                    <Plus className="h-4 w-4" />
-                    Nueva Cartera
-                  </Button>
+                  <>
+                    <ExportExcelButton
+                      allRows={carteras}
+                      filteredRows={filteredCarteras}
+                      fileName="carteras"
+                      sheetName="Carteras"
+                      columns={[
+                        { header: "Nombre", accessor: (c) => c.nombre },
+                        { header: "Especialidad", accessor: (c) => c.especialidad },
+                        { header: "Descripción", accessor: (c) => c.descripcion ?? "" },
+                        { header: "Estado", accessor: (c) => (c.activa ? "Activa" : "Inactiva") },
+                        { header: "N° Miembros", accessor: (c) => c.miembros?.length ?? 0 },
+                        { header: "N° Clientes", accessor: (c) => c.clientes?.length ?? 0 },
+                        { header: "Fecha Creación", accessor: (c) => c.created_at },
+                      ]}
+                    />
+                    <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
+                      <Plus className="h-4 w-4" />
+                      Nueva Cartera
+                    </Button>
+                  </>
                 )}
               </>
             )}

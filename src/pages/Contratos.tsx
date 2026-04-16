@@ -39,6 +39,7 @@ import { ContractDetailModal } from "@/components/contratos/ContractDetailModal"
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { ConfirmContractFromProformaDialog } from "@/components/contratos/ConfirmContractFromProformaDialog";
 import { CreateContractDialog } from "@/components/contratos/CreateContractDialog";
+import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from "date-fns";
 
 type DateFilter = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
@@ -403,7 +404,28 @@ const Contratos = () => {
         </TabsList>
 
         <TabsContent value="contratos" className="space-y-6 mt-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <ExportExcelButton
+              allRows={contracts}
+              filteredRows={filteredContracts}
+              fileName="contratos"
+              sheetName="Contratos"
+              columns={[
+                { header: "Número", accessor: (c) => c.numero },
+                { header: "Cliente", accessor: (c) => c.cliente?.razon_social ?? "" },
+                { header: "RUC/DNI", accessor: (c) => c.cliente?.codigo ?? "" },
+                { header: "Tipo Servicio", accessor: (c) => c.tipo_servicio },
+                { header: "Descripción", accessor: (c) => c.descripcion },
+                { header: "Fecha Inicio", accessor: (c) => c.fecha_inicio },
+                { header: "Fecha Fin", accessor: (c) => c.fecha_fin ?? "" },
+                { header: "Moneda", accessor: (c) => c.moneda },
+                { header: "Monto Mensual", accessor: (c) => c.monto_mensual ?? "" },
+                { header: "Monto Total", accessor: (c) => c.monto_total ?? "" },
+                { header: "Estado", accessor: (c) => statusLabels[c.status] ?? c.status },
+                { header: "Condición", accessor: (c) => c.condicion },
+                { header: "Notas", accessor: (c) => c.notas ?? "" },
+              ]}
+            />
             <Button className="btn-gradient gap-2" onClick={() => setCreateDialogOpen(true)}>
               <Plus className="h-4 w-4" />
               Nuevo Contrato
