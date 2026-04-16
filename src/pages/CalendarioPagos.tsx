@@ -66,6 +66,7 @@ import { RegisterPaymentDialog } from "@/components/calendario-pagos/RegisterPay
 import { ContractCalendarModal } from "@/components/calendario-pagos/ContractCalendarModal";
 import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 
 type DateFilterType = "Hoy" | "Semana Actual" | "Mes Actual" | "Mes" | "Año" | "Todo";
 
@@ -546,19 +547,43 @@ export default function CalendarioPagos() {
           </p>
         </div>
         
-        {/* View Toggle */}
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "calendar")}>
-          <TabsList className="bg-muted/50">
-            <TabsTrigger value="table" className="gap-2">
-              <LayoutList className="h-4 w-4" />
-              Tabla
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Calendario
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          <ExportExcelButton
+            allRows={unifiedPayments}
+            filteredRows={filteredPayments}
+            fileName="calendario_pagos"
+            sheetName="Pagos"
+            columns={[
+              { header: "Contrato", accessor: (p) => p.contrato?.numero ?? "" },
+              { header: "Cliente", accessor: (p) => p.contrato?.cliente?.razon_social ?? "" },
+              { header: "RUC/DNI", accessor: (p) => p.contrato?.cliente?.codigo ?? "" },
+              { header: "Servicio", accessor: (p) => p.servicio ?? "" },
+              { header: "Cuota", accessor: (p) => p.cuota ?? "" },
+              { header: "Fecha Vencimiento", accessor: (p) => p.fecha_vencimiento },
+              { header: "Fecha Pago", accessor: (p) => p.fecha_pago ?? "" },
+              { header: "Moneda", accessor: (p) => p.contrato?.moneda ?? "" },
+              { header: "Monto", accessor: (p) => Number(p.monto) },
+              { header: "Estado", accessor: (p) => p.status },
+              { header: "Método Pago", accessor: (p) => p.metodo_pago ?? "" },
+              { header: "Referencia", accessor: (p) => p.referencia ?? "" },
+              { header: "Glosa", accessor: (p) => p.glosa ?? "" },
+              { header: "Notas", accessor: (p) => p.notas ?? "" },
+              { header: "Tipo Registro", accessor: (p) => (p.isProjected ? "Proyectado" : "Real") },
+            ]}
+          />
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "table" | "calendar")}>
+            <TabsList className="bg-muted/50">
+              <TabsTrigger value="table" className="gap-2">
+                <LayoutList className="h-4 w-4" />
+                Tabla
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="gap-2">
+                <CalendarDays className="h-4 w-4" />
+                Calendario
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       {/* Stats Cards */}

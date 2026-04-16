@@ -53,6 +53,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 
 // Peruvian accounting standard accounts suggestions
 const CUENTA_INGRESO_SUGERENCIAS = [
@@ -850,6 +851,31 @@ export function RegistroVentasReport() {
               />
             </div>
             <div className="flex gap-2">
+              <ExportExcelButton
+                allRows={salesRecords}
+                filteredRows={filteredRecords}
+                fileName="registro_ventas"
+                sheetName="Registro Ventas"
+                size="sm"
+                columns={[
+                  { header: "Fecha Emisión", accessor: (r: any) => r.fecha_emision },
+                  { header: "Tipo Comprobante", accessor: (r: any) => r.tipo_comprobante },
+                  { header: "Serie", accessor: (r: any) => r.serie_comprobante },
+                  { header: "Número", accessor: (r: any) => r.numero_comprobante },
+                  { header: "RUC", accessor: (r: any) => r.cliente_ruc },
+                  { header: "Razón Social", accessor: (r: any) => r.cliente_razon_social },
+                  { header: "Moneda", accessor: (r: any) => r.moneda },
+                  { header: "Base Imponible", accessor: (r: any) => Number(r.base_imponible) },
+                  { header: "IGV", accessor: (r: any) => Number(r.igv) },
+                  { header: "Total", accessor: (r: any) => Number(r.total) },
+                  { header: "Cta. por Cobrar", accessor: (r: any) => r.cta_por_cobrar },
+                  { header: "Cta. IGV", accessor: (r: any) => r.cta_igv },
+                  { header: "Cta. Ingreso", accessor: (r: any) => r.cta_ingreso },
+                  { header: "Centro Costo", accessor: (r: any) => r.centro_costo },
+                  { header: "Glosa", accessor: (r: any) => r.glosa },
+                  { header: "Estado", accessor: (r: any) => r.estado },
+                ]}
+              />
               <Button variant="outline" size="sm" onClick={handlePrint}>
                 <Printer className="h-4 w-4 mr-2" />
                 Imprimir

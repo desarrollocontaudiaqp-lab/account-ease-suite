@@ -22,6 +22,8 @@ import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Button } from "@/components/ui/button";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
 import { BlurredValue, BlurredSection } from "@/components/ui/BlurredValue";
+import { exportRowsToExcel } from "@/lib/exportToExcel";
+import { Download } from "lucide-react";
 
 const Dashboard = () => {
   const { stats, recentContracts, upcomingPayments, teamMembers, loading, userName, refetch } = useDashboardStats();
@@ -52,6 +54,34 @@ const Dashboard = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const kpiRows = [
+                { Indicador: "Clientes Activos", Valor: stats.clientesActivos },
+                { Indicador: "Contratos Vigentes", Valor: stats.contratosVigentes },
+                { Indicador: "Contratos por Vencer", Valor: stats.contratosPorVencer },
+                { Indicador: "Proformas Enviadas", Valor: stats.proformasEnviadas },
+                { Indicador: "Ingresos del Mes (S/)", Valor: stats.ingresosMes },
+                { Indicador: "Meta Ingresos (S/)", Valor: stats.metaIngresos },
+                { Indicador: "Tasa de Conversión (%)", Valor: stats.tasaConversion },
+              ];
+              exportRowsToExcel(
+                kpiRows,
+                [
+                  { header: "Indicador", accessor: (r) => r.Indicador },
+                  { header: "Valor", accessor: (r) => r.Valor },
+                ],
+                "dashboard_kpis",
+                "KPIs"
+              );
+            }}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Exportar Excel
+          </Button>
           <Button
             variant="outline"
             size="sm"
