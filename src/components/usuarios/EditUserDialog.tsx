@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2 } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 import { useRolePermisos } from '@/hooks/useRolePermisos';
+import { useSedes } from '@/hooks/useSedes';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -16,32 +17,36 @@ interface UserProfile {
   full_name: string | null;
   phone: string | null;
   role: AppRole;
+  sede_id?: string | null;
 }
 
 interface EditUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: UserProfile | null;
-  onSave: (userId: string, data: { full_name: string; role: AppRole }) => Promise<void>;
+  onSave: (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null }) => Promise<void>;
   loading: boolean;
 }
 
 const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserDialogProps) => {
   const { roles: availableRoles } = useRolePermisos();
+  const { sedes } = useSedes();
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<AppRole>('asesor');
+  const [sedeId, setSedeId] = useState<string>('');
 
   useEffect(() => {
     if (user) {
       setFullName(user.full_name || '');
       setRole(user.role);
+      setSedeId(user.sede_id || '');
     }
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (user) {
-      await onSave(user.id, { full_name: fullName, role });
+      await onSave(user.id, { full_name: fullName, role, sede_id: sedeId || null });
     }
   };
 
@@ -80,6 +85,24 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sede">Sede</Label>
+            <Select value={sedeId} onValueChange={setSedeId}>
+              <SelectTrigger className="input-focus">
+                <SelectValue placeholder="Selecciona una sede" />
+              </SelectTrigger>
+              <SelectContent>
+                {sedes.filter(s => s.activa).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.nombre} ({s.codigo})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              El usuario solo verá datos de su sede asignada (excepto Administrador y Gerente).
+            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
