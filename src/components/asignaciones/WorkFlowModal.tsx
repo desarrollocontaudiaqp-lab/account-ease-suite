@@ -107,6 +107,14 @@ interface WorkFlowModalProps {
   onOpenChange: (open: boolean) => void;
   contrato: ContratoWorkflow;
   miembros: MiembroCartera[];
+  /** 'asignado' (default) o 'plantilla' */
+  tipoWorkflow?: "asignado" | "plantilla";
+  /** Nombre de la plantilla (sólo cuando tipoWorkflow='plantilla') */
+  nombrePlantilla?: string;
+  /** Items pre-cargados (ej. al usar una plantilla como base) */
+  initialItems?: WorkFlowItem[];
+  /** Si está editando un workflow existente por ID (omite búsqueda por contrato_id) */
+  workflowIdOverride?: string;
 }
 
 const columnConfig = [
