@@ -1192,6 +1192,50 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
           miembros={miembros}
         />
       )}
+
+      {/* WorkFlow Modal for opening existing workflow */}
+      {openingWorkflowContrato && openingWorkflowContrato.cartera && (
+        <WorkFlowModal
+          open={openWorkflowModalOpen}
+          onOpenChange={(open) => {
+            setOpenWorkflowModalOpen(open);
+            if (!open) {
+              setOpeningWorkflowContrato(null);
+              setOpeningMiembros([]);
+              onRefresh();
+            }
+          }}
+          contrato={{
+            id: openingWorkflowContrato.id,
+            numero: openingWorkflowContrato.numero,
+            descripcion: openingWorkflowContrato.descripcion,
+            tipo_servicio: openingWorkflowContrato.tipo_servicio,
+            fecha_inicio: openingWorkflowContrato.fecha_inicio,
+            fecha_fin: openingWorkflowContrato.fecha_fin,
+            cliente: openingWorkflowContrato.cliente,
+            cartera: openingWorkflowContrato.cartera,
+          }}
+          miembros={openingMiembros}
+        />
+      )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deletingWorkflowId} onOpenChange={(open) => { if (!open) setDeletingWorkflowId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar workflow?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente el workflow y todos sus datos asociados. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteWorkflow} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
