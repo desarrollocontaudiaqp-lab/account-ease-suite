@@ -98,7 +98,7 @@ export function DataNotionView({ node, workflowId, onRefresh, canEditAll = false
   
   // Local state for text inputs to allow fluid typing
   const [localValues, setLocalValues] = useState<Record<string, any>>({});
-  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   
   // Determine if this is an output type
   const isOutput = node.type === "output";

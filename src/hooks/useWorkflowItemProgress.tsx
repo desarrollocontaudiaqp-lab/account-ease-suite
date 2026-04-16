@@ -14,7 +14,7 @@ export function useWorkflowItemProgress(
   onRefresh?: () => void
 ) {
   const lastUpdatedProgress = useRef<number | null>(null);
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const syncProgress = useCallback(async (progress: number) => {
     if (!workflowId) return;

@@ -1,9 +1,20 @@
 import { useState, useEffect } from "react";
-import { Plus, FileDown, FileUp, FolderOpen, Download, Loader2, Search, Workflow, X, Building2, Calendar } from "lucide-react";
+import { Plus, FileDown, FileUp, FolderOpen, Download, Loader2, Search, Workflow, X, Building2, Calendar, Trash2, Edit2, ExternalLink, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -105,6 +116,16 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
   const [applyingTemplate, setApplyingTemplate] = useState(false);
   const [targetContratoId, setTargetContratoId] = useState<string>("");
   const [showApplyDialog, setShowApplyDialog] = useState(false);
+
+  // Delete/Edit states
+  const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
+  const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
+  const [editingCode, setEditingCode] = useState("");
+
+  // Open workflow into modal states
+  const [openingWorkflowContrato, setOpeningWorkflowContrato] = useState<ContratoOption | null>(null);
+  const [openingMiembros, setOpeningMiembros] = useState<MiembroCartera[]>([]);
+  const [openWorkflowModalOpen, setOpenWorkflowModalOpen] = useState(false);
 
   // Import states
   const [importing, setImporting] = useState(false);
@@ -335,6 +356,125 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     setSelectedSavedWorkflow(workflow);
     setShowApplyDialog(true);
     if (contratos.length === 0) loadContratos();
+  };
+
+  // Open workflow into the WorkFlowModal
+  const handleOpenWorkflow = async (workflow: SavedWorkflow) => {
+    // We need the contrato details + cartera + miembros
+    try {
+      const { data: contratoData, error: cError } = await supabase
+        .from("contratos")
+        .select("id, numero, descripcion, tipo_servicio, fecha_inicio, fecha_fin, cliente_id")
+        .eq("id", workflow.contrato_id)
+        .single();
+      if (cError) throw cError;
+
+      const { data: clienteData } = await supabase
+        .from("clientes")
+        .select("id, razon_social, codigo")
+        .eq("id", contratoData.cliente_id)
+        .single();
+
+      const { data: carteraCliente } = await supabase
+        .from("cartera_clientes")
+        .select("cartera_id")
+        .eq("cliente_id", contratoData.cliente_id)
+        .maybeSingle();
+
+      let cartera: { id: string; nombre: string; especialidad: string | null } | null = null;
+      if (carteraCliente) {
+        const { data: carteraData } = await supabase
+          .from("carteras")
+          .select("id, nombre, especialidad")
+          .eq("id", carteraCliente.cartera_id)
+          .single();
+        cartera = carteraData;
+      }
+
+      if (!cartera) {
+        toast.error("El contrato no tiene una cartera asignada");
+        return;
+      }
+
+      // Load miembros
+      const { data: miembrosData } = await supabase
+        .from("cartera_miembros")
+        .select("user_id, rol_en_cartera")
+        .eq("cartera_id", cartera.id);
+
+      const userIds = (miembrosData || []).map(m => m.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+      const mappedMiembros: MiembroCartera[] = (miembrosData || []).map(m => ({
+        user_id: m.user_id,
+        rol_en_cartera: m.rol_en_cartera,
+        profile: profileMap.get(m.user_id) || null,
+      }));
+
+      setOpeningWorkflowContrato({
+        id: contratoData.id,
+        numero: contratoData.numero,
+        descripcion: contratoData.descripcion,
+        tipo_servicio: contratoData.tipo_servicio,
+        fecha_inicio: contratoData.fecha_inicio,
+        fecha_fin: contratoData.fecha_fin,
+        cliente: {
+          razon_social: clienteData?.razon_social || "Sin cliente",
+          codigo: clienteData?.codigo || "",
+        },
+        cartera,
+      });
+      setOpeningMiembros(mappedMiembros);
+      setShowOpenDialog(false);
+      setOpenWorkflowModalOpen(true);
+    } catch (error) {
+      console.error("Error opening workflow:", error);
+      toast.error("Error al abrir el workflow");
+    }
+  };
+
+  // Delete workflow
+  const handleDeleteWorkflow = async () => {
+    if (!deletingWorkflowId) return;
+    try {
+      const { error } = await supabase
+        .from("workflows")
+        .delete()
+        .eq("id", deletingWorkflowId);
+      if (error) throw error;
+      toast.success("Workflow eliminado correctamente");
+      setSavedWorkflows(prev => prev.filter(w => w.id !== deletingWorkflowId));
+      setDeletingWorkflowId(null);
+      onRefresh();
+    } catch (error) {
+      console.error("Error deleting workflow:", error);
+      toast.error("Error al eliminar el workflow");
+    }
+  };
+
+  // Rename workflow
+  const handleRenameWorkflow = async () => {
+    if (!editingWorkflowId || !editingCode.trim()) return;
+    try {
+      const { error } = await supabase
+        .from("workflows")
+        .update({ codigo: editingCode.trim() })
+        .eq("id", editingWorkflowId);
+      if (error) throw error;
+      toast.success("Código actualizado correctamente");
+      setSavedWorkflows(prev => prev.map(w =>
+        w.id === editingWorkflowId ? { ...w, codigo: editingCode.trim() } : w
+      ));
+      setEditingWorkflowId(null);
+      setEditingCode("");
+    } catch (error) {
+      console.error("Error renaming workflow:", error);
+      toast.error("Error al renombrar el workflow");
+    }
   };
 
   // Excel template download
@@ -799,14 +939,32 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
                   return (
                     <div
                       key={w.id}
-                      className="rounded-lg border p-3 hover:bg-muted/50 transition-colors cursor-pointer group"
+                      className="rounded-lg border p-3 hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="font-mono text-xs shrink-0">
-                              {w.codigo}
-                            </Badge>
+                            {editingWorkflowId === w.id ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  value={editingCode}
+                                  onChange={(e) => setEditingCode(e.target.value)}
+                                  className="h-6 text-xs font-mono w-32"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleRenameWorkflow();
+                                    if (e.key === "Escape") setEditingWorkflowId(null);
+                                  }}
+                                  autoFocus
+                                />
+                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={handleRenameWorkflow}>
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="font-mono text-xs shrink-0">
+                                {w.codigo}
+                              </Badge>
+                            )}
                             <span className="text-sm font-medium truncate">
                               {w.contrato?.cliente?.razon_social || "Sin cliente"}
                             </span>
@@ -816,34 +974,78 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
                           </p>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.acts} actividades
+                              {stats.acts} act
                             </Badge>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.inputs} inputs
+                              {stats.inputs} inp
                             </Badge>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.tareas} tareas
+                              {stats.tareas} proc
                             </Badge>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.outputs} outputs
+                              {stats.outputs} out
                             </Badge>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {stats.sups} supervisión
+                              {stats.sups} sup
                             </Badge>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartApplyTemplate(w);
-                            }}
-                          >
-                            Usar como plantilla
-                          </Button>
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleOpenWorkflow(w)}
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Abrir workflow</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0"
+                                onClick={() => {
+                                  setEditingWorkflowId(w.id);
+                                  setEditingCode(w.codigo);
+                                }}
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Editar código</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                onClick={() => setDeletingWorkflowId(w.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Eliminar</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => handleStartApplyTemplate(w)}
+                              >
+                                Plantilla
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Usar como plantilla base</TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-1.5">
@@ -990,6 +1192,50 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
           miembros={miembros}
         />
       )}
+
+      {/* WorkFlow Modal for opening existing workflow */}
+      {openingWorkflowContrato && openingWorkflowContrato.cartera && (
+        <WorkFlowModal
+          open={openWorkflowModalOpen}
+          onOpenChange={(open) => {
+            setOpenWorkflowModalOpen(open);
+            if (!open) {
+              setOpeningWorkflowContrato(null);
+              setOpeningMiembros([]);
+              onRefresh();
+            }
+          }}
+          contrato={{
+            id: openingWorkflowContrato.id,
+            numero: openingWorkflowContrato.numero,
+            descripcion: openingWorkflowContrato.descripcion,
+            tipo_servicio: openingWorkflowContrato.tipo_servicio,
+            fecha_inicio: openingWorkflowContrato.fecha_inicio,
+            fecha_fin: openingWorkflowContrato.fecha_fin,
+            cliente: openingWorkflowContrato.cliente,
+            cartera: openingWorkflowContrato.cartera,
+          }}
+          miembros={openingMiembros}
+        />
+      )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deletingWorkflowId} onOpenChange={(open) => { if (!open) setDeletingWorkflowId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar workflow?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente el workflow y todos sus datos asociados. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteWorkflow} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
