@@ -957,7 +957,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
                                   autoFocus
                                 />
                                 <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={handleRenameWorkflow}>
-                                  <CheckIcon className="h-3 w-3" />
+                                  <Check className="h-3 w-3" />
                                 </Button>
                               </div>
                             ) : (
