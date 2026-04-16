@@ -29,6 +29,7 @@ interface UserProfile {
   avatar_url: string | null;
   created_at: string;
   role: AppRole;
+  sede_id: string | null;
 }
 
 const roleStyles: Record<AppRole, string> = {
@@ -114,6 +115,7 @@ const Usuarios = () => {
             avatar_url: profile.avatar_url,
             created_at: profile.created_at,
             role: userRole?.role || 'asesor',
+            sede_id: (profile as any).sede_id || null,
           });
         }
 
@@ -147,12 +149,12 @@ const Usuarios = () => {
   }, []);
 
   // User handlers
-  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole }) => {
+  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null }) => {
     setActionLoading(true);
     try {
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ full_name: data.full_name })
+        .update({ full_name: data.full_name, sede_id: data.sede_id } as any)
         .eq('id', userId);
 
       if (profileError) throw profileError;
@@ -226,7 +228,7 @@ const Usuarios = () => {
     }
   };
 
-  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string }) => {
+  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null }) => {
     setActionLoading(true);
     try {
       // Create auth user with the existing profile's ID
@@ -245,13 +247,15 @@ const Usuarios = () => {
         // First, update the profile ID to match the auth user ID
         const { error: updateProfileError } = await supabase
           .from('profiles')
-          .update({ id: authData.user.id })
+          .update({ id: authData.user.id, sede_id: data.sede_id } as any)
           .eq('id', data.profileId);
 
         if (updateProfileError) {
           console.error('Error updating profile:', updateProfileError);
           // If update fails, delete the old profile and the trigger will create a new one
           await supabase.from('profiles').delete().eq('id', data.profileId);
+          // Set sede on the auto-created profile
+          await supabase.from('profiles').update({ sede_id: data.sede_id } as any).eq('id', authData.user.id);
         }
 
         // Create user role
