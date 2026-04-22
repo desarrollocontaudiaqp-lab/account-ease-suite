@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { parseLocalDate } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -431,9 +432,9 @@ export function ApplyTemplateModal({
 
     // Contract data
     if (contractData) {
-      vars["FECHA_INICIO"] = new Date(contractData.fecha_inicio).toLocaleDateString("es-PE");
+      vars["FECHA_INICIO"] = parseLocalDate(contractData.fecha_inicio).toLocaleDateString("es-PE");
       vars["FECHA_FIN"] = contractData.fecha_fin
-        ? new Date(contractData.fecha_fin).toLocaleDateString("es-PE")
+        ? parseLocalDate(contractData.fecha_fin).toLocaleDateString("es-PE")
         : "";
       vars["MONTO"] = contractData.monto_total
         ? `${contractData.moneda === "PEN" ? "S/" : "$"} ${contractData.monto_total.toLocaleString()}`
@@ -712,8 +713,8 @@ export function ApplyTemplateModal({
                             <div className="grid grid-cols-2 gap-2">
                               <div className="p-2.5 border rounded-lg text-center bg-muted/30">
                                 <p className="text-[10px] text-muted-foreground uppercase">Inicio</p>
-                                <p className="text-sm font-semibold">
-                                  {new Date(contractData.fecha_inicio).toLocaleDateString("es-PE", {
+                                 <p className="text-sm font-semibold">
+                                  {parseLocalDate(contractData.fecha_inicio).toLocaleDateString("es-PE", {
                                     day: "2-digit",
                                     month: "short",
                                     year: "numeric"
@@ -724,7 +725,7 @@ export function ApplyTemplateModal({
                                 <p className="text-[10px] text-muted-foreground uppercase">Fin</p>
                                 <p className="text-sm font-semibold">
                                   {contractData.fecha_fin 
-                                    ? new Date(contractData.fecha_fin).toLocaleDateString("es-PE", {
+                                    ? parseLocalDate(contractData.fecha_fin).toLocaleDateString("es-PE", {
                                         day: "2-digit",
                                         month: "short",
                                         year: "numeric"
