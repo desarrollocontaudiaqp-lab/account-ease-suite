@@ -495,22 +495,32 @@ export function ConfirmContractFromProformaDialog({
       }
       const numero = `CTR-${year}-${nextNum.toString().padStart(3, "0")}`;
 
-      // Prepare projections for JSON storage (serialize dates)
+      // Format Date as YYYY-MM-DD using LOCAL components to avoid timezone shifts
+      // (e.g. Peru UTC-5 would shift `2026-05-01` to `2026-04-30` via toISOString).
+      const formatLocalYMD = (d: Date | undefined | null): string | null => {
+        if (!d) return null;
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
+      // Prepare projections for JSON storage (serialize dates as local YYYY-MM-DD)
       const projectionsForStorage = projections.map(p => ({
         ...p,
-        fechaInicio: p.fechaInicio?.toISOString(),
-        fechaTermino: p.fechaTermino?.toISOString(),
+        fechaInicio: formatLocalYMD(p.fechaInicio),
+        fechaTermino: formatLocalYMD(p.fechaTermino),
       }));
 
-      // Prepare payment schedule for storage
+      // Prepare payment schedule for storage (local YYYY-MM-DD)
       const scheduleForStorage = paymentSchedule.map(s => ({
         ...s,
-        fecha: s.fecha.toISOString(),
+        fecha: formatLocalYMD(s.fecha),
       }));
 
       // Calculate dates from first projection
-      const fechaInicio = firstProjection.fechaInicio.toISOString().split("T")[0];
-      const fechaFin = firstProjection.fechaTermino?.toISOString().split("T")[0] || null;
+      const fechaInicio = formatLocalYMD(firstProjection.fechaInicio)!;
+      const fechaFin = formatLocalYMD(firstProjection.fechaTermino);
       const numeroCuotas = firstProjection.nroCuotas;
       const diaVencimiento = firstProjection.fechaPago;
 
