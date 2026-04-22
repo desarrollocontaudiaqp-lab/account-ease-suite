@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Eye, Edit, Trash2, MoreHorizontal, FileText, CheckCircle, XCircle, ArrowRight, Ban, FileSignature } from "lucide-react";
-import { addMonths } from "date-fns";
 import { ApplyTemplateModal } from "./ApplyTemplateModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { buildContractPaymentDrafts } from "@/lib/paymentSchedule";
 import { toast } from "sonner";
 
 export type ContractStatus = "borrador" | "en_gestion" | "aprobado" | "anulado" | "activo" | "pausado" | "finalizado" | "cancelado";
@@ -50,10 +50,9 @@ export const ContractActions = ({
   const [applyTemplateOpen, setApplyTemplateOpen] = useState(false);
 
   const generatePaymentSchedule = async () => {
-    // Fetch contract data to get payment schedule info
     const { data: contract, error: fetchError } = await supabase
       .from("contratos")
-      .select("*")
+      .select("fecha_inicio, monto_total, numero_cuotas, dia_vencimiento, datos_plantilla")
       .eq("id", contractId)
       .maybeSingle();
 
@@ -62,36 +61,16 @@ export const ContractActions = ({
       throw new Error("No se pudo obtener los datos del contrato");
     }
 
-    const numeroCuotas = contract.numero_cuotas || 1;
-    const montoTotal = contract.monto_total || 0;
-    const diaVencimiento = contract.dia_vencimiento || 15;
-    const fechaInicio = new Date(contract.fecha_inicio);
-    const montoCuota = numeroCuotas > 0 ? montoTotal / numeroCuotas : 0;
-
-    // Check if payments already exist for this contract
     const { data: existingPayments } = await supabase
       .from("pagos")
       .select("id")
       .eq("contrato_id", contractId);
 
     if (existingPayments && existingPayments.length > 0) {
-      // Payments already exist, don't create duplicates
       return existingPayments.length;
     }
 
-    // Generate payments
-    const payments = [];
-    for (let i = 0; i < numeroCuotas; i++) {
-      const paymentDate = addMonths(fechaInicio, i);
-      paymentDate.setDate(Math.min(diaVencimiento, 28));
-
-      payments.push({
-        contrato_id: contractId,
-        monto: montoCuota,
-        fecha_vencimiento: paymentDate.toISOString().split("T")[0],
-        status: "pendiente" as const,
-      });
-    }
+    const payments = buildContractPaymentDrafts(contract, contractId);
 
     if (payments.length > 0) {
       const { error: insertError } = await supabase
