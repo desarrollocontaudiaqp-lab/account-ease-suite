@@ -110,6 +110,20 @@ const SERVICE_COLORS = [
 
 type CalendarViewType = "month" | "quarter" | "year" | "summary";
 
+/**
+ * Parse a saved date (could be full ISO with UTC time, or YYYY-MM-DD) as a LOCAL date,
+ * preserving the day/month/year as the user originally selected — no timezone shift.
+ */
+function parseSavedDate(value: string | Date | null | undefined): Date | undefined {
+  if (!value) return undefined;
+  if (value instanceof Date) return value;
+  // Take only the date portion (YYYY-MM-DD) to avoid UTC→local shifts that
+  // can move the date back by a day (and even a month) in negative timezones.
+  const datePart = String(value).split("T")[0];
+  const d = parseLocalDate(datePart);
+  return isNaN(d.getTime()) ? undefined : d;
+}
+
 export function ConfirmContractFromProformaDialog({
   open,
   onOpenChange,
