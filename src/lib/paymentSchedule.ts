@@ -60,14 +60,18 @@ export function getInstallmentDate({
 }
 
 export function buildContractPaymentDrafts(contract: {
-  datos_plantilla?: { payment_schedule?: Array<{ fecha?: string | Date | null; monto?: number | null }> | null } | null;
+  datos_plantilla?: unknown;
   dia_vencimiento?: number | null;
   fecha_inicio: string;
   monto_total?: number | null;
   numero_cuotas?: number | null;
 }, contractId: string) {
-  const schedule = Array.isArray(contract.datos_plantilla?.payment_schedule)
-    ? contract.datos_plantilla?.payment_schedule
+  const maybeTemplate = contract.datos_plantilla && typeof contract.datos_plantilla === "object"
+    ? (contract.datos_plantilla as { payment_schedule?: Array<{ fecha?: string | Date | null; monto?: number | null }> | null })
+    : null;
+
+  const schedule = Array.isArray(maybeTemplate?.payment_schedule)
+    ? maybeTemplate.payment_schedule
     : [];
 
   const storedPayments = schedule
