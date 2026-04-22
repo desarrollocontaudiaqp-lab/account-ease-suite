@@ -51,7 +51,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { cn, parseLocalDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatLocalYMD, getInstallmentDate, parseStoredLocalDate } from "@/lib/paymentSchedule";
 import { toast } from "sonner";
 
 interface ProformaData {
@@ -109,20 +110,6 @@ const SERVICE_COLORS = [
 ];
 
 type CalendarViewType = "month" | "quarter" | "year" | "summary";
-
-/**
- * Parse a saved date (could be full ISO with UTC time, or YYYY-MM-DD) as a LOCAL date,
- * preserving the day/month/year as the user originally selected — no timezone shift.
- */
-function parseSavedDate(value: string | Date | null | undefined): Date | undefined {
-  if (!value) return undefined;
-  if (value instanceof Date) return value;
-  // Take only the date portion (YYYY-MM-DD) to avoid UTC→local shifts that
-  // can move the date back by a day (and even a month) in negative timezones.
-  const datePart = String(value).split("T")[0];
-  const d = parseLocalDate(datePart);
-  return isNaN(d.getTime()) ? undefined : d;
-}
 
 export function ConfirmContractFromProformaDialog({
   open,
@@ -214,8 +201,8 @@ export function ConfirmContractFromProformaDialog({
         id: p.id || `service-${index}`,
         descripcion: p.descripcion || p.servicio || "Servicio",
         color: p.color || SERVICE_COLORS[index % SERVICE_COLORS.length],
-        fechaInicio: parseSavedDate(p.fechaInicio) || today,
-        fechaTermino: parseSavedDate(p.fechaTermino),
+        fechaInicio: parseStoredLocalDate(p.fechaInicio) || today,
+        fechaTermino: parseStoredLocalDate(p.fechaTermino),
         dias: p.dias || 0,
         meses: p.meses || 0,
         anos: p.anos || 0,
@@ -383,12 +370,6 @@ export function ConfirmContractFromProformaDialog({
       if (!proj.fechaInicio) return;
       
       // If no end date but has cuotas, calculate based on cuotas
-      const endDate = proj.fechaTermino || (proj.cicloPago === "mensual" 
-        ? addMonths(proj.fechaInicio, proj.nroCuotas)
-        : proj.cicloPago === "anual"
-        ? addMonths(proj.fechaInicio, proj.nroCuotas * 12)
-        : proj.fechaInicio);
-
       const montoPorCuota = proj.dividirEnCuotas 
         ? proj.pago / proj.nroCuotas 
         : proj.pago;
@@ -403,10 +384,13 @@ export function ConfirmContractFromProformaDialog({
           monto: proj.pago,
         });
       } else if (proj.cicloPago === "mensual") {
-        let currentDate = new Date(proj.fechaInicio);
-        currentDate.setDate(proj.fechaPago);
         for (let i = 0; i < proj.nroCuotas; i++) {
-          const paymentDate = addMonths(currentDate, i);
+          const paymentDate = getInstallmentDate({
+            startDate: proj.fechaInicio,
+            paymentDay: proj.fechaPago,
+            cycle: "mensual",
+            installmentIndex: i,
+          });
           schedule.push({
             cuota: i + 1,
             fecha: paymentDate,
@@ -417,10 +401,13 @@ export function ConfirmContractFromProformaDialog({
           });
         }
       } else if (proj.cicloPago === "anual") {
-        let currentDate = new Date(proj.fechaInicio);
-        currentDate.setDate(proj.fechaPago);
         for (let i = 0; i < proj.nroCuotas; i++) {
-          const paymentDate = addMonths(currentDate, i * 12);
+          const paymentDate = getInstallmentDate({
+            startDate: proj.fechaInicio,
+            paymentDay: proj.fechaPago,
+            cycle: "anual",
+            installmentIndex: i,
+          });
           schedule.push({
             cuota: i + 1,
             fecha: paymentDate,
@@ -494,16 +481,6 @@ export function ConfirmContractFromProformaDialog({
         }
       }
       const numero = `CTR-${year}-${nextNum.toString().padStart(3, "0")}`;
-
-      // Format Date as YYYY-MM-DD using LOCAL components to avoid timezone shifts
-      // (e.g. Peru UTC-5 would shift `2026-05-01` to `2026-04-30` via toISOString).
-      const formatLocalYMD = (d: Date | undefined | null): string | null => {
-        if (!d) return null;
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, "0");
-        const dd = String(d.getDate()).padStart(2, "0");
-        return `${yyyy}-${mm}-${dd}`;
-      };
 
       // Prepare projections for JSON storage (serialize dates as local YYYY-MM-DD)
       const projectionsForStorage = projections.map(p => ({

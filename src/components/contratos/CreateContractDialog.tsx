@@ -65,6 +65,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { formatLocalYMD, getInstallmentDate } from "@/lib/paymentSchedule";
 import { toast } from "sonner";
 
 interface CreateContractDialogProps {
@@ -353,10 +354,13 @@ export const CreateContractDialog = ({
           monto: proj.pago,
         });
       } else if (proj.cicloPago === "mensual") {
-        let currentDate = new Date(proj.fechaInicio);
-        currentDate.setDate(proj.fechaPago);
         for (let i = 0; i < proj.nroCuotas; i++) {
-          const paymentDate = addMonths(currentDate, i);
+          const paymentDate = getInstallmentDate({
+            startDate: proj.fechaInicio,
+            paymentDay: proj.fechaPago,
+            cycle: "mensual",
+            installmentIndex: i,
+          });
           schedule.push({
             cuota: i + 1,
             fecha: paymentDate,
@@ -367,10 +371,13 @@ export const CreateContractDialog = ({
           });
         }
       } else if (proj.cicloPago === "anual") {
-        let currentDate = new Date(proj.fechaInicio);
-        currentDate.setDate(proj.fechaPago);
         for (let i = 0; i < proj.nroCuotas; i++) {
-          const paymentDate = addMonths(currentDate, i * 12);
+          const paymentDate = getInstallmentDate({
+            startDate: proj.fechaInicio,
+            paymentDay: proj.fechaPago,
+            cycle: "anual",
+            installmentIndex: i,
+          });
           schedule.push({
             cuota: i + 1,
             fecha: paymentDate,
@@ -474,18 +481,18 @@ export const CreateContractDialog = ({
       // Prepare projections for JSON storage
       const projectionsForStorage = projections.map(p => ({
         ...p,
-        fechaInicio: p.fechaInicio?.toISOString(),
-        fechaTermino: p.fechaTermino?.toISOString(),
+        fechaInicio: formatLocalYMD(p.fechaInicio),
+        fechaTermino: formatLocalYMD(p.fechaTermino),
       }));
 
       // Prepare payment schedule for storage
       const scheduleForStorage = paymentSchedule.map(s => ({
         ...s,
-        fecha: s.fecha.toISOString(),
+        fecha: formatLocalYMD(s.fecha),
       }));
 
-      const fechaInicio = firstProjection.fechaInicio.toISOString().split("T")[0];
-      const fechaFin = firstProjection.fechaTermino?.toISOString().split("T")[0] || null;
+      const fechaInicio = formatLocalYMD(firstProjection.fechaInicio)!;
+      const fechaFin = formatLocalYMD(firstProjection.fechaTermino);
       const numeroCuotas = firstProjection.nroCuotas;
       const diaVencimiento = firstProjection.fechaPago;
 
