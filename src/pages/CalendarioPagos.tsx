@@ -300,7 +300,9 @@ export default function CalendarioPagos() {
     });
 
     // Process real payments with correct cuota numbers based on chronological order
-    const realPaymentsProcessed: UnifiedPayment[] = (pagosData || []).map((payment) => {
+    const realPaymentsProcessed: UnifiedPayment[] = (pagosData || [])
+      .filter((payment: any) => payment.contrato?.status !== "anulado")
+      .map((payment) => {
       const dueDate = parseLocalDate(payment.fecha_vencimiento);
       dueDate.setHours(0, 0, 0, 0);
       
@@ -350,6 +352,8 @@ export default function CalendarioPagos() {
     const projectedPayments: UnifiedPayment[] = [];
     
     (contratosData || []).forEach((contrato: any) => {
+      // Skip annulled contracts
+      if (contrato.status === "anulado") return;
       // Skip contracts that already have real payments
       if (contractsWithRealPayments.has(contrato.id)) return;
       
