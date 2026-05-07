@@ -360,7 +360,8 @@ const Contratos = () => {
     borradores: contracts.filter((c) => c.status === "borrador").length,
     enGestion: contracts.filter((c) => c.status === "en_gestion").length,
     aprobados: contracts.filter((c) => c.status === "aprobado").length,
-    total: contracts.length,
+    anulados: contracts.filter((c) => c.status === "anulado").length,
+    total: contracts.filter((c) => c.status !== "anulado").length,
     ingresosMensuales: contracts
       .filter((c) => c.status === "aprobado" || c.status === "activo")
       .reduce((acc, c) => acc + (Number(c.monto_mensual) || 0), 0),
@@ -433,7 +434,7 @@ const Contratos = () => {
           </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
           <div className="p-3 rounded-lg bg-slate-100">
             <FileText className="h-5 w-5 text-slate-700" />
@@ -459,6 +460,15 @@ const Contratos = () => {
           <div>
             <p className="text-2xl font-bold text-foreground">{stats.aprobados}</p>
             <p className="text-sm text-muted-foreground">Aprobados</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
+          <div className="p-3 rounded-lg bg-red-100">
+            <Ban className="h-5 w-5 text-red-700" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">{stats.anulados}</p>
+            <p className="text-sm text-muted-foreground">Anulados</p>
           </div>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-4">
