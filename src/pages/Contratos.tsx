@@ -127,6 +127,9 @@ const Contratos = () => {
   const [dateFilter, setDateFilter] = useState<DateFilter>("hoy");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // Status filter from stats cards
+  const [statusFilter, setStatusFilter] = useState<ContractStatus | "anulado" | "all" | null>(null);
   
   // Detail modal state
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -351,10 +354,17 @@ const Contratos = () => {
         const contractDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
         matchesDate = isWithinInterval(contractDate, { start: dateRange.start, end: dateRange.end });
       }
-      
-      return matchesSearch && matchesDate;
+
+      let matchesStatus = true;
+      if (statusFilter === "all") {
+        matchesStatus = contract.status !== "anulado";
+      } else if (statusFilter) {
+        matchesStatus = contract.status === statusFilter;
+      }
+
+      return matchesSearch && matchesDate && matchesStatus;
     });
-  }, [contracts, searchTerm, dateFilter, selectedMonth, selectedYear]);
+  }, [contracts, searchTerm, dateFilter, selectedMonth, selectedYear, statusFilter]);
 
   const stats = {
     borradores: contracts.filter((c) => c.status === "borrador").length,
