@@ -360,7 +360,8 @@ const Contratos = () => {
     borradores: contracts.filter((c) => c.status === "borrador").length,
     enGestion: contracts.filter((c) => c.status === "en_gestion").length,
     aprobados: contracts.filter((c) => c.status === "aprobado").length,
-    total: contracts.length,
+    anulados: contracts.filter((c) => c.status === "anulado").length,
+    total: contracts.filter((c) => c.status !== "anulado").length,
     ingresosMensuales: contracts
       .filter((c) => c.status === "aprobado" || c.status === "activo")
       .reduce((acc, c) => acc + (Number(c.monto_mensual) || 0), 0),
