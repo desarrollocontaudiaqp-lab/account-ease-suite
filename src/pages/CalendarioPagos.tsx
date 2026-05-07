@@ -235,20 +235,29 @@ export default function CalendarioPagos() {
   const fetchPayments = async () => {
     setLoading(true);
 
-    // Fetch real payments from pagos table
-    const { data: pagosData, error: pagosError } = await supabase
-      .from("pagos")
-      .select(`
-        *,
-        contrato:contratos(
-          numero,
-          moneda,
-          status,
-          descripcion,
-          cliente:clientes(razon_social, codigo)
-        )
-      `)
-      .order("fecha_vencimiento", { ascending: true });
+    // Fetch real payments from pagos table (paginated to bypass 1000-row default limit)
+    const pageSize = 1000;
+    let pagosData: any[] = [];
+    let pagosError: any = null;
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .from("pagos")
+        .select(`
+          *,
+          contrato:contratos(
+            numero,
+            moneda,
+            status,
+            descripcion,
+            cliente:clientes(razon_social, codigo)
+          )
+        `)
+        .order("fecha_vencimiento", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) { pagosError = error; break; }
+      pagosData = pagosData.concat(data || []);
+      if (!data || data.length < pageSize) break;
+    }
 
     // Fetch all contracts with their payment schedules
     const { data: contratosData, error: contratosError } = await supabase
