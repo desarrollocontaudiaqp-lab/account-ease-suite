@@ -143,6 +143,7 @@ const especialidadStyles: Record<string, string> = {
 };
 
 const Asignaciones = () => {
+  const { activeSedeId } = useSedeContext();
   const [loading, setLoading] = useState(true);
   const [contratos, setContratos] = useState<ContratoAsignado[]>([]);
   const [carteras, setCarteras] = useState<Cartera[]>([]);
@@ -328,6 +329,9 @@ const Asignaciones = () => {
 
   const filteredContratos = useMemo(() => {
     return contratos.filter((contrato) => {
+      if (activeSedeId && (contrato as any).sede_id !== activeSedeId) {
+        return false;
+      }
       const matchesSearch =
         contrato.numero.toLowerCase().includes(search.toLowerCase()) ||
         contrato.cliente?.razon_social.toLowerCase().includes(search.toLowerCase()) ||
@@ -350,7 +354,7 @@ const Asignaciones = () => {
 
       return matchesSearch && matchesCartera && matchesStatus && matchesDate;
     });
-  }, [contratos, search, filterCartera, filterStatus, dateRange]);
+  }, [contratos, search, filterCartera, filterStatus, dateRange, activeSedeId]);
 
   const handleReasignar = async () => {
     if (!selectedContrato || !selectedCarteraId) {
