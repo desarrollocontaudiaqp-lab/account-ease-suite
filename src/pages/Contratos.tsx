@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useSedeContext } from "@/hooks/useSedeContext";
 import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,6 +117,7 @@ const condicionStyles: Record<ContractCondition, string> = {
 const Contratos = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { activeSedeId, canViewAllSedes } = useSedeContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -190,6 +192,7 @@ const Contratos = () => {
         notas,
         proforma_id,
         created_at,
+        sede_id,
         cliente:clientes(id, razon_social, codigo)
       `)
       .order("created_at", { ascending: false });
@@ -343,6 +346,13 @@ const Contratos = () => {
     const dateRange = getDateRange(dateFilter);
     
     return contracts.filter((contract) => {
+      // Active sede filter
+      const matchesSede =
+        (canViewAllSedes && !activeSedeId) ||
+        !activeSedeId ||
+        (contract as any).sede_id === activeSedeId ||
+        (contract as any).sede_id == null;
+
       const matchesSearch = 
         contract.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contract.cliente?.razon_social.toLowerCase().includes(searchTerm.toLowerCase());
@@ -362,9 +372,9 @@ const Contratos = () => {
         matchesStatus = contract.status === statusFilter;
       }
 
-      return matchesSearch && matchesDate && matchesStatus;
+      return matchesSede && matchesSearch && matchesDate && matchesStatus;
     });
-  }, [contracts, searchTerm, dateFilter, selectedMonth, selectedYear, statusFilter]);
+  }, [contracts, searchTerm, dateFilter, selectedMonth, selectedYear, statusFilter, activeSedeId, canViewAllSedes]);
 
   const stats = {
     borradores: contracts.filter((c) => c.status === "borrador").length,

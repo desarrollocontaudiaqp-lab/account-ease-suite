@@ -31,6 +31,7 @@ interface UserProfile {
   created_at: string;
   role: AppRole;
   sede_id: string | null;
+  sede_ids?: string[];
 }
 
 const roleStyles: Record<AppRole, string> = {
@@ -96,6 +97,17 @@ const Usuarios = () => {
 
       if (rolesError) throw rolesError;
 
+      // Fetch user_sedes (multi-sede assignments)
+      const { data: userSedesRows } = await supabase
+        .from('user_sedes' as any)
+        .select('user_id, sede_id');
+      const sedesByUser = new Map<string, string[]>();
+      (userSedesRows as any[] | null)?.forEach((r) => {
+        const arr = sedesByUser.get(r.user_id) || [];
+        arr.push(r.sede_id);
+        sedesByUser.set(r.user_id, arr);
+      });
+
       // Create a set of user IDs that have roles (have user accounts)
       const userIdsWithRoles = new Set(roles?.map(r => r.user_id) || []);
 
@@ -109,6 +121,9 @@ const Usuarios = () => {
 
         // Add to users list if they have a role (user account)
         if (hasUser) {
+          const primary = (profile as any).sede_id || null;
+          const ids = sedesByUser.get(profile.id) || [];
+          if (primary && !ids.includes(primary)) ids.push(primary);
           usersWithRoles.push({
             id: profile.id,
             email: profile.email,
@@ -117,7 +132,8 @@ const Usuarios = () => {
             avatar_url: profile.avatar_url,
             created_at: profile.created_at,
             role: userRole?.role || 'asesor',
-            sede_id: (profile as any).sede_id || null,
+            sede_id: primary,
+            sede_ids: ids,
           });
         }
 
@@ -151,7 +167,7 @@ const Usuarios = () => {
   }, []);
 
   // User handlers
-  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null }) => {
+  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null; sede_ids: string[] }) => {
     setActionLoading(true);
     try {
       const { error: profileError } = await supabase
@@ -167,6 +183,14 @@ const Usuarios = () => {
         .eq('user_id', userId);
 
       if (roleError) throw roleError;
+
+      // Sync user_sedes (replace all)
+      await supabase.from('user_sedes' as any).delete().eq('user_id', userId);
+      if (data.sede_ids.length > 0) {
+        const rows = data.sede_ids.map((sede_id) => ({ user_id: userId, sede_id }));
+        const { error: sedesError } = await supabase.from('user_sedes' as any).insert(rows);
+        if (sedesError) throw sedesError;
+      }
 
       toast.success('Usuario actualizado');
       setEditDialogOpen(false);
@@ -230,7 +254,7 @@ const Usuarios = () => {
     }
   };
 
-  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null }) => {
+  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null; sede_ids: string[] }) => {
     setActionLoading(true);
     try {
       // Create auth user with the existing profile's ID
@@ -271,6 +295,13 @@ const Usuarios = () => {
             .from('user_roles')
             .update({ role: data.role })
             .eq('user_id', authData.user.id);
+        }
+
+        // Sync user_sedes
+        await supabase.from('user_sedes' as any).delete().eq('user_id', authData.user.id);
+        if (data.sede_ids.length > 0) {
+          const rows = data.sede_ids.map((sede_id) => ({ user_id: authData.user.id, sede_id }));
+          await supabase.from('user_sedes' as any).insert(rows);
         }
       }
 
@@ -510,7 +541,10 @@ const Usuarios = () => {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {users.map((user) => {
-                    const sede = sedes.find((s) => s.id === user.sede_id);
+                    const userSedes = (user.sede_ids && user.sede_ids.length > 0
+                      ? user.sede_ids
+                      : (user.sede_id ? [user.sede_id] : [])
+                    ).map((id) => sedes.find((s) => s.id === id)).filter(Boolean) as { id: string; nombre: string; codigo: string }[];
                     return (
                       <tr key={user.id} className="table-row-hover">
                         <td className="px-6 py-4">
@@ -532,12 +566,25 @@ const Usuarios = () => {
                           </Badge>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-1.5">
-                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">
-                              {sede ? sede.nombre : 'Sin sede'}
-                            </span>
-                          </div>
+                          {userSedes.length === 0 ? (
+                            <div className="flex items-center gap-1.5">
+                              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">Sin sede</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {userSedes.map((s) => (
+                                <Badge
+                                  key={s.id}
+                                  variant="outline"
+                                  className={`text-xs gap-1 ${s.id === user.sede_id ? 'border-primary text-primary' : ''}`}
+                                >
+                                  <Building2 className="h-3 w-3" />
+                                  {s.nombre}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-muted-foreground">{user.phone || '-'}</span>
