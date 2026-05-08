@@ -67,6 +67,7 @@ import { ContractCalendarModal } from "@/components/calendario-pagos/ContractCal
 import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 type DateFilterType = "Hoy" | "Semana Actual" | "Mes Actual" | "Mes" | "Año" | "Todo";
 
@@ -105,6 +106,7 @@ interface UnifiedPayment {
   cuota: number | null;
   glosa: string | null;
   isProjected: boolean;
+  sede_id?: string | null;
   contrato: {
     numero: string;
     moneda: string;
@@ -137,6 +139,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 };
 
 export default function CalendarioPagos() {
+  const { activeSedeId } = useSedeContext();
   const [realPayments, setRealPayments] = useState<Payment[]>([]);
   const [unifiedPayments, setUnifiedPayments] = useState<UnifiedPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -249,6 +252,7 @@ export default function CalendarioPagos() {
             moneda,
             status,
             descripcion,
+            sede_id,
             cliente:clientes(razon_social, codigo)
           )
         `)
@@ -269,6 +273,7 @@ export default function CalendarioPagos() {
         status,
         descripcion,
         datos_plantilla,
+        sede_id,
         cliente:clientes(razon_social, codigo)
       `)
       .not("datos_plantilla", "is", null);
@@ -332,6 +337,7 @@ export default function CalendarioPagos() {
         cuota: cuotaNumber,
         glosa: glosaGenerada,
         isProjected: false,
+        sede_id: payment.sede_id || payment.contrato?.sede_id || null,
         contrato: {
           numero: payment.contrato?.numero || "",
           moneda: payment.contrato?.moneda || "PEN",
@@ -400,6 +406,7 @@ export default function CalendarioPagos() {
           cuota: cuotaNumber,
           glosa: glosaGenerada,
           isProjected: true,
+          sede_id: contrato.sede_id || null,
           contrato: {
             numero: contrato.numero || "",
             moneda: contrato.moneda || "PEN",
@@ -448,6 +455,10 @@ export default function CalendarioPagos() {
 
   const filteredPayments = useMemo(() => {
     return unifiedPayments.filter((payment) => {
+      // Sede filter
+      if (activeSedeId && payment.sede_id !== activeSedeId) {
+        return false;
+      }
       const matchesSearch =
         payment.contrato?.numero?.toLowerCase().includes(search.toLowerCase()) ||
         payment.contrato?.cliente?.razon_social?.toLowerCase().includes(search.toLowerCase()) ||
@@ -479,7 +490,7 @@ export default function CalendarioPagos() {
 
       return matchesSearch && matchesStatus && matchesSource && matchesDate;
     });
-  }, [unifiedPayments, search, statusFilter, sourceFilter, dateRange]);
+  }, [unifiedPayments, search, statusFilter, sourceFilter, dateRange, activeSedeId]);
 
   const handleEditPayment = (payment: UnifiedPayment) => {
     if (payment.isProjected) {

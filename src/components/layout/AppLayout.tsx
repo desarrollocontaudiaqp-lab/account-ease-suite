@@ -23,7 +23,9 @@ export function AppLayout() {
   } = useAuth();
   const { availableSedes, activeSedeId, setActiveSedeId, canViewAllSedes } = useSedeContext();
   const activeSede = availableSedes.find((s) => s.id === activeSedeId) || null;
-  const showSwitcher = canViewAllSedes || availableSedes.length >= 2;
+  // Always show switcher when there's at least one sede, so users always see
+  // "Todas las sedes" + their assigned sedes.
+  const showSwitcher = availableSedes.length >= 1;
   const [profile, setProfile] = useState<{
     full_name: string | null;
   } | null>(null);
@@ -79,9 +81,7 @@ export function AppLayout() {
                       <div className="text-left">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Sede</p>
                         <p className="text-sm font-medium text-foreground leading-tight">
-                          {canViewAllSedes && !activeSedeId
-                            ? "Todas"
-                            : activeSede?.nombre || "Selecciona"}
+                          {!activeSedeId ? "Todas" : activeSede?.nombre || "Selecciona"}
                         </p>
                       </div>
                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -90,14 +90,12 @@ export function AppLayout() {
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>Cambiar de sede</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {canViewAllSedes && (
-                      <DropdownMenuItem onClick={() => setActiveSedeId(null)} className="gap-2">
-                        {activeSedeId === null && <Check className="h-4 w-4" />}
-                        <span className={activeSedeId === null ? "font-semibold" : ""}>
-                          Todas las sedes
-                        </span>
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem onClick={() => setActiveSedeId(null)} className="gap-2">
+                      {activeSedeId === null && <Check className="h-4 w-4" />}
+                      <span className={activeSedeId === null ? "font-semibold" : ""}>
+                        Todas las sedes
+                      </span>
+                    </DropdownMenuItem>
                     {availableSedes.map((s) => (
                       <DropdownMenuItem
                         key={s.id}

@@ -36,6 +36,7 @@ import { generateProformaPDF, downloadPDF } from "@/lib/generateProformaPDF";
 import { getPDFStylesForType } from "@/hooks/usePDFStyles";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { toast } from "sonner";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
 
@@ -118,6 +119,7 @@ const dateFilterLabels: Record<DateFilterType, string> = {
 
 const Proformas = () => {
   const navigate = useNavigate();
+  const { activeSedeId } = useSedeContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"todas" | GrupoServicio>("todas");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
@@ -252,6 +254,7 @@ const Proformas = () => {
         campos_personalizados,
         incluir_proyeccion_pdf,
         contrato_id,
+        sede_id,
         cliente:clientes(razon_social, codigo, direccion, email, telefono)
       `)
       .order("created_at", { ascending: false });
@@ -481,6 +484,10 @@ const Proformas = () => {
     const dateRange = getDateRange(dateFilter);
     
     return proformas.filter((proforma) => {
+      // Sede filter
+      if (activeSedeId && (proforma as any).sede_id !== activeSedeId) {
+        return false;
+      }
       // Date filter
       let matchesDate = true;
       if (dateRange) {
@@ -521,7 +528,7 @@ const Proformas = () => {
       
       return matchesDate && matchesSearch && matchesTab && matchesService;
     });
-  }, [proformas, searchTerm, activeTab, selectedServices, dateFilter, selectedMonth, selectedYear]);
+  }, [proformas, searchTerm, activeTab, selectedServices, dateFilter, selectedMonth, selectedYear, activeSedeId]);
   
   // Count proformas by group
   const countByGroup = useMemo(() => {

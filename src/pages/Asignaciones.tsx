@@ -58,6 +58,7 @@ import { ContractDetailModal } from "@/components/contratos/ContractDetailModal"
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
 
@@ -76,6 +77,7 @@ interface ContratoAsignado {
   status: string;
   condicion: ContractCondition;
   created_at: string;
+  sede_id?: string | null;
   cliente: {
     id: string;
     razon_social: string;
@@ -141,6 +143,7 @@ const especialidadStyles: Record<string, string> = {
 };
 
 const Asignaciones = () => {
+  const { activeSedeId } = useSedeContext();
   const [loading, setLoading] = useState(true);
   const [contratos, setContratos] = useState<ContratoAsignado[]>([]);
   const [carteras, setCarteras] = useState<Cartera[]>([]);
@@ -201,7 +204,7 @@ const Asignaciones = () => {
       .from("contratos")
       .select(`
         id, numero, descripcion, tipo_servicio, fecha_inicio, fecha_fin,
-        monto_mensual, monto_total, moneda, status, condicion, created_at,
+        monto_mensual, monto_total, moneda, status, condicion, created_at, sede_id,
         cliente:clientes(id, razon_social, codigo)
       `)
       .neq("status", "borrador")
@@ -326,6 +329,9 @@ const Asignaciones = () => {
 
   const filteredContratos = useMemo(() => {
     return contratos.filter((contrato) => {
+      if (activeSedeId && (contrato as any).sede_id !== activeSedeId) {
+        return false;
+      }
       const matchesSearch =
         contrato.numero.toLowerCase().includes(search.toLowerCase()) ||
         contrato.cliente?.razon_social.toLowerCase().includes(search.toLowerCase()) ||
@@ -348,7 +354,7 @@ const Asignaciones = () => {
 
       return matchesSearch && matchesCartera && matchesStatus && matchesDate;
     });
-  }, [contratos, search, filterCartera, filterStatus, dateRange]);
+  }, [contratos, search, filterCartera, filterStatus, dateRange, activeSedeId]);
 
   const handleReasignar = async () => {
     if (!selectedContrato || !selectedCarteraId) {

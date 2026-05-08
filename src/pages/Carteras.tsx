@@ -73,6 +73,7 @@ import { Database } from "@/integrations/supabase/types";
 import { useRolePermisos } from "@/hooks/useRolePermisos";
 import { CarteraPerformanceDashboard } from "@/components/carteras/CarteraPerformanceDashboard";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -84,6 +85,7 @@ interface Cartera {
   activa: boolean;
   responsable_id: string | null;
   created_at: string;
+  sede_id?: string | null;
   miembros: CarteraMiembro[];
   clientes: { id: string; cliente: { id: string; razon_social: string; codigo: string } }[];
 }
@@ -130,6 +132,7 @@ const rolStyles: Record<string, string> = {
 
 const Carteras = () => {
   const { roles: availableRoles } = useRolePermisos();
+  const { activeSedeId } = useSedeContext();
   const [loading, setLoading] = useState(true);
   const [carteras, setCarteras] = useState<Cartera[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -240,10 +243,13 @@ const Carteras = () => {
     }
   };
 
-  const filteredCarteras = carteras.filter((cartera) =>
-    cartera.nombre.toLowerCase().includes(search.toLowerCase()) ||
-    cartera.descripcion?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCarteras = carteras.filter((cartera) => {
+    if (activeSedeId && cartera.sede_id !== activeSedeId) return false;
+    return (
+      cartera.nombre.toLowerCase().includes(search.toLowerCase()) ||
+      cartera.descripcion?.toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
   const filteredPersonal = profiles.filter((p) =>
     p.full_name?.toLowerCase().includes(search.toLowerCase()) ||
