@@ -138,6 +138,7 @@ const Carteras = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("carteras");
+  const [carteraFilter, setCarteraFilter] = useState<"all" | "activas" | "inactivas">("all");
   const [stats, setStats] = useState<CarteraStats>({
     total: 0,
     activas: 0,
@@ -245,6 +246,8 @@ const Carteras = () => {
 
   const filteredCarteras = carteras.filter((cartera) => {
     if (activeSedeId && cartera.sede_id !== activeSedeId) return false;
+    if (carteraFilter === "activas" && !cartera.activa) return false;
+    if (carteraFilter === "inactivas" && cartera.activa) return false;
     return (
       cartera.nombre.toLowerCase().includes(search.toLowerCase()) ||
       cartera.descripcion?.toLowerCase().includes(search.toLowerCase())
@@ -539,34 +542,51 @@ const Carteras = () => {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Carteras</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Building2 className="h-6 w-6 text-primary" />
-              </div>
+        <button
+          type="button"
+          onClick={() => setCarteraFilter("all")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${carteraFilter === "all" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Carteras</p>
+              <p className="text-2xl font-bold">{stats.total}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Carteras Activas</p>
-                <p className="text-2xl font-bold text-green-600">{stats.activas}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                <Users className="h-6 w-6 text-green-600" />
-              </div>
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Building2 className="h-6 w-6 text-primary" />
             </div>
-          </CardContent>
-        </Card>
-
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setCarteraFilter(carteraFilter === "activas" ? "all" : "activas")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${carteraFilter === "activas" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Carteras Activas</p>
+              <p className="text-2xl font-bold text-green-600">{stats.activas}</p>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+              <Users className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setCarteraFilter(carteraFilter === "inactivas" ? "all" : "inactivas")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${carteraFilter === "inactivas" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Carteras Inactivas</p>
+              <p className="text-2xl font-bold text-gray-500">{stats.total - stats.activas}</p>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+              <Building2 className="h-6 w-6 text-gray-500" />
+            </div>
+          </div>
+        </button>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -576,20 +596,6 @@ const Carteras = () => {
               </div>
               <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
                 <UserPlus className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Personal Total</p>
-                <p className="text-2xl font-bold">{profiles.length}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-                <Settings className="h-6 w-6 text-amber-600" />
               </div>
             </div>
           </CardContent>
