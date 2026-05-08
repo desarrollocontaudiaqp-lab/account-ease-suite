@@ -58,6 +58,7 @@ import { ContractDetailModal } from "@/components/contratos/ContractDetailModal"
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
 
@@ -76,6 +77,7 @@ interface ContratoAsignado {
   status: string;
   condicion: ContractCondition;
   created_at: string;
+  sede_id?: string | null;
   cliente: {
     id: string;
     razon_social: string;
