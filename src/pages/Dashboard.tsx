@@ -2,7 +2,7 @@ import {
   Users,
   FileCheck,
   FileText,
-  DollarSign,
+  Coins,
   TrendingUp,
   AlertTriangle,
   RefreshCw,
@@ -21,6 +21,7 @@ import { ProformasChart } from "@/components/dashboard/ProformasChart";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { Button } from "@/components/ui/button";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
+import { useSedeContext } from "@/hooks/useSedeContext";
 import { BlurredValue, BlurredSection } from "@/components/ui/BlurredValue";
 import { exportRowsToExcel } from "@/lib/exportToExcel";
 import { Download } from "lucide-react";
@@ -28,6 +29,12 @@ import { Download } from "lucide-react";
 const Dashboard = () => {
   const { stats, recentContracts, upcomingPayments, teamMembers, loading, userName, refetch } = useDashboardStats();
   const { formatCurrency } = useSystemConfig();
+  const { availableSedes, activeSedeId } = useSedeContext();
+  const sedeNombre = activeSedeId
+    ? availableSedes.find((s) => s.id === activeSedeId)?.nombre
+    : availableSedes.length === 1
+      ? availableSedes[0].nombre
+      : null;
 
   const formatIngresos = (amount: number) => {
     if (amount >= 1000000) {
@@ -47,7 +54,7 @@ const Dashboard = () => {
             Bienvenido de nuevo{userName ? `, ${userName}` : ""}
           </p>
           <h1 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
-            Dashboard
+            Dashboard{sedeNombre ? ` — ${sedeNombre}` : ""}
           </h1>
           <p className="text-sm text-muted-foreground">
             Resumen ejecutivo de tu gestión contable
@@ -136,7 +143,7 @@ const Dashboard = () => {
           title="Ingresos"
           value={formatIngresos(stats.ingresosMes)}
           subtitle={`Meta: ${formatIngresos(stats.metaIngresos)}`}
-          icon={DollarSign}
+          icon={Coins}
           variant="secondary"
           delay={150}
           href="/calendario-pagos"
