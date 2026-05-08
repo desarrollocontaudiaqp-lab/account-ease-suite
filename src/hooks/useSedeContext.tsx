@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useMemo } from 'react';
 import { useUserSedes, Sede } from '@/hooks/useSedes';
+import { ACTIVE_SEDE_CHANGED_EVENT, getStoredActiveSedeId, setStoredActiveSedeId } from '@/lib/activeSede';
 
 interface SedeContextType {
   /** Sedes the current user has access to */
@@ -13,14 +14,19 @@ interface SedeContextType {
 
 const SedeContext = createContext<SedeContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'active_sede_id';
-
 export const SedeProvider = ({ children }: { children: ReactNode }) => {
   const { sedes, canViewAllSedes, loading } = useUserSedes();
-  const [activeSedeId, setActiveSedeIdState] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(STORAGE_KEY);
-  });
+  const [activeSedeId, setActiveSedeIdState] = useState<string | null>(() => getStoredActiveSedeId());
+
+  useEffect(() => {
+    const syncStoredSede = () => setActiveSedeIdState(getStoredActiveSedeId());
+    window.addEventListener(ACTIVE_SEDE_CHANGED_EVENT, syncStoredSede);
+    window.addEventListener('storage', syncStoredSede);
+    return () => {
+      window.removeEventListener(ACTIVE_SEDE_CHANGED_EVENT, syncStoredSede);
+      window.removeEventListener('storage', syncStoredSede);
+    };
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -28,16 +34,13 @@ export const SedeProvider = ({ children }: { children: ReactNode }) => {
     if (activeSedeId && !canViewAllSedes && sedes.length > 0 && !sedes.some((s) => s.id === activeSedeId)) {
       // Active sede is not in user's allowed list — reset to "Todas"
       setActiveSedeIdState(null);
-      try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      setStoredActiveSedeId(null);
     }
   }, [sedes, activeSedeId, canViewAllSedes, loading]);
 
   const setActiveSedeId = (id: string | null) => {
     setActiveSedeIdState(id);
-    try {
-      if (id) localStorage.setItem(STORAGE_KEY, id);
-      else localStorage.removeItem(STORAGE_KEY);
-    } catch {}
+    setStoredActiveSedeId(id);
   };
 
   const value = useMemo(
