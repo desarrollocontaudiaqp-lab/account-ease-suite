@@ -495,6 +495,9 @@ const Usuarios = () => {
                       Rol
                     </th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
+                      Sede
+                    </th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
                       Teléfono
                     </th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
@@ -506,59 +509,70 @@ const Usuarios = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {users.map((user) => (
-                    <tr key={user.id} className="table-row-hover">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                              {getInitials(user.full_name, user.email)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-foreground">{user.full_name || 'Sin nombre'}</p>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                  {users.map((user) => {
+                    const sede = sedes.find((s) => s.id === user.sede_id);
+                    return (
+                      <tr key={user.id} className="table-row-hover">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                                {getInitials(user.full_name, user.email)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-foreground">{user.full_name || 'Sin nombre'}</p>
+                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge variant="outline" className={roleStyles[user.role]}>
-                          {getRoleLabel(user.role)}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">{user.phone || '-'}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(user.created_at).toLocaleDateString('es-PE')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center">
-                          <UserActions
-                            userId={user.id}
-                            userName={user.full_name || user.email}
-                            onEdit={() => {
-                              setSelectedUser(user);
-                              setEditDialogOpen(true);
-                            }}
-                            onChangePassword={() => {
-                              setSelectedUser(user);
-                              setPasswordDialogOpen(true);
-                            }}
-                            onDelete={() => {
-                              setSelectedUser(user);
-                              setDeleteDialogOpen(true);
-                            }}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge variant="outline" className={roleStyles[user.role]}>
+                            {getRoleLabel(user.role)}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5">
+                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {sede ? sede.nombre : 'Sin sede'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-muted-foreground">{user.phone || '-'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(user.created_at).toLocaleDateString('es-PE')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center">
+                            <UserActions
+                              userId={user.id}
+                              userName={user.full_name || user.email}
+                              onEdit={() => {
+                                setSelectedUser(user);
+                                setEditDialogOpen(true);
+                              }}
+                              onChangePassword={() => {
+                                setSelectedUser(user);
+                                setPasswordDialogOpen(true);
+                              }}
+                              onDelete={() => {
+                                setSelectedUser(user);
+                                setDeleteDialogOpen(true);
+                              }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {users.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                      <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                         No hay usuarios registrados
                       </td>
                     </tr>
