@@ -344,6 +344,13 @@ const Contratos = () => {
     const dateRange = getDateRange(dateFilter);
     
     return contracts.filter((contract) => {
+      // Active sede filter
+      const matchesSede =
+        (canViewAllSedes && !activeSedeId) ||
+        !activeSedeId ||
+        (contract as any).sede_id === activeSedeId ||
+        (contract as any).sede_id == null;
+
       const matchesSearch = 
         contract.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contract.cliente?.razon_social.toLowerCase().includes(searchTerm.toLowerCase());
@@ -363,9 +370,9 @@ const Contratos = () => {
         matchesStatus = contract.status === statusFilter;
       }
 
-      return matchesSearch && matchesDate && matchesStatus;
+      return matchesSede && matchesSearch && matchesDate && matchesStatus;
     });
-  }, [contracts, searchTerm, dateFilter, selectedMonth, selectedYear, statusFilter]);
+  }, [contracts, searchTerm, dateFilter, selectedMonth, selectedYear, statusFilter, activeSedeId, canViewAllSedes]);
 
   const stats = {
     borradores: contracts.filter((c) => c.status === "borrador").length,
