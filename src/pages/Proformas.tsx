@@ -122,6 +122,7 @@ const Proformas = () => {
   const { activeSedeId } = useSedeContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"todas" | GrupoServicio>("todas");
+  const [statusFilter, setStatusFilter] = useState<"all" | "aprobada" | "enviada">("all");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [proformas, setProformas] = useState<ProformaWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -525,10 +526,13 @@ const Proformas = () => {
             item.descripcion.toLowerCase().includes(service.toLowerCase())
           )
         );
-      
-      return matchesDate && matchesSearch && matchesTab && matchesService;
+
+      const matchesStatus =
+        statusFilter === "all" || proforma.status === statusFilter;
+
+      return matchesDate && matchesSearch && matchesTab && matchesService && matchesStatus;
     });
-  }, [proformas, searchTerm, activeTab, selectedServices, dateFilter, selectedMonth, selectedYear, activeSedeId]);
+  }, [proformas, searchTerm, activeTab, selectedServices, dateFilter, selectedMonth, selectedYear, activeSedeId, statusFilter]);
   
   // Count proformas by group
   const countByGroup = useMemo(() => {
@@ -619,20 +623,32 @@ const Proformas = () => {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats - clickable filters */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl border border-border p-4">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("all")}
+          className={`bg-card rounded-xl border p-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "all" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
           <p className="text-sm text-muted-foreground">Total Proformas</p>
           <p className="text-2xl font-bold text-foreground mt-1">{stats.total}</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <p className="text-sm text-muted-foreground">Pendientes</p>
-          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.pendientes}</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === "aprobada" ? "all" : "aprobada")}
+          className={`bg-card rounded-xl border p-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "aprobada" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
           <p className="text-sm text-muted-foreground">Aprobadas</p>
           <p className="text-2xl font-bold text-green-600 mt-1">{stats.aprobadas}</p>
-        </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === "enviada" ? "all" : "enviada")}
+          className={`bg-card rounded-xl border p-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "enviada" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <p className="text-sm text-muted-foreground">Pendientes</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.pendientes}</p>
+        </button>
         <div className="bg-card rounded-xl border border-border p-4">
           <p className="text-sm text-muted-foreground">Valor Total</p>
           <p className="text-2xl font-bold text-foreground mt-1">
