@@ -36,7 +36,7 @@ const Auth = () => {
 
   // Sede selection
   const [sedes, setSedes] = useState<Array<{ id: string; nombre: string; codigo: string }>>([]);
-  const [selectedSedeId, setSelectedSedeId] = useState<string>('all');
+  const [selectedSedeId, setSelectedSedeId] = useState<string>('');
   
   // Login form
   const [loginEmail, setLoginEmail] = useState('');
@@ -73,7 +73,7 @@ const Auth = () => {
 
   const persistSedeSelection = () => {
     try {
-      if (selectedSedeId && selectedSedeId !== 'all') {
+      if (selectedSedeId) {
         localStorage.setItem('active_sede_id', selectedSedeId);
       } else {
         localStorage.removeItem('active_sede_id');
@@ -87,6 +87,10 @@ const Auth = () => {
     const validation = loginSchema.safeParse({ email: loginEmail, password: loginPassword });
     if (!validation.success) {
       toast.error(validation.error.errors[0].message);
+      return;
+    }
+    if (!selectedSedeId) {
+      toast.error('Selecciona una sede');
       return;
     }
 
@@ -244,7 +248,6 @@ const Auth = () => {
                         </div>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Todas las sedes</SelectItem>
                         {sedes.map((s) => (
                           <SelectItem key={s.id} value={s.id}>
                             {s.nombre}
