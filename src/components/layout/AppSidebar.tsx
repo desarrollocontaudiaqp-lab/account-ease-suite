@@ -129,8 +129,8 @@ export function AppSidebar() {
               <span className="text-base font-bold text-sidebar-foreground tracking-tight">
                 & Auditores
               </span>
-              <span className="text-base font-bold text-sidebar-foreground tracking-tight">
-                Arequipa
+              <span className="text-[11px] font-medium text-sidebar-foreground/70 tracking-wide mt-1">
+                Sistema de Gestión Contable
               </span>
             </div>
           )}
