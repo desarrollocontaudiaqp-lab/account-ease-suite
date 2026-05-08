@@ -540,10 +540,10 @@ const Proformas = () => {
   }, [proformas]);
 
   const stats = {
-    total: proformas.length,
-    pendientes: proformas.filter((p) => p.status === "enviada").length,
-    aprobadas: proformas.filter((p) => p.status === "aprobada").length,
-    valorTotal: proformas.reduce((acc, p) => acc + Number(p.total), 0),
+    total: filteredProformas.length,
+    pendientes: filteredProformas.filter((p) => p.status === "enviada").length,
+    aprobadas: filteredProformas.filter((p) => p.status === "aprobada").length,
+    valorTotal: filteredProformas.reduce((acc, p) => acc + Number(p.total), 0),
   };
 
   return (
