@@ -262,6 +262,27 @@ const Auth = () => {
                       </button>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="login-sede" className="text-sm font-medium">
+                      Sede
+                    </Label>
+                    <Select value={loginSedeId} onValueChange={setLoginSedeId}>
+                      <SelectTrigger id="login-sede" className="h-11 border-border/60">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <SelectValue placeholder="Selecciona la sede" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sedes.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.nombre} ({s.codigo})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <Checkbox 
