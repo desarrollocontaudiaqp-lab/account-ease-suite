@@ -9,6 +9,7 @@ import { PaymentNotificationProvider } from "@/hooks/usePaymentNotifications";
 import { FinancialVisibilityProvider } from "@/hooks/useFinancialVisibility";
 import { FinancialPageGuard } from "@/components/ui/FinancialPageGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { SedeProvider } from "@/hooks/useSedeContext";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
 import Proformas from "./pages/Proformas";
@@ -82,7 +83,9 @@ const App = () => (
           <BrowserRouter>
             <AuthProvider>
               <FinancialVisibilityProvider>
-                <AppRoutes />
+                <SedeProvider>
+                  <AppRoutes />
+                </SedeProvider>
               </FinancialVisibilityProvider>
             </AuthProvider>
           </BrowserRouter>
