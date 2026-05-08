@@ -66,10 +66,8 @@ const Auth = () => {
     };
     loadSedes();
     // Restore last selection
-    try {
-      const stored = localStorage.getItem('active_sede_id');
-      if (stored) setSelectedSedeId(stored);
-    } catch {}
+    const stored = getStoredActiveSedeId();
+    if (stored) setSelectedSedeId(stored);
   }, []);
 
   const persistSedeSelection = () => {
