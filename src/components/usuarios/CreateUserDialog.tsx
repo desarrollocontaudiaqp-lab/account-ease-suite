@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Search, User, Mail, AlertTriangle } from 'lucide-react';
+import { Loader2, Search, User, Mail, AlertTriangle, Building2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { Database } from '@/integrations/supabase/types';
 import { useRolePermisos } from '@/hooks/useRolePermisos';
 import { useSedes } from '@/hooks/useSedes';
@@ -24,7 +26,7 @@ interface PersonalWithoutUser {
 interface CreateUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null }) => Promise<void>;
+  onCreate: (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null; sede_ids: string[] }) => Promise<void>;
   loading: boolean;
 }
 
@@ -32,6 +34,7 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
   const { roles: availableRoles } = useRolePermisos();
   const { sedes } = useSedes();
   const [sedeId, setSedeId] = useState<string>('');
+  const [sedeIds, setSedeIds] = useState<string[]>([]);
   const [personalList, setPersonalList] = useState<PersonalWithoutUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPersonal, setSelectedPersonal] = useState<PersonalWithoutUser | null>(null);
@@ -108,6 +111,15 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
     }
   };
 
+  const toggleSede = (id: string, checked: boolean) => {
+    setSedeIds((prev) => {
+      const next = checked ? Array.from(new Set([...prev, id])) : prev.filter((s) => s !== id);
+      if (!checked && sedeId === id) setSedeId(next[0] || '');
+      if (checked && !sedeId) setSedeId(id);
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -127,18 +139,20 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
       return;
     }
 
-    if (!sedeId) {
-      setError('Debe seleccionar una sede');
+    if (sedeIds.length === 0) {
+      setError('Debe seleccionar al menos una sede');
       return;
     }
 
+    const primary = sedeId || sedeIds[0];
     await onCreate({ 
       email: selectedPersonal.email, 
       password, 
       full_name: selectedPersonal.full_name || '', 
       role,
       profileId: selectedPersonal.id,
-      sede_id: sedeId,
+      sede_id: primary,
+      sede_ids: Array.from(new Set([...sedeIds, primary])),
     });
   };
 
@@ -149,6 +163,7 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
       setPassword('');
       setRole('asesor');
       setSedeId('');
+      setSedeIds([]);
       setError('');
       setEmailAlreadyRegistered(false);
     }
@@ -291,19 +306,45 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="create-sede">Sede</Label>
-            <Select value={sedeId} onValueChange={setSedeId} disabled={emailAlreadyRegistered}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona una sede" />
-              </SelectTrigger>
-              <SelectContent>
-                {sedes.filter(s => s.activa).map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.nombre} ({s.codigo})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Sedes asignadas</Label>
+            <div className="border rounded-lg max-h-40 overflow-y-auto divide-y">
+              {sedes.filter(s => s.activa).map((s) => {
+                const checked = sedeIds.includes(s.id);
+                const isPrimary = sedeId === s.id;
+                return (
+                  <div key={s.id} className="flex items-center gap-2 p-2 hover:bg-muted/50">
+                    <Checkbox
+                      id={`new-sede-${s.id}`}
+                      checked={checked}
+                      disabled={emailAlreadyRegistered}
+                      onCheckedChange={(v) => toggleSede(s.id, !!v)}
+                    />
+                    <label htmlFor={`new-sede-${s.id}`} className="flex items-center gap-2 flex-1 cursor-pointer text-sm">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium">{s.nombre}</span>
+                      <span className="text-xs text-muted-foreground">({s.codigo})</span>
+                      {isPrimary && checked && (
+                        <Badge variant="secondary" className="ml-auto text-[10px] h-5">Principal</Badge>
+                      )}
+                    </label>
+                    {checked && !isPrimary && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[11px]"
+                        onClick={() => setSedeId(s.id)}
+                      >
+                        Principal
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Marca todas las sedes a las que tendrá acceso. La sede principal es la activa por defecto.
+            </p>
           </div>
           
           {error && <p className="text-sm text-destructive">{error}</p>}
