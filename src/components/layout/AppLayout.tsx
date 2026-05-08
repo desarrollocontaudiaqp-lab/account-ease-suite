@@ -1,31 +1,17 @@
 import { Outlet } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
-import { Bell, Search, ChevronDown, Building2, Check } from "lucide-react";
+import { Bell, Search, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useSedeContext } from "@/hooks/useSedeContext";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 export function AppLayout() {
   const {
     user,
     role
   } = useAuth();
-  const { availableSedes, activeSedeId, setActiveSedeId, canViewAllSedes } = useSedeContext();
-  const activeSede = availableSedes.find((s) => s.id === activeSedeId) || null;
-  // Always show switcher when there's at least one sede, so users always see
-  // "Todas las sedes" + their assigned sedes.
-  const showSwitcher = availableSedes.length >= 1;
   const [profile, setProfile] = useState<{
     full_name: string | null;
   } | null>(null);
@@ -69,50 +55,6 @@ export function AppLayout() {
 
             {/* Right Actions */}
             <div className="flex items-center gap-2 lg:gap-4">
-              {/* Sede Switcher */}
-              {showSwitcher && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="hidden sm:flex items-center gap-2 h-11 px-3 rounded-xl hover:bg-muted"
-                    >
-                      <Building2 className="h-4 w-4 text-primary" />
-                      <div className="text-left">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Sede</p>
-                        <p className="text-sm font-medium text-foreground leading-tight">
-                          {!activeSedeId ? "Todas" : activeSede?.nombre || "Selecciona"}
-                        </p>
-                      </div>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Cambiar de sede</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setActiveSedeId(null)} className="gap-2">
-                      {activeSedeId === null && <Check className="h-4 w-4" />}
-                      <span className={activeSedeId === null ? "font-semibold" : ""}>
-                        Todas las sedes
-                      </span>
-                    </DropdownMenuItem>
-                    {availableSedes.map((s) => (
-                      <DropdownMenuItem
-                        key={s.id}
-                        onClick={() => setActiveSedeId(s.id)}
-                        className="gap-2"
-                      >
-                        {activeSedeId === s.id && <Check className="h-4 w-4" />}
-                        <span className={activeSedeId === s.id ? "font-semibold" : ""}>
-                          {s.nombre}
-                        </span>
-                        <span className="ml-auto text-xs text-muted-foreground">{s.codigo}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-
               {/* Date Display */}
               <div className="hidden xl:flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/50">
                 <div className="h-2 w-2 rounded-full bg-status-completed animate-pulse" />
