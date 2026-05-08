@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2 } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 import { useRolePermisos } from '@/hooks/useRolePermisos';
-import MultiSedeSelect from './MultiSedeSelect';
-import { supabase } from '@/integrations/supabase/client';
+import { useSedes } from '@/hooks/useSedes';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -25,45 +24,32 @@ interface EditUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: UserProfile | null;
-  onSave: (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null; sede_ids: string[] }) => Promise<void>;
+  onSave: (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null }) => Promise<void>;
   loading: boolean;
 }
 
 const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserDialogProps) => {
   const { roles: availableRoles } = useRolePermisos();
+  const { sedes } = useSedes();
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<AppRole>('asesor');
-  const [sedeIds, setSedeIds] = useState<string[]>([]);
+  const [sedeId, setSedeId] = useState<string>('');
 
   useEffect(() => {
     if (user && open) {
       setFullName(user.full_name || '');
       setRole(user.role);
-      // Cargar sedes asignadas desde user_sedes
-      (async () => {
-        const { data } = await supabase
-          .from('user_sedes' as any)
-          .select('sede_id')
-          .eq('user_id', user.id);
-        const ids = (data || []).map((r: any) => r.sede_id);
-        if (ids.length === 0 && user.sede_id) {
-          setSedeIds([user.sede_id]);
-        } else {
-          setSedeIds(ids);
-        }
-      })();
+      setSedeId(user.sede_id || '');
     }
   }, [user, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (user) {
-      // sede_id principal = primera de la lista (mantiene compatibilidad con RLS por sede)
       await onSave(user.id, {
         full_name: fullName,
         role,
-        sede_id: sedeIds[0] || null,
-        sede_ids: sedeIds,
+        sede_id: sedeId || null,
       });
     }
   };
@@ -105,11 +91,19 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Sedes</Label>
-            <MultiSedeSelect value={sedeIds} onChange={setSedeIds} />
-            <p className="text-xs text-muted-foreground">
-              Asigna una o más sedes. Si tiene varias, podrá elegir cuál usar al iniciar sesión.
-            </p>
+            <Label htmlFor="sede">Sede</Label>
+            <Select value={sedeId} onValueChange={setSedeId}>
+              <SelectTrigger className="input-focus">
+                <SelectValue placeholder="Selecciona una sede" />
+              </SelectTrigger>
+              <SelectContent>
+                {sedes.filter(s => s.activa).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.nombre} ({s.codigo})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

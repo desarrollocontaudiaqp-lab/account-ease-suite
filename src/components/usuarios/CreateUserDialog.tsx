@@ -7,7 +7,7 @@ import { Loader2, Search, User, Mail, AlertTriangle } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 import { useRolePermisos } from '@/hooks/useRolePermisos';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import MultiSedeSelect from './MultiSedeSelect';
+import { useSedes } from '@/hooks/useSedes';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -24,13 +24,14 @@ interface PersonalWithoutUser {
 interface CreateUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null; sede_ids: string[] }) => Promise<void>;
+  onCreate: (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null }) => Promise<void>;
   loading: boolean;
 }
 
 const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserDialogProps) => {
   const { roles: availableRoles } = useRolePermisos();
-  const [sedeIds, setSedeIds] = useState<string[]>([]);
+  const { sedes } = useSedes();
+  const [sedeId, setSedeId] = useState<string>('');
   const [personalList, setPersonalList] = useState<PersonalWithoutUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPersonal, setSelectedPersonal] = useState<PersonalWithoutUser | null>(null);
@@ -126,8 +127,8 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
       return;
     }
 
-    if (sedeIds.length === 0) {
-      setError('Debe seleccionar al menos una sede');
+    if (!sedeId) {
+      setError('Debe seleccionar una sede');
       return;
     }
 
@@ -137,8 +138,7 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
       full_name: selectedPersonal.full_name || '', 
       role,
       profileId: selectedPersonal.id,
-      sede_id: sedeIds[0],
-      sede_ids: sedeIds,
+      sede_id: sedeId,
     });
   };
 
@@ -148,7 +148,7 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
       setSelectedPersonal(null);
       setPassword('');
       setRole('asesor');
-      setSedeIds([]);
+      setSedeId('');
       setError('');
       setEmailAlreadyRegistered(false);
     }
@@ -291,11 +291,19 @@ const CreateUserDialog = ({ open, onOpenChange, onCreate, loading }: CreateUserD
           </div>
 
           <div className="space-y-2">
-            <Label>Sedes</Label>
-            <MultiSedeSelect value={sedeIds} onChange={setSedeIds} disabled={emailAlreadyRegistered} />
-            <p className="text-xs text-muted-foreground">
-              Si asignas más de una sede, el usuario podrá elegir cuál usar al iniciar sesión.
-            </p>
+            <Label htmlFor="create-sede">Sede</Label>
+            <Select value={sedeId} onValueChange={setSedeId} disabled={emailAlreadyRegistered}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona una sede" />
+              </SelectTrigger>
+              <SelectContent>
+                {sedes.filter(s => s.activa).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.nombre} ({s.codigo})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           {error && <p className="text-sm text-destructive">{error}</p>}
