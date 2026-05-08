@@ -201,7 +201,7 @@ const Asignaciones = () => {
       .from("contratos")
       .select(`
         id, numero, descripcion, tipo_servicio, fecha_inicio, fecha_fin,
-        monto_mensual, monto_total, moneda, status, condicion, created_at,
+        monto_mensual, monto_total, moneda, status, condicion, created_at, sede_id,
         cliente:clientes(id, razon_social, codigo)
       `)
       .neq("status", "borrador")
