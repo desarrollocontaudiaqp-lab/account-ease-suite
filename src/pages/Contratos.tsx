@@ -190,6 +190,7 @@ const Contratos = () => {
         notas,
         proforma_id,
         created_at,
+        sede_id,
         cliente:clientes(id, razon_social, codigo)
       `)
       .order("created_at", { ascending: false });
