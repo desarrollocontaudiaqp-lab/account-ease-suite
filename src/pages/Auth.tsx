@@ -7,10 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
+import { Loader2, LogIn, Eye, EyeOff, Building2 } from 'lucide-react';
 import { z } from 'zod';
 import logoCA from '@/assets/logo-ca-full.png';
+import { supabase } from '@/integrations/supabase/client';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -31,6 +33,10 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  // Sede selection
+  const [sedes, setSedes] = useState<Array<{ id: string; nombre: string; codigo: string }>>([]);
+  const [selectedSedeId, setSelectedSedeId] = useState<string>('all');
   
   // Login form
   const [loginEmail, setLoginEmail] = useState('');
@@ -47,6 +53,33 @@ const Auth = () => {
       navigate('/');
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    const loadSedes = async () => {
+      const { data } = await supabase
+        .from('sedes' as any)
+        .select('id, nombre, codigo, activa, orden')
+        .eq('activa', true)
+        .order('orden', { ascending: true });
+      if (data) setSedes(data as any);
+    };
+    loadSedes();
+    // Restore last selection
+    try {
+      const stored = localStorage.getItem('active_sede_id');
+      if (stored) setSelectedSedeId(stored);
+    } catch {}
+  }, []);
+
+  const persistSedeSelection = () => {
+    try {
+      if (selectedSedeId && selectedSedeId !== 'all') {
+        localStorage.setItem('active_sede_id', selectedSedeId);
+      } else {
+        localStorage.removeItem('active_sede_id');
+      }
+    } catch {}
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +101,7 @@ const Auth = () => {
         toast.error(error.message);
       }
     } else {
+      persistSedeSelection();
       toast.success('Sesión iniciada correctamente');
       navigate('/');
     }
@@ -197,7 +231,29 @@ const Auth = () => {
                       </button>
                     </div>
                   </div>
-                  
+
+                  <div className="space-y-2">
+                    <Label htmlFor="login-sede" className="text-sm font-medium">
+                      Sede
+                    </Label>
+                    <Select value={selectedSedeId} onValueChange={setSelectedSedeId}>
+                      <SelectTrigger id="login-sede" className="h-11 border-border/60">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <SelectValue placeholder="Selecciona una sede" />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las sedes</SelectItem>
+                        {sedes.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="flex items-center space-x-2">
                     <Checkbox 
                       id="remember" 
