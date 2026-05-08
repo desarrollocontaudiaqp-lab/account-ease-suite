@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSedeContext } from "@/hooks/useSedeContext";
 import {
   Plus,
   Search,
@@ -60,6 +61,7 @@ interface Client {
 }
 
 const Clientes = () => {
+  const { activeSedeId, canViewAllSedes } = useSedeContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [cardFilter, setCardFilter] = useState<"all" | "activos" | "inactivos" | "empresas" | "persona_natural" | "pn_con_empresa">("all");
@@ -148,6 +150,12 @@ const Clientes = () => {
   };
 
   const filteredClients = clients.filter((client) => {
+    // Active sede filter (skipped when admin/gerente has "all sedes" selected)
+    const matchesSede =
+      (canViewAllSedes && !activeSedeId) ||
+      !activeSedeId ||
+      (client as any).sede_id === activeSedeId ||
+      (client as any).sede_id == null;
     const clientName = getClientName(client) || "";
     const matchesSearch =
       clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -178,7 +186,7 @@ const Clientes = () => {
         break;
     }
     
-    return matchesSearch && matchesStatus && matchesCardFilter;
+    return matchesSede && matchesSearch && matchesStatus && matchesCardFilter;
   });
 
   return (
