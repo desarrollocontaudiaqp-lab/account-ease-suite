@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useSedeContext } from "@/hooks/useSedeContext";
 import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,6 +117,7 @@ const condicionStyles: Record<ContractCondition, string> = {
 const Contratos = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { activeSedeId, canViewAllSedes } = useSedeContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [contracts, setContracts] = useState<Contract[]>([]);
