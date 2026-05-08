@@ -348,24 +348,6 @@ const Clientes = () => {
           </div>
         </button>
         <button
-          onClick={() => setCardFilter(cardFilter === "inactivos" ? "all" : "inactivos")}
-          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
-            cardFilter === "inactivos"
-              ? "border-gray-400 bg-gray-50"
-              : "border-border hover:border-gray-300"
-          }`}
-        >
-          <div className={`p-3 rounded-lg ${cardFilter === "inactivos" ? "bg-gray-200" : "bg-gray-100"}`}>
-            <Building2 className="h-5 w-5 text-gray-500" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => !c.activo).length}
-            </p>
-            <p className="text-sm text-muted-foreground">Inactivos</p>
-          </div>
-        </button>
-        <button
           onClick={() => setCardFilter(cardFilter === "empresas" ? "all" : "empresas")}
           className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
             cardFilter === "empresas"
@@ -417,6 +399,24 @@ const Clientes = () => {
               {clients.filter((c) => isPersonaNatural(c.tipo_cliente) && c.persona_natural_con_empresa === true).length}
             </p>
             <p className="text-sm text-muted-foreground">Persona Natural con Empresa</p>
+          </div>
+        </button>
+        <button
+          onClick={() => setCardFilter(cardFilter === "inactivos" ? "all" : "inactivos")}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-colors ${
+            cardFilter === "inactivos"
+              ? "border-gray-400 bg-gray-50"
+              : "border-border hover:border-gray-300"
+          }`}
+        >
+          <div className={`p-3 rounded-lg ${cardFilter === "inactivos" ? "bg-gray-200" : "bg-gray-100"}`}>
+            <Building2 className="h-5 w-5 text-gray-500" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">
+              {clients.filter((c) => !c.activo).length}
+            </p>
+            <p className="text-sm text-muted-foreground">Inactivos</p>
           </div>
         </button>
       </div>
