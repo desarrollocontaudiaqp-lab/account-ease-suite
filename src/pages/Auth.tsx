@@ -13,6 +13,7 @@ import { Loader2, LogIn, Eye, EyeOff, Building2 } from 'lucide-react';
 import { z } from 'zod';
 import logoCA from '@/assets/logo-ca-full.png';
 import { supabase } from '@/integrations/supabase/client';
+import { clearStoredActiveSedeId, getStoredActiveSedeId, setStoredActiveSedeId } from '@/lib/activeSede';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -72,13 +73,7 @@ const Auth = () => {
   }, []);
 
   const persistSedeSelection = () => {
-    try {
-      if (selectedSedeId) {
-        localStorage.setItem('active_sede_id', selectedSedeId);
-      } else {
-        localStorage.removeItem('active_sede_id');
-      }
-    } catch {}
+    setStoredActiveSedeId(selectedSedeId || null);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -96,16 +91,14 @@ const Auth = () => {
 
     // Persist sede selection BEFORE signIn so SedeContext picks the right one
     // when the auth state change triggers navigation to "/".
-    try {
-      localStorage.setItem('active_sede_id', selectedSedeId);
-    } catch {}
+    setStoredActiveSedeId(selectedSedeId);
 
     setLoading(true);
     const { error } = await signIn(loginEmail, loginPassword);
 
     if (error) {
       setLoading(false);
-      try { localStorage.removeItem('active_sede_id'); } catch {}
+      clearStoredActiveSedeId();
       if (error.message.includes('Invalid login credentials')) {
         toast.error('Credenciales inválidas');
       } else {
@@ -139,6 +132,7 @@ const Auth = () => {
     if (!canViewAll && !allowedSedes.has(selectedSedeId)) {
       await supabase.auth.signOut();
       setLoading(false);
+      clearStoredActiveSedeId();
       toast.error('No tienes acceso a la sede seleccionada');
       return;
     }
