@@ -7,14 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
+import { Loader2, LogIn, Eye, EyeOff, Building2 } from 'lucide-react';
 import { z } from 'zod';
 import logoCA from '@/assets/logo-ca-full.png';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  sedeId: z.string().min(1, 'Debe seleccionar una sede'),
 });
 
 const signupSchema = loginSchema.extend({
@@ -35,6 +38,8 @@ const Auth = () => {
   // Login form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [loginSedeId, setLoginSedeId] = useState('');
+  const [sedes, setSedes] = useState<{ id: string; nombre: string; codigo: string }[]>([]);
   
   // Signup form
   const [signupEmail, setSignupEmail] = useState('');
@@ -48,10 +53,21 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('sedes' as any)
+        .select('id, nombre, codigo')
+        .eq('activa', true)
+        .order('orden', { ascending: true });
+      if (data) setSedes(data as any);
+    })();
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const validation = loginSchema.safeParse({ email: loginEmail, password: loginPassword });
+    const validation = loginSchema.safeParse({ email: loginEmail, password: loginPassword, sedeId: loginSedeId });
     if (!validation.success) {
       toast.error(validation.error.errors[0].message);
       return;
@@ -59,18 +75,67 @@ const Auth = () => {
 
     setLoading(true);
     const { error } = await signIn(loginEmail, loginPassword);
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       if (error.message.includes('Invalid login credentials')) {
         toast.error('Credenciales inválidas');
       } else {
         toast.error(error.message);
       }
-    } else {
-      toast.success('Sesión iniciada correctamente');
-      navigate('/');
+      return;
     }
+
+    // Validar que el usuario tenga acceso a la sede elegida
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) {
+      setLoading(false);
+      toast.error('Error al obtener sesión');
+      return;
+    }
+
+    // Admin/Gerente pueden entrar a cualquier sede
+    const { data: roleRow } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', authUser.id)
+      .maybeSingle();
+    const isAdminOrGerente = roleRow?.role === 'administrador' || roleRow?.role === 'gerente';
+
+    if (!isAdminOrGerente) {
+      const { data: assigned } = await supabase
+        .from('user_sedes' as any)
+        .select('sede_id')
+        .eq('user_id', authUser.id)
+        .eq('sede_id', loginSedeId)
+        .maybeSingle();
+
+      // Fallback: revisar también profiles.sede_id (compatibilidad)
+      let allowed = !!assigned;
+      if (!allowed) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('sede_id')
+          .eq('id', authUser.id)
+          .maybeSingle();
+        allowed = (prof as any)?.sede_id === loginSedeId;
+      }
+
+      if (!allowed) {
+        await supabase.auth.signOut();
+        setLoading(false);
+        const sede = sedes.find((s) => s.id === loginSedeId);
+        toast.error(`No tienes permiso para acceder a la sede ${sede?.nombre || ''}.`);
+        return;
+      }
+    }
+
+    // Guardar sede activa en profiles.sede_id para que las RLS filtren por esa sede
+    await supabase.from('profiles').update({ sede_id: loginSedeId } as any).eq('id', authUser.id);
+
+    setLoading(false);
+    toast.success('Sesión iniciada correctamente');
+    navigate('/');
   };
 
   const handleSignup = async (e: React.FormEvent) => {
