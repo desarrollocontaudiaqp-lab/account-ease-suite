@@ -36,21 +36,17 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
   const [sedeId, setSedeId] = useState<string>('');
 
   useEffect(() => {
-    if (user && open) {
+    if (user) {
       setFullName(user.full_name || '');
       setRole(user.role);
       setSedeId(user.sede_id || '');
     }
-  }, [user, open]);
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (user) {
-      await onSave(user.id, {
-        full_name: fullName,
-        role,
-        sede_id: sedeId || null,
-      });
+      await onSave(user.id, { full_name: fullName, role, sede_id: sedeId || null });
     }
   };
 
@@ -104,6 +100,9 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              El usuario solo verá datos de su sede asignada (excepto Administrador y Gerente).
+            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
