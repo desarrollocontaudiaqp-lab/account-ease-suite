@@ -272,6 +272,7 @@ export default function CalendarioPagos() {
         status,
         descripcion,
         datos_plantilla,
+        sede_id,
         cliente:clientes(razon_social, codigo)
       `)
       .not("datos_plantilla", "is", null);
