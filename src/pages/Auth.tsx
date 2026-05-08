@@ -96,19 +96,50 @@ const Auth = () => {
 
     setLoading(true);
     const { error } = await signIn(loginEmail, loginPassword);
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       if (error.message.includes('Invalid login credentials')) {
         toast.error('Credenciales inválidas');
       } else {
         toast.error(error.message);
       }
-    } else {
-      persistSedeSelection();
-      toast.success('Sesión iniciada correctamente');
-      navigate('/');
+      return;
     }
+
+    // Validate sede assignment
+    const { data: sessionData } = await supabase.auth.getUser();
+    const userId = sessionData.user?.id;
+    if (!userId) {
+      setLoading(false);
+      toast.error('No se pudo verificar la sesión');
+      return;
+    }
+
+    const [{ data: roles }, { data: profile }, { data: userSedes }] = await Promise.all([
+      supabase.from('user_roles').select('role').eq('user_id', userId),
+      supabase.from('profiles').select('sede_id').eq('id', userId).maybeSingle(),
+      supabase.from('user_sedes').select('sede_id').eq('user_id', userId),
+    ]);
+
+    const roleList = (roles || []).map((r: any) => r.role);
+    const canViewAll = roleList.includes('administrador') || roleList.includes('gerente');
+    const allowedSedes = new Set<string>([
+      ...((userSedes || []).map((u: any) => u.sede_id).filter(Boolean)),
+      ...(profile?.sede_id ? [profile.sede_id] : []),
+    ]);
+
+    if (!canViewAll && !allowedSedes.has(selectedSedeId)) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      toast.error('No tienes acceso a la sede seleccionada');
+      return;
+    }
+
+    persistSedeSelection();
+    setLoading(false);
+    toast.success('Sesión iniciada correctamente');
+    navigate('/');
   };
 
   const handleSignup = async (e: React.FormEvent) => {
