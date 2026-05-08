@@ -342,7 +342,14 @@ const Asignaciones = () => {
         (filterCartera === "sin_asignar" && !contrato.cartera) ||
         contrato.cartera?.id === filterCartera;
 
-      const matchesStatus = filterStatus === "todos" || contrato.status === filterStatus;
+      let matchesStatus = true;
+      if (filterStatus === "en_gestion_group") {
+        matchesStatus = ["en_gestion", "aprobado", "activo"].includes(contrato.status);
+      } else if (filterStatus === "sin_asignar") {
+        matchesStatus = !contrato.cartera;
+      } else if (filterStatus !== "todos") {
+        matchesStatus = contrato.status === filterStatus;
+      }
 
       // Date filter - based on created_at
       let matchesDate = true;
@@ -492,66 +499,68 @@ const Asignaciones = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - clickable filters */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Briefcase className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalAsignados}</p>
-                <p className="text-xs text-muted-foreground">Asignados</p>
-              </div>
+        <button
+          type="button"
+          onClick={() => setFilterStatus("todos")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${filterStatus === "todos" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Briefcase className="h-5 w-5 text-primary" />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {stats.enGestion}
-                </p>
-                <p className="text-xs text-muted-foreground">En Gestión</p>
-              </div>
+            <div>
+              <p className="text-2xl font-bold">{stats.totalAsignados}</p>
+              <p className="text-xs text-muted-foreground">Total</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {stats.finalizados}
-                </p>
-                <p className="text-xs text-muted-foreground">Finalizados</p>
-              </div>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterStatus(filterStatus === "en_gestion_group" ? "todos" : "en_gestion_group")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${filterStatus === "en_gestion_group" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {stats.sinAsignar}
-                </p>
-                <p className="text-xs text-muted-foreground">Sin Asignar</p>
-              </div>
+            <div>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.enGestion}</p>
+              <p className="text-xs text-muted-foreground">En Gestión</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterStatus(filterStatus === "finalizado" ? "todos" : "finalizado")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${filterStatus === "finalizado" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.finalizados}</p>
+              <p className="text-xs text-muted-foreground">Finalizados</p>
+            </div>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterStatus(filterStatus === "sin_asignar" ? "todos" : "sin_asignar")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${filterStatus === "sin_asignar" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+              <Target className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.sinAsignar}</p>
+              <p className="text-xs text-muted-foreground">Sin Asignar</p>
+            </div>
+          </div>
+        </button>
       </div>
 
       {/* Period Filters */}

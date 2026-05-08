@@ -457,28 +457,15 @@ const Contratos = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <button
           type="button"
-          onClick={() => setStatusFilter(statusFilter === "borrador" ? null : "borrador")}
-          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "borrador" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+          onClick={() => setStatusFilter(statusFilter === "all" ? null : "all")}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "all" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
         >
-          <div className="p-3 rounded-lg bg-slate-100">
-            <FileText className="h-5 w-5 text-slate-700" />
+          <div className="p-3 rounded-lg bg-primary/10">
+            <User className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-foreground">{stats.borradores}</p>
-            <p className="text-sm text-muted-foreground">Borradores</p>
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={() => setStatusFilter(statusFilter === "en_gestion" ? null : "en_gestion")}
-          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "en_gestion" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
-        >
-          <div className="p-3 rounded-lg bg-blue-100">
-            <ArrowRight className="h-5 w-5 text-blue-700" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">{stats.enGestion}</p>
-            <p className="text-sm text-muted-foreground">En Gestión</p>
+            <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+            <p className="text-sm text-muted-foreground">Total</p>
           </div>
         </button>
         <button
@@ -496,6 +483,32 @@ const Contratos = () => {
         </button>
         <button
           type="button"
+          onClick={() => setStatusFilter(statusFilter === "en_gestion" ? null : "en_gestion")}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "en_gestion" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="p-3 rounded-lg bg-blue-100">
+            <ArrowRight className="h-5 w-5 text-blue-700" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">{stats.enGestion}</p>
+            <p className="text-sm text-muted-foreground">En Gestión</p>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === "borrador" ? null : "borrador")}
+          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "borrador" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="p-3 rounded-lg bg-slate-100">
+            <FileText className="h-5 w-5 text-slate-700" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-foreground">{stats.borradores}</p>
+            <p className="text-sm text-muted-foreground">Borradores</p>
+          </div>
+        </button>
+        <button
+          type="button"
           onClick={() => setStatusFilter(statusFilter === "anulado" ? null : "anulado")}
           className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "anulado" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
         >
@@ -505,19 +518,6 @@ const Contratos = () => {
           <div>
             <p className="text-2xl font-bold text-foreground">{stats.anulados}</p>
             <p className="text-sm text-muted-foreground">Anulados</p>
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={() => setStatusFilter(statusFilter === "all" ? null : "all")}
-          className={`bg-card rounded-xl border p-4 flex items-center gap-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "all" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
-        >
-          <div className="p-3 rounded-lg bg-primary/10">
-            <User className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">{stats.total}</p>
-            <p className="text-sm text-muted-foreground">Total</p>
           </div>
         </button>
         <div className="bg-card rounded-xl border border-border p-4">
