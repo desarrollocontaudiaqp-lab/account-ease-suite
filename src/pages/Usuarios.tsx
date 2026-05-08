@@ -150,8 +150,19 @@ const Usuarios = () => {
     fetchData();
   }, []);
 
+  // Sync user_sedes table for a user
+  const syncUserSedes = async (userId: string, sedeIds: string[]) => {
+    // Borrar todas y reinsertar (simple y consistente)
+    await supabase.from('user_sedes' as any).delete().eq('user_id', userId);
+    if (sedeIds.length > 0) {
+      const rows = sedeIds.map((sede_id) => ({ user_id: userId, sede_id }));
+      const { error } = await supabase.from('user_sedes' as any).insert(rows);
+      if (error) throw error;
+    }
+  };
+
   // User handlers
-  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null }) => {
+  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null; sede_ids: string[] }) => {
     setActionLoading(true);
     try {
       const { error: profileError } = await supabase
@@ -167,6 +178,8 @@ const Usuarios = () => {
         .eq('user_id', userId);
 
       if (roleError) throw roleError;
+
+      await syncUserSedes(userId, data.sede_ids);
 
       toast.success('Usuario actualizado');
       setEditDialogOpen(false);
@@ -230,7 +243,7 @@ const Usuarios = () => {
     }
   };
 
-  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null }) => {
+  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null; sede_ids: string[] }) => {
     setActionLoading(true);
     try {
       // Create auth user with the existing profile's ID
@@ -272,6 +285,8 @@ const Usuarios = () => {
             .update({ role: data.role })
             .eq('user_id', authData.user.id);
         }
+
+        await syncUserSedes(authData.user.id, data.sede_ids);
       }
 
       toast.success('Usuario creado. Se ha enviado un email de verificación.');
