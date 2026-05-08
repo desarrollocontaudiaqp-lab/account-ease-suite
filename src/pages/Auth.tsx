@@ -103,23 +103,12 @@ const Auth = () => {
     const isAdminOrGerente = roleRow?.role === 'administrador' || roleRow?.role === 'gerente';
 
     if (!isAdminOrGerente) {
-      const { data: assigned } = await supabase
-        .from('user_sedes' as any)
+      const { data: prof } = await supabase
+        .from('profiles')
         .select('sede_id')
-        .eq('user_id', authUser.id)
-        .eq('sede_id', loginSedeId)
+        .eq('id', authUser.id)
         .maybeSingle();
-
-      // Fallback: revisar también profiles.sede_id (compatibilidad)
-      let allowed = !!assigned;
-      if (!allowed) {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('sede_id')
-          .eq('id', authUser.id)
-          .maybeSingle();
-        allowed = (prof as any)?.sede_id === loginSedeId;
-      }
+      const allowed = (prof as any)?.sede_id === loginSedeId;
 
       if (!allowed) {
         await supabase.auth.signOut();
@@ -129,9 +118,6 @@ const Auth = () => {
         return;
       }
     }
-
-    // Guardar sede activa en profiles.sede_id para que las RLS filtren por esa sede
-    await supabase.from('profiles').update({ sede_id: loginSedeId } as any).eq('id', authUser.id);
 
     setLoading(false);
     toast.success('Sesión iniciada correctamente');
