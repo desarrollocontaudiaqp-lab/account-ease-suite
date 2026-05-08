@@ -1,17 +1,31 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
-import { Bell, Search, ChevronDown } from "lucide-react";
+import { Bell, Search, ChevronDown, Building2, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GlobalSearch } from "./GlobalSearch";
+import { useSedeContext } from "@/hooks/useSedeContext";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 export function AppLayout() {
   const {
     user,
     role
   } = useAuth();
+  const navigate = useNavigate();
+  const { availableSedes, activeSedeId } = useSedeContext();
+  const sedeNombre = activeSedeId
+    ? availableSedes.find((s) => s.id === activeSedeId)?.nombre
+    : availableSedes.length === 1
+      ? availableSedes[0].nombre
+      : null;
+  const handleChangeSede = async () => {
+    localStorage.removeItem('active_sede_id');
+    await supabase.auth.signOut();
+    navigate('/auth');
+  };
   const [profile, setProfile] = useState<{
     full_name: string | null;
   } | null>(null);
@@ -85,6 +99,32 @@ export function AppLayout() {
                 <Bell className="h-5 w-5 text-muted-foreground" />
                 <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-destructive rounded-full ring-2 ring-card animate-pulse" />
               </Button>
+
+              {/* Sede Badge + Cambiar Sede */}
+              {sedeNombre && (
+                <div className="hidden sm:flex items-center gap-1 pl-2 pr-1 py-1 rounded-xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground max-w-[140px] truncate">
+                    {sedeNombre}
+                  </span>
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleChangeSede}
+                          className="h-7 w-7 rounded-lg hover:bg-primary/15"
+                          aria-label="Cambiar sede"
+                        >
+                          <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Cambiar sede</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              )}
 
               {/* User Dropdown */}
               <Button variant="ghost" className="hidden md:flex items-center gap-2 h-11 px-3 rounded-xl hover:bg-muted">
