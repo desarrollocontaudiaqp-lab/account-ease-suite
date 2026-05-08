@@ -1,6 +1,6 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
-import { Bell, Search, ChevronDown, Building2, Repeat } from "lucide-react";
+import { Bell, Search, ChevronDown, Building2, Repeat, LogOut, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,10 +9,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { GlobalSearch } from "./GlobalSearch";
 import { useSedeContext } from "@/hooks/useSedeContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 export function AppLayout() {
   const {
     user,
-    role
+    role,
+    signOut
   } = useAuth();
   const navigate = useNavigate();
   const { availableSedes, activeSedeId } = useSedeContext();
@@ -24,6 +33,11 @@ export function AppLayout() {
   const handleChangeSede = async () => {
     localStorage.removeItem('active_sede_id');
     await supabase.auth.signOut();
+    navigate('/auth');
+  };
+  const handleSignOut = async () => {
+    localStorage.removeItem('active_sede_id');
+    await signOut();
     navigate('/auth');
   };
   const [profile, setProfile] = useState<{
@@ -127,18 +141,43 @@ export function AppLayout() {
               )}
 
               {/* User Dropdown */}
-              <Button variant="ghost" className="hidden md:flex items-center gap-2 h-11 px-3 rounded-xl hover:bg-muted">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-primary-foreground text-xs font-bold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-foreground">{displayName}</p>
-                  <p className="text-xs text-muted-foreground">{roleDisplay}</p>
-                </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="hidden md:flex items-center gap-2 h-11 px-3 rounded-xl hover:bg-muted">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-primary-foreground text-xs font-bold">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-foreground">{displayName}</p>
+                      <p className="text-xs text-muted-foreground">{roleDisplay}</p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold">{displayName}</span>
+                      <span className="text-xs text-muted-foreground font-normal">{user?.email}</span>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled className="cursor-default">
+                    <UserIcon className="h-4 w-4 mr-2" />
+                    {roleDisplay}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Cerrar sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
