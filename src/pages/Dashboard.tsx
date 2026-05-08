@@ -2,7 +2,6 @@ import {
   Users,
   FileCheck,
   FileText,
-  Coins,
   TrendingUp,
   AlertTriangle,
   RefreshCw,
@@ -143,7 +142,15 @@ const Dashboard = () => {
           title="Ingresos"
           value={formatIngresos(stats.ingresosMes)}
           subtitle={`Meta: ${formatIngresos(stats.metaIngresos)}`}
-          icon={Coins}
+          icon={(props: any) => (
+            <span
+              {...props}
+              className={`flex items-center justify-center font-bold ${props.className ?? ""}`}
+              style={{ fontSize: "0.95em", lineHeight: 1 }}
+            >
+              S/
+            </span>
+          )}
           variant="secondary"
           delay={150}
           href="/calendario-pagos"
