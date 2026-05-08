@@ -24,16 +24,11 @@ export const SedeProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (loading) return;
-    if (canViewAllSedes) return; // null means "all"
-    // Ensure active sede is one the user has access to
-    if (sedes.length === 0) {
+    // null = "Todas las sedes" (user still sees only the sedes they have access to via RLS).
+    if (activeSedeId && !canViewAllSedes && sedes.length > 0 && !sedes.some((s) => s.id === activeSedeId)) {
+      // Active sede is not in user's allowed list — reset to "Todas"
       setActiveSedeIdState(null);
-      return;
-    }
-    if (!activeSedeId || !sedes.some((s) => s.id === activeSedeId)) {
-      const next = sedes[0].id;
-      setActiveSedeIdState(next);
-      try { localStorage.setItem(STORAGE_KEY, next); } catch {}
+      try { localStorage.removeItem(STORAGE_KEY); } catch {}
     }
   }, [sedes, activeSedeId, canViewAllSedes, loading]);
 
