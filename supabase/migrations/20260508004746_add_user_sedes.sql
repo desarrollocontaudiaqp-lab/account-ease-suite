@@ -42,3 +42,10 @@ SELECT p.id, p.sede_id
 FROM public.profiles p
 WHERE p.sede_id IS NOT NULL
 ON CONFLICT (user_id, sede_id) DO NOTHING;
+
+-- Permitir lectura pública de sedes activas (necesario para el selector en /login antes de autenticarse)
+DROP POLICY IF EXISTS "Public can view active sedes" ON public.sedes;
+CREATE POLICY "Public can view active sedes"
+  ON public.sedes FOR SELECT
+  TO anon, authenticated
+  USING (activa = true);
