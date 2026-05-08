@@ -67,6 +67,7 @@ import { ContractCalendarModal } from "@/components/calendario-pagos/ContractCal
 import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 type DateFilterType = "Hoy" | "Semana Actual" | "Mes Actual" | "Mes" | "Año" | "Todo";
 
@@ -105,6 +106,7 @@ interface UnifiedPayment {
   cuota: number | null;
   glosa: string | null;
   isProjected: boolean;
+  sede_id?: string | null;
   contrato: {
     numero: string;
     moneda: string;
@@ -137,6 +139,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 };
 
 export default function CalendarioPagos() {
+  const { activeSedeId } = useSedeContext();
   const [realPayments, setRealPayments] = useState<Payment[]>([]);
   const [unifiedPayments, setUnifiedPayments] = useState<UnifiedPayment[]>([]);
   const [loading, setLoading] = useState(true);
