@@ -53,6 +53,7 @@ const getInitials = (name: string | null, email: string) => {
 
 const Usuarios = () => {
   const { roles: availableRoles } = useRolePermisos();
+  const { sedes } = useSedes();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [personal, setPersonal] = useState<PersonalProfile[]>([]);
   const [loading, setLoading] = useState(true);
