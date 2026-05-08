@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Loader2, Briefcase, Users, User, TrendingUp } from "lucide-react";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 interface WorkflowStats {
   id: string;
@@ -43,6 +44,7 @@ const getProgressColor = (progress: number) => {
 };
 
 export function WorkflowPerformance() {
+  const { activeSedeId } = useSedeContext();
   const [carteraStats, setCarteraStats] = useState<CarteraStats[]>([]);
   const [memberStats, setMemberStats] = useState<MemberStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export function WorkflowPerformance() {
 
   useEffect(() => {
     fetchWorkflowStats();
-  }, []);
+  }, [activeSedeId]);
 
   const fetchWorkflowStats = async () => {
     try {
@@ -67,15 +69,16 @@ export function WorkflowPerformance() {
         supabase.from("carteras").select("*").eq("activa", true),
         supabase.from("cartera_miembros").select("*, carteras(nombre)"),
         supabase.from("profiles").select("id, full_name, puesto"),
-        supabase.from("contratos").select("id, responsable_id, condicion").neq("status", "borrador"),
-        supabase.from("workflows").select("id, contrato_id, items"),
+        supabase.from("contratos").select("id, responsable_id, condicion, sede_id").neq("status", "borrador"),
+        supabase.from("workflows").select("id, contrato_id, items, sede_id"),
       ]);
 
-      const carteras = carterasResult.data || [];
+      const matchesActiveSede = (item: any) => !activeSedeId || item?.sede_id === activeSedeId;
+      const carteras = (carterasResult.data || []).filter(matchesActiveSede);
       const miembros = miembrosResult.data || [];
       const profiles = profilesResult.data || [];
-      const contratos = contratosResult.data || [];
-      const workflows = workflowsResult.data || [];
+      const contratos = (contratosResult.data || []).filter(matchesActiveSede);
+      const workflows = (workflowsResult.data || []).filter(matchesActiveSede);
 
       // Calculate progress for a workflow based on its items
       const calculateWorkflowProgress = (items: any[]): { total: number; completed: number; progress: number } => {

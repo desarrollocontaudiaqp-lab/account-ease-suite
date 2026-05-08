@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, subMonths, format, parseISO, endOfMonth, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 interface MonthlyData {
   month: string;
@@ -26,6 +27,7 @@ const chartConfig = {
 };
 
 export function IncomeChart() {
+  const { activeSedeId } = useSedeContext();
   const [data, setData] = useState<MonthlyData[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalIngresos, setTotalIngresos] = useState(0);
@@ -33,7 +35,7 @@ export function IncomeChart() {
 
   useEffect(() => {
     fetchIncomeData();
-  }, []);
+  }, [activeSedeId]);
 
   const fetchIncomeData = async () => {
     try {
@@ -44,16 +46,18 @@ export function IncomeChart() {
       // Get last 6 months of payments
       const { data: pagos } = await supabase
         .from("pagos")
-        .select("monto, fecha_pago, status")
+        .select("monto, fecha_pago, status, sede_id, contratos(sede_id)")
         .eq("status", "pagado")
         .not("fecha_pago", "is", null);
+
+      const filteredPagos = (pagos || []).filter((p: any) => !activeSedeId || p.sede_id === activeSedeId || p.contratos?.sede_id === activeSedeId);
 
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(now, i);
         const monthStart = startOfMonth(monthDate);
         const monthEnd = endOfMonth(monthDate);
 
-        const monthPayments = (pagos || []).filter(p => {
+        const monthPayments = filteredPagos.filter(p => {
           if (!p.fecha_pago) return false;
           const paymentDate = parseISO(p.fecha_pago);
           return isWithinInterval(paymentDate, { start: monthStart, end: monthEnd });

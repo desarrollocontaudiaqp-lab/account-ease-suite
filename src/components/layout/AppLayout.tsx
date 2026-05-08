@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { GlobalSearch } from "./GlobalSearch";
 import { useSedeContext } from "@/hooks/useSedeContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { clearStoredActiveSedeId } from "@/lib/activeSede";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,12 +32,12 @@ export function AppLayout() {
       ? availableSedes[0].nombre
       : null;
   const handleChangeSede = async () => {
-    localStorage.removeItem('active_sede_id');
+    clearStoredActiveSedeId();
     await supabase.auth.signOut();
     navigate('/auth');
   };
   const handleSignOut = async () => {
-    localStorage.removeItem('active_sede_id');
+    clearStoredActiveSedeId();
     await signOut();
     navigate('/auth');
   };

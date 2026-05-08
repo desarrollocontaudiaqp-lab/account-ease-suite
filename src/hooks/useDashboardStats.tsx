@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, parseISO, startOfMonth, endOfMonth, format, isWithinInterval, addDays } from "date-fns";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 interface DashboardStats {
   clientesActivos: number;
@@ -50,6 +51,7 @@ interface TeamMember {
 }
 
 export function useDashboardStats() {
+  const { activeSedeId } = useSedeContext();
   const [stats, setStats] = useState<DashboardStats>({
     clientesActivos: 0,
     clientesTrend: 0,
@@ -73,7 +75,7 @@ export function useDashboardStats() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [activeSedeId]);
 
   const fetchDashboardData = async () => {
     try {
@@ -105,21 +107,22 @@ export function useDashboardStats() {
         miembrosResult,
         profilesResult
       ] = await Promise.all([
-        supabase.from("clientes").select("id, activo, created_at"),
+        supabase.from("clientes").select("id, activo, created_at, sede_id"),
         supabase.from("contratos").select("*, clientes(razon_social)"),
-        supabase.from("proformas").select("id, status, created_at, contrato_id"),
-        supabase.from("pagos").select("*, contratos(clientes(razon_social))"),
-        supabase.from("carteras").select("id, nombre, especialidad"),
+        supabase.from("proformas").select("id, status, created_at, contrato_id, sede_id"),
+        supabase.from("pagos").select("*, contratos(sede_id, clientes(razon_social))"),
+        supabase.from("carteras").select("id, nombre, especialidad, sede_id"),
         supabase.from("cartera_miembros").select("*, carteras(nombre)"),
         supabase.from("profiles").select("id, full_name, puesto")
       ]);
 
       // Calculate stats
-      const clientes = clientesResult.data || [];
-      const contratos = contratosResult.data || [];
-      const proformas = proformasResult.data || [];
-      const pagos = pagosResult.data || [];
-      const carteras = carterasResult.data || [];
+      const matchesActiveSede = (item: any) => !activeSedeId || item?.sede_id === activeSedeId;
+      const clientes = (clientesResult.data || []).filter(matchesActiveSede);
+      const contratos = (contratosResult.data || []).filter(matchesActiveSede);
+      const proformas = (proformasResult.data || []).filter(matchesActiveSede);
+      const pagos = (pagosResult.data || []).filter((p: any) => !activeSedeId || p?.sede_id === activeSedeId || p?.contratos?.sede_id === activeSedeId);
+      const carteras = (carterasResult.data || []).filter(matchesActiveSede);
       const miembros = miembrosResult.data || [];
       const profiles = profilesResult.data || [];
 

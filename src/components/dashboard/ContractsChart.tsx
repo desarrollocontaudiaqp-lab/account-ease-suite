@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, subMonths, format, parseISO, endOfMonth, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 interface MonthlyData {
   month: string;
@@ -26,13 +27,14 @@ const chartConfig = {
 };
 
 export function ContractsChart() {
+  const { activeSedeId } = useSedeContext();
   const [data, setData] = useState<MonthlyData[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalContratos, setTotalContratos] = useState(0);
 
   useEffect(() => {
     fetchContractsData();
-  }, []);
+  }, [activeSedeId]);
 
   const fetchContractsData = async () => {
     try {
@@ -42,20 +44,22 @@ export function ContractsChart() {
       // Get all contracts
       const { data: contratos } = await supabase
         .from("contratos")
-        .select("created_at, status, condicion, updated_at");
+        .select("created_at, status, condicion, updated_at, sede_id");
+
+      const filteredContratos = (contratos || []).filter((c) => !activeSedeId || c.sede_id === activeSedeId);
 
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(now, i);
         const monthStart = startOfMonth(monthDate);
         const monthEnd = endOfMonth(monthDate);
 
-        const newContracts = (contratos || []).filter(c => {
+        const newContracts = filteredContratos.filter(c => {
           const createdAt = parseISO(c.created_at);
           return isWithinInterval(createdAt, { start: monthStart, end: monthEnd }) && 
                  c.status !== 'borrador';
         }).length;
 
-        const finishedContracts = (contratos || []).filter(c => {
+        const finishedContracts = filteredContratos.filter(c => {
           const updatedAt = parseISO(c.updated_at);
           return isWithinInterval(updatedAt, { start: monthStart, end: monthEnd }) && 
                  c.condicion === 'Terminado';
@@ -69,7 +73,7 @@ export function ContractsChart() {
       }
 
       setData(monthsData);
-      setTotalContratos((contratos || []).filter(c => c.status !== 'borrador').length);
+      setTotalContratos(filteredContratos.filter(c => c.status !== 'borrador').length);
     } catch (error) {
       console.error("Error fetching contracts data:", error);
     } finally {
