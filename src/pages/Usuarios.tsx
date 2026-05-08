@@ -151,7 +151,7 @@ const Usuarios = () => {
   }, []);
 
   // User handlers
-  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null }) => {
+  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null; sede_ids: string[] }) => {
     setActionLoading(true);
     try {
       const { error: profileError } = await supabase
@@ -167,6 +167,14 @@ const Usuarios = () => {
         .eq('user_id', userId);
 
       if (roleError) throw roleError;
+
+      // Sync user_sedes (replace all)
+      await supabase.from('user_sedes' as any).delete().eq('user_id', userId);
+      if (data.sede_ids.length > 0) {
+        const rows = data.sede_ids.map((sede_id) => ({ user_id: userId, sede_id }));
+        const { error: sedesError } = await supabase.from('user_sedes' as any).insert(rows);
+        if (sedesError) throw sedesError;
+      }
 
       toast.success('Usuario actualizado');
       setEditDialogOpen(false);
@@ -230,7 +238,7 @@ const Usuarios = () => {
     }
   };
 
-  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null }) => {
+  const handleCreateUser = async (data: { email: string; password: string; full_name: string; role: AppRole; profileId: string; sede_id: string | null; sede_ids: string[] }) => {
     setActionLoading(true);
     try {
       // Create auth user with the existing profile's ID
@@ -271,6 +279,13 @@ const Usuarios = () => {
             .from('user_roles')
             .update({ role: data.role })
             .eq('user_id', authData.user.id);
+        }
+
+        // Sync user_sedes
+        await supabase.from('user_sedes' as any).delete().eq('user_id', authData.user.id);
+        if (data.sede_ids.length > 0) {
+          const rows = data.sede_ids.map((sede_id) => ({ user_id: authData.user.id, sede_id }));
+          await supabase.from('user_sedes' as any).insert(rows);
         }
       }
 
