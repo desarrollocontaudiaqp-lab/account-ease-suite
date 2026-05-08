@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
+import { useSedeContext } from "@/hooks/useSedeContext";
 
 interface ProformaStats {
   name: string;
@@ -22,6 +23,7 @@ const chartConfig = {
 };
 
 export function ProformasChart() {
+  const { activeSedeId } = useSedeContext();
   const [data, setData] = useState<ProformaStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -30,13 +32,13 @@ export function ProformasChart() {
 
   useEffect(() => {
     fetchProformasData();
-  }, []);
+  }, [activeSedeId]);
 
   const fetchProformasData = async () => {
     try {
       const { data: proformas } = await supabase
         .from("proformas")
-        .select("status, contrato_id");
+        .select("status, contrato_id, sede_id");
 
       if (!proformas) {
         setLoading(false);
@@ -51,7 +53,9 @@ export function ProformasChart() {
         facturada: 0,
       };
 
-      proformas.forEach(p => {
+      const filteredProformas = proformas.filter((p) => !activeSedeId || p.sede_id === activeSedeId);
+
+      filteredProformas.forEach(p => {
         if (statusCounts[p.status] !== undefined) {
           statusCounts[p.status]++;
         }
@@ -66,11 +70,11 @@ export function ProformasChart() {
       ].filter(d => d.value > 0);
 
       setData(chartData);
-      setTotal(proformas.length);
+      setTotal(filteredProformas.length);
 
       // Calculate conversion rate
-      const withContract = proformas.filter(p => p.contrato_id).length;
-      setConversionRate(proformas.length > 0 ? Math.round((withContract / proformas.length) * 100) : 0);
+      const withContract = filteredProformas.filter(p => p.contrato_id).length;
+      setConversionRate(filteredProformas.length > 0 ? Math.round((withContract / filteredProformas.length) * 100) : 0);
     } catch (error) {
       console.error("Error fetching proformas data:", error);
     } finally {
