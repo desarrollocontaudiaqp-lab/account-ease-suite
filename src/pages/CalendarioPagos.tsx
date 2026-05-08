@@ -252,6 +252,7 @@ export default function CalendarioPagos() {
             moneda,
             status,
             descripcion,
+            sede_id,
             cliente:clientes(razon_social, codigo)
           )
         `)
