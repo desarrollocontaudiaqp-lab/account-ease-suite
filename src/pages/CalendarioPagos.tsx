@@ -337,6 +337,7 @@ export default function CalendarioPagos() {
         cuota: cuotaNumber,
         glosa: glosaGenerada,
         isProjected: false,
+        sede_id: payment.sede_id || payment.contrato?.sede_id || null,
         contrato: {
           numero: payment.contrato?.numero || "",
           moneda: payment.contrato?.moneda || "PEN",
@@ -405,6 +406,7 @@ export default function CalendarioPagos() {
           cuota: cuotaNumber,
           glosa: glosaGenerada,
           isProjected: true,
+          sede_id: contrato.sede_id || null,
           contrato: {
             numero: contrato.numero || "",
             moneda: contrato.moneda || "PEN",
