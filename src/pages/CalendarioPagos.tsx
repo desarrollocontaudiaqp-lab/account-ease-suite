@@ -638,7 +638,7 @@ export default function CalendarioPagos() {
               <p className="text-2xl font-bold text-green-600">{stats.pagados}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <DollarSign className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </button>
