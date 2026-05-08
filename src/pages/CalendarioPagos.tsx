@@ -455,6 +455,10 @@ export default function CalendarioPagos() {
 
   const filteredPayments = useMemo(() => {
     return unifiedPayments.filter((payment) => {
+      // Sede filter
+      if (activeSedeId && payment.sede_id !== activeSedeId) {
+        return false;
+      }
       const matchesSearch =
         payment.contrato?.numero?.toLowerCase().includes(search.toLowerCase()) ||
         payment.contrato?.cliente?.razon_social?.toLowerCase().includes(search.toLowerCase()) ||
@@ -486,7 +490,7 @@ export default function CalendarioPagos() {
 
       return matchesSearch && matchesStatus && matchesSource && matchesDate;
     });
-  }, [unifiedPayments, search, statusFilter, sourceFilter, dateRange]);
+  }, [unifiedPayments, search, statusFilter, sourceFilter, dateRange, activeSedeId]);
 
   const handleEditPayment = (payment: UnifiedPayment) => {
     if (payment.isProjected) {
