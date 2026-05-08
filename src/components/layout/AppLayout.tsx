@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { GlobalSearch } from "./GlobalSearch";
 export function AppLayout() {
   const {
     user,
@@ -15,6 +16,17 @@ export function AppLayout() {
   const [profile, setProfile] = useState<{
     full_name: string | null;
   } | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     const fetchProfile = async () => {
       if (user?.id) {
@@ -44,13 +56,19 @@ export function AppLayout() {
           <div className="h-16 flex items-center justify-between">
             {/* Search */}
             <div className="flex-1 max-w-lg ml-12 lg:ml-0">
-              <div className="relative group">
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="relative group w-full text-left"
+              >
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                <Input type="search" placeholder="Buscar clientes, contratos, proformas..." className="pl-11 pr-4 h-11 bg-muted/50 border-0 rounded-xl focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background transition-all" />
+                <div className="pl-11 pr-4 h-11 bg-muted/50 border-0 rounded-xl flex items-center text-sm text-muted-foreground hover:bg-muted transition-all">
+                  Buscar clientes, contratos, proformas...
+                </div>
                 <kbd className="absolute right-4 top-1/2 -translate-y-1/2 hidden md:inline-flex h-6 items-center gap-1 rounded-md border border-border bg-muted px-2 text-xs text-muted-foreground">
                   <span className="text-xs">⌘</span>K
                 </kbd>
-              </div>
+              </button>
             </div>
 
             {/* Right Actions */}
@@ -91,5 +109,6 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </div>;
 }
