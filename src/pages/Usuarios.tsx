@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Shield, Settings, Plus, Loader2, UserPlus, Briefcase, Upload } from 'lucide-react';
+import { Users, Shield, Settings, Plus, Loader2, UserPlus, Briefcase, Upload, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Database } from '@/integrations/supabase/types';
 import { useRolePermisos } from '@/hooks/useRolePermisos';
+import { useSedes } from '@/hooks/useSedes';
 import UserActions from '@/components/usuarios/UserActions';
 import EditUserDialog from '@/components/usuarios/EditUserDialog';
 import ChangePasswordDialog from '@/components/usuarios/ChangePasswordDialog';
