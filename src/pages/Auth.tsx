@@ -94,11 +94,18 @@ const Auth = () => {
       return;
     }
 
+    // Persist sede selection BEFORE signIn so SedeContext picks the right one
+    // when the auth state change triggers navigation to "/".
+    try {
+      localStorage.setItem('active_sede_id', selectedSedeId);
+    } catch {}
+
     setLoading(true);
     const { error } = await signIn(loginEmail, loginPassword);
 
     if (error) {
       setLoading(false);
+      try { localStorage.removeItem('active_sede_id'); } catch {}
       if (error.message.includes('Invalid login credentials')) {
         toast.error('Credenciales inválidas');
       } else {
