@@ -612,62 +612,66 @@ export default function CalendarioPagos() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Pagos</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <CreditCard className="h-6 w-6 text-primary" />
-              </div>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("todos")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "todos" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Pagos</p>
+              <p className="text-2xl font-bold">{stats.total}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pendientes</p>
-                <p className="text-2xl font-bold text-amber-600">{stats.pendientes}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-amber-600" />
-              </div>
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <CreditCard className="h-6 w-6 text-primary" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Vencidos</p>
-                <p className="text-2xl font-bold text-red-600">{stats.vencidos}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === "pagado" ? "todos" : "pagado")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "pagado" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Pagados</p>
+              <p className="text-2xl font-bold text-green-600">{stats.pagados}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Proyectados</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.proyectados}</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-purple-600" />
-              </div>
+            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
             </div>
-          </CardContent>
-        </Card>
-
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === "pendiente" ? "todos" : "pendiente")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "pendiente" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Pendientes</p>
+              <p className="text-2xl font-bold text-amber-600">{stats.pendientes}</p>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
+              <Clock className="h-6 w-6 text-amber-600" />
+            </div>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === "vencido" ? "todos" : "vencido")}
+          className={`text-left rounded-xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "vencido" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Vencidos</p>
+              <p className="text-2xl font-bold text-red-600">{stats.vencidos}</p>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+          </div>
+        </button>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
