@@ -1455,6 +1455,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sedes: {
+        Row: {
+          created_at: string
+          id: string
+          sede_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sede_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sede_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sedes_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_sedes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_attachments: {
         Row: {
           content_type: string | null
@@ -1797,6 +1833,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      user_has_sede: {
+        Args: { _sede_id: string; _user_id: string }
         Returns: boolean
       }
     }
