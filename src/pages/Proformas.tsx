@@ -122,7 +122,7 @@ const Proformas = () => {
   const { activeSedeId } = useSedeContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"todas" | GrupoServicio>("todas");
-  const [statusFilter, setStatusFilter] = useState<"all" | "aprobada" | "enviada">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "aprobada" | "facturada" | "rechazada" | "anulada">("all");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [proformas, setProformas] = useState<ProformaWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -545,8 +545,10 @@ const Proformas = () => {
 
   const stats = {
     total: filteredProformas.length,
-    pendientes: filteredProformas.filter((p) => p.status === "enviada").length,
     aprobadas: filteredProformas.filter((p) => p.status === "aprobada").length,
+    enProceso: filteredProformas.filter((p) => p.status === "facturada").length,
+    rechazadas: filteredProformas.filter((p) => p.status === "rechazada").length,
+    anuladas: filteredProformas.filter((p) => p.status === "anulada").length,
     valorTotal: filteredProformas.reduce((acc, p) => acc + Number(p.total), 0),
   };
 
