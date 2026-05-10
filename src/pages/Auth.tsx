@@ -14,6 +14,7 @@ import { z } from 'zod';
 import logoCA from '@/assets/logo-ca-full.png';
 import { supabase } from '@/integrations/supabase/client';
 import { clearStoredActiveSedeId, getStoredActiveSedeId, setStoredActiveSedeId } from '@/lib/activeSede';
+import { shouldAutoRedirectAuthenticatedUser, verifySelectedSedeAccess } from '@/lib/authFlow';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -50,10 +51,10 @@ const Auth = () => {
   const [signupFullName, setSignupFullName] = useState('');
 
   useEffect(() => {
-    if (user) {
+    if (shouldAutoRedirectAuthenticatedUser({ user, authLoading, loginInProgress: loading })) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, authLoading, loading, navigate]);
 
   useEffect(() => {
     const loadSedes = async () => {
@@ -114,20 +115,9 @@ const Auth = () => {
       return;
     }
 
-    const [{ data: roles }, { data: profile }, { data: userSedes }] = await Promise.all([
-      supabase.from('user_roles').select('role').eq('user_id', userId),
-      supabase.from('profiles').select('sede_id').eq('id', userId).maybeSingle(),
-      supabase.from('user_sedes').select('sede_id').eq('user_id', userId),
-    ]);
+    const hasSedeAccess = await verifySelectedSedeAccess(supabase, userId, selectedSedeId);
 
-    const roleList = (roles || []).map((r: any) => r.role);
-    const canViewAll = roleList.includes('administrador') || roleList.includes('gerente');
-    const allowedSedes = new Set<string>([
-      ...((userSedes || []).map((u: any) => u.sede_id).filter(Boolean)),
-      ...(profile?.sede_id ? [profile.sede_id] : []),
-    ]);
-
-    if (!canViewAll && !allowedSedes.has(selectedSedeId)) {
+    if (!hasSedeAccess) {
       await supabase.auth.signOut();
       setLoading(false);
       clearStoredActiveSedeId();
