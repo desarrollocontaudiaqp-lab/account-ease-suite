@@ -93,7 +93,7 @@ const Auth = () => {
     setStoredActiveSedeId(selectedSedeId);
 
     setLoading(true);
-    const { error } = await signIn(loginEmail, loginPassword);
+    const { error, user: signedInUser } = await signIn(loginEmail, loginPassword);
 
     if (error) {
       setLoading(false);
@@ -107,8 +107,7 @@ const Auth = () => {
     }
 
     // Validate sede assignment
-    const { data: sessionData } = await supabase.auth.getUser();
-    const userId = sessionData.user?.id;
+    const userId = signedInUser?.id;
     if (!userId) {
       setLoading(false);
       toast.error('No se pudo verificar la sesión');
