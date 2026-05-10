@@ -37,6 +37,7 @@ import { getPDFStylesForType } from "@/hooks/usePDFStyles";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { toast } from "sonner";
 import { useSedeContext } from "@/hooks/useSedeContext";
+import { BlurredValue } from "@/components/ui/BlurredValue";
 
 type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
 
