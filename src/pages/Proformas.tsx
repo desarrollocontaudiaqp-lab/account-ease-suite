@@ -626,7 +626,7 @@ const Proformas = () => {
       </div>
 
       {/* Stats - clickable filters */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <button
           type="button"
           onClick={() => setStatusFilter("all")}
@@ -645,17 +645,35 @@ const Proformas = () => {
         </button>
         <button
           type="button"
-          onClick={() => setStatusFilter(statusFilter === "enviada" ? "all" : "enviada")}
-          className={`bg-card rounded-xl border p-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "enviada" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+          onClick={() => setStatusFilter(statusFilter === "facturada" ? "all" : "facturada")}
+          className={`bg-card rounded-xl border p-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "facturada" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
         >
-          <p className="text-sm text-muted-foreground">Pendientes</p>
-          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.pendientes}</p>
+          <p className="text-sm text-muted-foreground">En Proceso</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.enProceso}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === "rechazada" ? "all" : "rechazada")}
+          className={`bg-card rounded-xl border p-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "rechazada" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <p className="text-sm text-muted-foreground">Rechazadas</p>
+          <p className="text-2xl font-bold text-red-600 mt-1">{stats.rechazadas}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === "anulada" ? "all" : "anulada")}
+          className={`bg-card rounded-xl border p-4 text-left transition-all hover:shadow-md hover:border-primary/40 ${statusFilter === "anulada" ? "border-primary ring-2 ring-primary/30" : "border-border"}`}
+        >
+          <p className="text-sm text-muted-foreground">Anuladas</p>
+          <p className="text-2xl font-bold text-muted-foreground mt-1">{stats.anuladas}</p>
         </button>
         <div className="bg-card rounded-xl border border-border p-4">
           <p className="text-sm text-muted-foreground">Valor Total</p>
-          <p className="text-2xl font-bold text-foreground mt-1">
-            S/ {stats.valorTotal.toLocaleString()}
-          </p>
+          <BlurredValue>
+            <p className="text-2xl font-bold text-foreground mt-1">
+              S/ {stats.valorTotal.toLocaleString()}
+            </p>
+          </BlurredValue>
         </div>
       </div>
 
