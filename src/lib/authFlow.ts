@@ -10,7 +10,7 @@ interface SedeAccessClient {
   rpc: (
     fn: 'user_has_sede',
     args: { _user_id: string; _sede_id: string }
-  ) => Promise<{ data: boolean | null; error: unknown }>;
+  ) => PromiseLike<{ data: boolean | null; error: unknown }>;
 }
 
 export const shouldAutoRedirectAuthenticatedUser = ({
