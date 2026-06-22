@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
@@ -31,6 +31,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
+import { lookupVerificaPe } from "@/lib/verificaPe";
 
 const clientSchema = z.object({
   tipo_cliente: z.string(),
@@ -97,6 +98,7 @@ export function EditClientDialog({
   onSuccess,
 }: EditClientDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
   const [datosClienteOpen, setDatosClienteOpen] = useState(true);
   const [contactoOpen, setContactoOpen] = useState(true);
   const [tributarioOpen, setTributarioOpen] = useState(true);
@@ -116,6 +118,36 @@ export function EditClientDialog({
   });
 
   const tipoCliente = watch("tipo_cliente");
+
+  const handleVerificaPeLookup = async () => {
+    const numero = (watch("codigo") || "").trim();
+    const tipo = tipoCliente === "empresa" ? "ruc" : "dni";
+    const expected = tipo === "ruc" ? 11 : 8;
+    if (numero.length !== expected || !/^\d+$/.test(numero)) {
+      toast.error(`Ingrese un ${tipo.toUpperCase()} válido de ${expected} dígitos`);
+      return;
+    }
+    setLookupLoading(true);
+    try {
+      const result = await lookupVerificaPe(tipo, numero);
+      if (tipo === "ruc") {
+        if (result.razon_social) setValue("razon_social", result.razon_social, { shouldValidate: true });
+      } else {
+        const nombre = result.nombre || result.razon_social;
+        if (nombre) {
+          setValue("razon_social", nombre, { shouldValidate: true });
+          setValue("nombre_persona_natural", nombre);
+        }
+      }
+      if (result.direccion) setValue("direccion", result.direccion);
+      if (result.actividad_economica) setValue("actividad_economica", result.actividad_economica);
+      toast.success("Datos obtenidos de VerificaPe");
+    } catch (e: any) {
+      toast.error("VerificaPe: " + (e?.message || "error desconocido"));
+    } finally {
+      setLookupLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (client && open) {
@@ -252,11 +284,26 @@ export function EditClientDialog({
                   <Label htmlFor="codigo">
                     {tipoCliente === "empresa" ? "RUC" : "DNI"} *
                   </Label>
-                  <Input
-                    id="codigo"
-                    {...register("codigo")}
-                    maxLength={tipoCliente === "empresa" ? 11 : 8}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="codigo"
+                      {...register("codigo")}
+                      maxLength={tipoCliente === "empresa" ? 11 : 8}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleVerificaPeLookup}
+                      disabled={lookupLoading}
+                    >
+                      {lookupLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                      <span className="ml-2 hidden sm:inline">Consultar</span>
+                    </Button>
+                  </div>
                   {errors.codigo && (
                     <p className="text-sm text-destructive">{errors.codigo.message}</p>
                   )}
