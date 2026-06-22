@@ -30,6 +30,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useSedeContext } from "@/hooks/useSedeContext";
 import { Building2 } from "lucide-react";
 import { clearStoredActiveSedeId } from "@/lib/activeSede";
+import { useSystemConfig } from "@/hooks/useSystemConfig";
 
 interface SidebarItem {
   title: string;
@@ -79,6 +80,15 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { user, role, signOut } = useAuth();
   const { availableSedes, activeSedeId, canViewAllSedes } = useSedeContext();
+  const { config } = useSystemConfig();
+  const approvalEnabled = config.expense_approval_enabled !== false;
+  const filteredMenuItems = approvalEnabled
+    ? menuItems
+    : menuItems.map((item) =>
+        item.title === "Egresos" && item.children
+          ? { ...item, children: item.children.filter((c) => c.path !== "/egresos/aprobaciones") }
+          : item
+      );
   const sedeNombre = activeSedeId
     ? availableSedes.find((s) => s.id === activeSedeId)?.nombre
     : availableSedes.length === 1
@@ -176,7 +186,7 @@ export function AppSidebar() {
             Menú Principal
           </p>
         )}
-        {menuItems.slice(0, 10).map((item, index) => {
+        {filteredMenuItems.slice(0, 10).map((item, index) => {
           const Icon = item.icon;
           const hasChildren = item.children && item.children.length > 0;
           const isExpanded = expandedItems.includes(item.title);
@@ -274,7 +284,7 @@ export function AppSidebar() {
               ADM
             </p>
           )}
-          {menuItems.slice(10).map((item) => {
+          {filteredMenuItems.slice(10).map((item) => {
             const Icon = item.icon;
             
             if (isCollapsed) {
