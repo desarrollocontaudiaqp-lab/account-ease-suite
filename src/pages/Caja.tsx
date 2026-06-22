@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Banknote, Calendar, CalendarIcon, Eye, Loader2, Wallet, Download, Save, PiggyBank } from "lucide-react";
 import { format, parse } from "date-fns";
 import { es } from "date-fns/locale";
@@ -55,7 +55,7 @@ const Caja = () => {
   const mesLabel = format(fechaDate, "MMMM yyyy", { locale: es });
 
   // sync input when month/saldo changes
-  useMemo(() => {
+  useEffect(() => {
     setSaldoInput(String(saldoInicial ?? 0));
   }, [saldoInicial, fecha.slice(0, 7)]);
 
