@@ -22,20 +22,23 @@ const fmtDate = (s: string) => {
 const fmtDateTime = (s: string) => new Date(s).toLocaleString("es-PE");
 
 const Caja = () => {
-  const { cierres, loading, refresh } = useCajaCierres();
+  const { cierres, ingresosHoy, egresosHoy, loading, refresh } = useCajaCierres();
   const [openDialog, setOpenDialog] = useState<null | "parcial" | "diario">(null);
   const [detail, setDetail] = useState<CajaCierre | null>(null);
 
   const totals = useMemo(() => {
     const hoy = new Date().toISOString().slice(0, 10);
     const dia = cierres.filter((c) => c.fecha === hoy);
+    const ti = ingresosHoy.reduce((a, x) => a + Number(x.monto || 0), 0);
+    const te = egresosHoy.reduce((a, x) => a + Number(x.total || 0), 0);
     return {
-      hoyIngresos: dia.reduce((a, c) => a + Number(c.total_ingresos || 0), 0),
-      hoyEgresos: dia.reduce((a, c) => a + Number(c.total_egresos || 0), 0),
-      hoySaldo: dia.reduce((a, c) => a + Number(c.saldo || 0), 0),
+      hoyIngresos: ti,
+      hoyEgresos: te,
+      hoySaldo: ti - te,
+      cierresHoy: dia.length,
       totalCierres: cierres.length,
     };
-  }, [cierres]);
+  }, [cierres, ingresosHoy, egresosHoy]);
 
   const exportPDF = (c: CajaCierre) => {
     const doc = new jsPDF();
@@ -98,19 +101,19 @@ const Caja = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4 border-l-4 border-l-emerald-500">
-          <div className="text-xs text-muted-foreground">Ingresos hoy (cierres)</div>
+          <div className="text-xs text-muted-foreground">Ingresos hoy ({ingresosHoy.length})</div>
           <div className="text-2xl font-bold text-emerald-600 mt-1"><BlurredValue>{fmt(totals.hoyIngresos)}</BlurredValue></div>
         </Card>
         <Card className="p-4 border-l-4 border-l-rose-500">
-          <div className="text-xs text-muted-foreground">Egresos hoy (cierres)</div>
+          <div className="text-xs text-muted-foreground">Egresos hoy ({egresosHoy.length})</div>
           <div className="text-2xl font-bold text-rose-600 mt-1"><BlurredValue>{fmt(totals.hoyEgresos)}</BlurredValue></div>
         </Card>
         <Card className="p-4 border-l-4 border-l-primary">
-          <div className="text-xs text-muted-foreground">Saldo hoy</div>
+          <div className="text-xs text-muted-foreground">Saldo del día</div>
           <div className="text-2xl font-bold text-primary mt-1"><BlurredValue>{fmt(totals.hoySaldo)}</BlurredValue></div>
         </Card>
         <Card className="p-4 border-l-4 border-l-amber-500">
-          <div className="text-xs text-muted-foreground">Cierres registrados</div>
+          <div className="text-xs text-muted-foreground">Cierres ({totals.cierresHoy} hoy)</div>
           <div className="text-2xl font-bold mt-1">{totals.totalCierres}</div>
         </Card>
       </div>
