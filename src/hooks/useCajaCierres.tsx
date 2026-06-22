@@ -47,12 +47,17 @@ export function useCajaCierres() {
   const [cierres, setCierres] = useState<CajaCierre[]>([]);
   const [ingresosHoy, setIngresosHoy] = useState<CajaMovimientoIngreso[]>([]);
   const [egresosHoy, setEgresosHoy] = useState<CajaMovimientoEgreso[]>([]);
+  const [fecha, setFecha] = useState<string>(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
   const [loading, setLoading] = useState(true);
 
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
-      const hoy = new Date().toISOString().slice(0, 10);
+      const hoy = fecha;
 
       let q: any = (supabase as any)
         .from("caja_cierres")
@@ -62,7 +67,7 @@ export function useCajaCierres() {
 
       const pagosQ: any = supabase
         .from("pagos")
-        .select(`id, monto, metodo_pago, referencia, contrato:contratos(codigo, sede_id, cliente:clientes(razon_social))`)
+        .select(`id, monto, metodo_pago, referencia, contrato:contratos(numero, sede_id, cliente:clientes(razon_social))`)
         .eq("status", "pagado")
         .eq("fecha_pago", hoy);
 
@@ -88,7 +93,7 @@ export function useCajaCierres() {
           metodo_pago: p.metodo_pago,
           referencia: p.referencia,
           cliente: p.contrato?.cliente?.razon_social || null,
-          contrato: p.contrato?.codigo || null,
+          contrato: p.contrato?.numero || null,
         }));
       setIngresosHoy(ing);
 
@@ -111,11 +116,11 @@ export function useCajaCierres() {
     } finally {
       setLoading(false);
     }
-  }, [activeSedeId]);
+  }, [activeSedeId, fecha]);
 
   useEffect(() => {
     fetch();
   }, [fetch]);
 
-  return { cierres, ingresosHoy, egresosHoy, loading, refresh: fetch };
+  return { cierres, ingresosHoy, egresosHoy, loading, refresh: fetch, fecha, setFecha };
 }
