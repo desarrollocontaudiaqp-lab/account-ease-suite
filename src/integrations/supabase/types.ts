@@ -167,6 +167,53 @@ export type Database = {
           },
         ]
       }
+      caja_saldos_iniciales: {
+        Row: {
+          anio: number
+          created_at: string
+          created_by: string | null
+          id: string
+          mes: number
+          moneda: string
+          monto: number
+          observaciones: string | null
+          sede_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          anio: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mes: number
+          moneda?: string
+          monto?: number
+          observaciones?: string | null
+          sede_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          anio?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mes?: number
+          moneda?: string
+          monto?: number
+          observaciones?: string | null
+          sede_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caja_saldos_iniciales_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       caja_secuencias: {
         Row: {
           anio_vigente: number
