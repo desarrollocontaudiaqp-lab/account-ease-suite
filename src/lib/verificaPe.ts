@@ -75,7 +75,7 @@ export async function lookupVerificaPe(
     [nombres, apPat, apMat].filter(Boolean).join(" ").trim() || undefined;
   return {
     razon_social: deepPick(root, [
-      "razon_social", "razonSocial",
+      "razon_social", "razonSocial", "businessName",
       "nombre_o_razon_social", "nombreORazonSocial",
       "nombre_razon_social",
     ]),
@@ -85,8 +85,8 @@ export async function lookupVerificaPe(
       "actividad_economica", "actividadEconomica", "actividad",
       "actividad_economica_principal",
     ]),
-    estado: deepPick(root, ["estado", "estado_contribuyente", "estadoContribuyente"]),
-    condicion: deepPick(root, ["condicion", "condicion_domicilio", "condicionDomicilio"]),
+    estado: deepPick(root, ["estado", "estado_contribuyente", "estadoContribuyente", "status"]),
+    condicion: deepPick(root, ["condicion", "condicion_domicilio", "condicionDomicilio", "condition"]),
     raw: root,
   };
 }
