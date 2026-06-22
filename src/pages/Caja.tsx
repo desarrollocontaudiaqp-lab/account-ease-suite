@@ -127,19 +127,19 @@ const Caja = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4 border-l-4 border-l-emerald-500">
-          <div className="text-xs text-muted-foreground">Ingresos hoy ({ingresosHoy.length})</div>
+          <div className="text-xs text-muted-foreground">Ingresos ({ingresosHoy.length})</div>
           <div className="text-2xl font-bold text-emerald-600 mt-1"><BlurredValue>{fmt(totals.hoyIngresos)}</BlurredValue></div>
         </Card>
         <Card className="p-4 border-l-4 border-l-rose-500">
-          <div className="text-xs text-muted-foreground">Egresos hoy ({egresosHoy.length})</div>
+          <div className="text-xs text-muted-foreground">Egresos ({egresosHoy.length})</div>
           <div className="text-2xl font-bold text-rose-600 mt-1"><BlurredValue>{fmt(totals.hoyEgresos)}</BlurredValue></div>
         </Card>
         <Card className="p-4 border-l-4 border-l-primary">
-          <div className="text-xs text-muted-foreground">Saldo del día</div>
+          <div className="text-xs text-muted-foreground">Saldo del día ({format(fechaDate, "dd/MM", { locale: es })})</div>
           <div className="text-2xl font-bold text-primary mt-1"><BlurredValue>{fmt(totals.hoySaldo)}</BlurredValue></div>
         </Card>
         <Card className="p-4 border-l-4 border-l-amber-500">
-          <div className="text-xs text-muted-foreground">Cierres ({totals.cierresHoy} hoy)</div>
+          <div className="text-xs text-muted-foreground">Cierres ({totals.cierresHoy} en fecha)</div>
           <div className="text-2xl font-bold mt-1">{totals.totalCierres}</div>
         </Card>
       </div>
