@@ -22,30 +22,20 @@ export async function lookupVerificaPe(
   tipo: "ruc" | "dni",
   numero: string,
 ): Promise<VerificaPeResult> {
-  const { data, error } = await supabase.functions.invoke("verifica-pe-lookup", {
-    method: "GET" as any,
-    body: undefined,
-    headers: {},
-    // @ts-expect-error: query is supported by GoTrue fetch
-    query: { tipo, numero },
+  const projectId = (import.meta as any).env.VITE_SUPABASE_PROJECT_ID;
+  const anonKey = (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = `https://${projectId}.functions.supabase.co/verifica-pe-lookup?tipo=${tipo}&numero=${encodeURIComponent(numero)}`;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  const resp = await fetch(url, {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token ?? anonKey}`,
+    },
   });
-
-  // Fallback: use full URL if invoke ignores query
-  let payload: any = data;
-  if (error || !payload) {
-    const projectId = (import.meta as any).env.VITE_SUPABASE_PROJECT_ID;
-    const url = `https://${projectId}.functions.supabase.co/verifica-pe-lookup?tipo=${tipo}&numero=${encodeURIComponent(numero)}`;
-    const { data: session } = await supabase.auth.getSession();
-    const token = session.session?.access_token;
-    const resp = await fetch(url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json?.error || `HTTP ${resp.status}`);
-    payload = json;
-  }
-
-  const root = payload?.data ?? payload;
+  const json = await resp.json();
+  if (!resp.ok) throw new Error(json?.error || `HTTP ${resp.status}`);
+  const root = json?.data ?? json;
   return {
     razon_social: pick(root, ["razon_social", "razonSocial", "nombre_o_razon_social", "nombre"]),
     nombre: pick(root, ["nombres", "nombre_completo", "nombreCompleto", "nombre"]),
