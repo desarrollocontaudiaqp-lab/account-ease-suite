@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { useAuth } from "@/hooks/useAuth";
+import { useSystemConfig } from "@/hooks/useSystemConfig";
 import {
   Users, Briefcase, Laptop, Megaphone, Wrench, Landmark, Receipt,
   GraduationCap, Coffee, Crown, TrendingUp, AlertTriangle, Repeat,
