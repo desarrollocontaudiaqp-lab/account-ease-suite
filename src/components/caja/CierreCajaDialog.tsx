@@ -57,12 +57,15 @@ export function CierreCajaDialog({ open, onClose, tipo, onSaved, anio, mes }: Pr
     (async () => {
       setLoading(true);
       try {
-        // INGRESOS: pagos con status 'pagado' cuya fecha_pago = hoy
+        const startISO = toLocalISO(horaInicio);
+        const endISO = toLocalISO(horaFin);
+        // INGRESOS: pagos 'pagado' dentro del rango
         let pagosQ: any = supabase
           .from("pagos")
           .select(`id, monto, fecha_pago, metodo_pago, referencia, status, contrato:contratos(numero, sede_id, cliente:clientes(razon_social))`)
           .eq("status", "pagado")
-          .eq("fecha_pago", fechaISO);
+          .gte("fecha_pago", startISO)
+          .lte("fecha_pago", endISO);
         const { data: pagosData, error: pErr } = await pagosQ;
         if (pErr) throw pErr;
         let ing = (pagosData || []) as any[];
