@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
     const text = await upstream.text();
     let data: unknown;
     try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    console.log('[verifica-pe-lookup]', tipo, numero, 'status=', upstream.status, 'body=', text.slice(0, 1500));
 
     if (!upstream.ok) {
       return new Response(JSON.stringify({ error: 'VerificaPe respondió error', status: upstream.status, data }), {
