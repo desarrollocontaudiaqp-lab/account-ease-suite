@@ -9,7 +9,7 @@ import { useExpenses } from "@/hooks/useExpenses";
 import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { ExpenseStatusBadge } from "@/components/egresos/ExpenseStatusBadge";
 import { CreateExpenseDialog } from "@/components/egresos/CreateExpenseDialog";
-import { useRolePermisos } from "@/hooks/useRolePermisos";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BlurredValue } from "@/components/ui/BlurredValue";
@@ -25,8 +25,8 @@ const fmtMoney = (n: number, c = "PEN") =>
 const Egresos = () => {
   const { expenses, loading, refresh } = useExpenses();
   const { categories } = useExpenseCategories();
-  const { hasRole } = useRolePermisos();
-  const isAdmin = hasRole("administrador") || hasRole("gerente");
+  const { role } = useAuth();
+  const isAdmin = role === "administrador" || role === "gerente";
 
   const [openCreate, setOpenCreate] = useState(false);
   const [search, setSearch] = useState("");
@@ -89,7 +89,7 @@ const Egresos = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <p className="text-xs text-muted-foreground uppercase">Total filtrado</p>
-          <p className="text-2xl font-bold mt-1"><BlurredValue value={fmtMoney(totals.total)} /></p>
+          <p className="text-2xl font-bold mt-1"><BlurredValue>{fmtMoney(totals.total)}</BlurredValue></p>
         </Card>
         <Card className="p-4">
           <p className="text-xs text-muted-foreground uppercase">Registros</p>
@@ -165,7 +165,7 @@ const Egresos = () => {
                     <TableCell className="max-w-[200px] truncate">{e.proveedor_nombre || "—"}</TableCell>
                     <TableCell>{cat}</TableCell>
                     <TableCell className="text-xs">{doc}</TableCell>
-                    <TableCell className="text-right font-semibold"><BlurredValue value={fmtMoney(Number(e.total), e.moneda)} /></TableCell>
+                    <TableCell className="text-right font-semibold"><BlurredValue>{fmtMoney(Number(e.total), e.moneda)}</BlurredValue></TableCell>
                     <TableCell><ExpenseStatusBadge estado={e.estado} /></TableCell>
                     <TableCell className="text-right">
                       {isAdmin && (
