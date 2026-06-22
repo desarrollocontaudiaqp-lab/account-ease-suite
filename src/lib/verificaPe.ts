@@ -68,11 +68,11 @@ export async function lookupVerificaPe(
   const json = await resp.json();
   if (!resp.ok) throw new Error(json?.error || json?.message || `HTTP ${resp.status}`);
   const root = json?.data ?? json?.result ?? json;
-  const nombres = deepPick(root, ["nombres", "nombre"]);
-  const apPat = deepPick(root, ["apellido_paterno", "apellidoPaterno"]);
-  const apMat = deepPick(root, ["apellido_materno", "apellidoMaterno"]);
+  const nombres = deepPick(root, ["nombres", "nombre", "names"]);
+  const apPat = deepPick(root, ["apellido_paterno", "apellidoPaterno", "paternalSurname"]);
+  const apMat = deepPick(root, ["apellido_materno", "apellidoMaterno", "maternalSurname"]);
   const nombreCompleto =
-    deepPick(root, ["nombre_completo", "nombreCompleto"]) ||
+    deepPick(root, ["nombre_completo", "nombreCompleto", "fullName"]) ||
     [nombres, apPat, apMat].filter(Boolean).join(" ").trim() || undefined;
   return {
     razon_social: deepPick(root, [
