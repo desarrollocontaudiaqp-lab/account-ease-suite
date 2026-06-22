@@ -96,6 +96,107 @@ export type Database = {
           },
         ]
       }
+      caja_cierres: {
+        Row: {
+          cantidad_egresos: number
+          cantidad_ingresos: number
+          codigo: string
+          created_at: string
+          created_by: string | null
+          detalle: Json
+          fecha: string
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          moneda: string
+          observaciones: string | null
+          saldo: number
+          sede_id: string | null
+          tipo: Database["public"]["Enums"]["caja_cierre_tipo"]
+          total_egresos: number
+          total_ingresos: number
+          updated_at: string
+        }
+        Insert: {
+          cantidad_egresos?: number
+          cantidad_ingresos?: number
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          detalle?: Json
+          fecha?: string
+          hora_fin?: string
+          hora_inicio: string
+          id?: string
+          moneda?: string
+          observaciones?: string | null
+          saldo?: number
+          sede_id?: string | null
+          tipo: Database["public"]["Enums"]["caja_cierre_tipo"]
+          total_egresos?: number
+          total_ingresos?: number
+          updated_at?: string
+        }
+        Update: {
+          cantidad_egresos?: number
+          cantidad_ingresos?: number
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          detalle?: Json
+          fecha?: string
+          hora_fin?: string
+          hora_inicio?: string
+          id?: string
+          moneda?: string
+          observaciones?: string | null
+          saldo?: number
+          sede_id?: string | null
+          tipo?: Database["public"]["Enums"]["caja_cierre_tipo"]
+          total_egresos?: number
+          total_ingresos?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caja_cierres_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caja_secuencias: {
+        Row: {
+          anio_vigente: number
+          created_at: string
+          digitos_correlativo: number
+          id: string
+          prefijo: string
+          ultimo_numero: number
+          updated_at: string
+        }
+        Insert: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Update: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       calendario_trabajo: {
         Row: {
           asignacion_id: string | null
@@ -2169,6 +2270,7 @@ export type Database = {
     }
     Functions: {
       can_view_all_sedes: { Args: { _user_id: string }; Returns: boolean }
+      get_next_caja_code: { Args: never; Returns: string }
       get_next_expense_code: { Args: never; Returns: string }
       get_next_proforma_number: { Args: { p_tipo: string }; Returns: string }
       get_next_workflow_code: { Args: never; Returns: string }
@@ -2205,6 +2307,7 @@ export type Database = {
         | "en_progreso"
         | "completada"
         | "cancelada"
+      caja_cierre_tipo: "parcial" | "diario"
       contract_condition: "Vigente" | "Terminado" | "Anulado" | "Suspendido"
       contract_status:
         | "borrador"
@@ -2374,6 +2477,7 @@ export const Constants = {
         "completada",
         "cancelada",
       ],
+      caja_cierre_tipo: ["parcial", "diario"],
       contract_condition: ["Vigente", "Terminado", "Anulado", "Suspendido"],
       contract_status: [
         "borrador",
