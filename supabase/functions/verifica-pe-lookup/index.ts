@@ -30,9 +30,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get('VERIFICAPE_API_KEY');
+    const apiKey = tipo === 'dni'
+      ? (Deno.env.get('VERIFICAPE_DNI_API_KEY') || Deno.env.get('VERIFICAPE_API_KEY'))
+      : Deno.env.get('VERIFICAPE_API_KEY');
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'VERIFICAPE_API_KEY no configurada' }), {
+      const missing = tipo === 'dni' ? 'VERIFICAPE_DNI_API_KEY' : 'VERIFICAPE_API_KEY';
+      return new Response(JSON.stringify({ error: `${missing} no configurada` }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
