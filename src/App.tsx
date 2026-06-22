@@ -25,6 +25,7 @@ import Egresos from "./pages/Egresos";
 import EgresosCategorias from "./pages/EgresosCategorias";
 import EgresosReportes from "./pages/EgresosReportes";
 import EgresosAprobaciones from "./pages/EgresosAprobaciones";
+import Caja from "./pages/Caja";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -73,6 +74,7 @@ const AppRoutes = () => {
         <Route path="/egresos/categorias" element={<FinancialPageGuard><EgresosCategorias /></FinancialPageGuard>} />
         <Route path="/egresos/reportes" element={<FinancialPageGuard><EgresosReportes /></FinancialPageGuard>} />
         <Route path="/egresos/aprobaciones" element={<FinancialPageGuard><EgresosAprobaciones /></FinancialPageGuard>} />
+        <Route path="/caja" element={<FinancialPageGuard><Caja /></FinancialPageGuard>} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/configuracion" element={<Configuracion />} />
       </Route>
