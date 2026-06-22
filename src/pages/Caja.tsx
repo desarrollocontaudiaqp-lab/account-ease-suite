@@ -22,20 +22,23 @@ const fmtDate = (s: string) => {
 const fmtDateTime = (s: string) => new Date(s).toLocaleString("es-PE");
 
 const Caja = () => {
-  const { cierres, loading, refresh } = useCajaCierres();
+  const { cierres, ingresosHoy, egresosHoy, loading, refresh } = useCajaCierres();
   const [openDialog, setOpenDialog] = useState<null | "parcial" | "diario">(null);
   const [detail, setDetail] = useState<CajaCierre | null>(null);
 
   const totals = useMemo(() => {
     const hoy = new Date().toISOString().slice(0, 10);
     const dia = cierres.filter((c) => c.fecha === hoy);
+    const ti = ingresosHoy.reduce((a, x) => a + Number(x.monto || 0), 0);
+    const te = egresosHoy.reduce((a, x) => a + Number(x.total || 0), 0);
     return {
-      hoyIngresos: dia.reduce((a, c) => a + Number(c.total_ingresos || 0), 0),
-      hoyEgresos: dia.reduce((a, c) => a + Number(c.total_egresos || 0), 0),
-      hoySaldo: dia.reduce((a, c) => a + Number(c.saldo || 0), 0),
+      hoyIngresos: ti,
+      hoyEgresos: te,
+      hoySaldo: ti - te,
+      cierresHoy: dia.length,
       totalCierres: cierres.length,
     };
-  }, [cierres]);
+  }, [cierres, ingresosHoy, egresosHoy]);
 
   const exportPDF = (c: CajaCierre) => {
     const doc = new jsPDF();
