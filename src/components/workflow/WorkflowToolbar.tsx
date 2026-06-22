@@ -739,6 +739,119 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     };
 
     const dedicatedActivitiesSheet = findSheetName("Actividades", "Actividad", "Activities");
+
+    // --- Formato jerárquico plano (una sola hoja con columnas: orden, tipo, id_local, parentId, ...) ---
+    const parseHierarchicalSheet = async (): Promise<WorkflowItem[] | null> => {
+      for (const sheetName of wb.SheetNames) {
+        const rows = sheetObjects(wb.Sheets[sheetName]);
+        if (rows.length === 0) continue;
+        const hasTipo = rows.some((r) => pick(r, "tipo", "type") !== undefined);
+        const hasIdLocal = rows.some((r) => pick(r, "id_local", "idlocal", "id") !== undefined);
+        if (!hasTipo || !hasIdLocal) continue;
+
+        const idMap = new Map<string, string>(); // id_local -> uuid
+        const built: (WorkflowItem & { __idLocal?: string; __parentLocal?: string; __conexionesLocal?: string[]; __asignadoEmail?: string })[] = [];
+
+        const normTipo = (raw: string) => {
+          const n = norm(raw);
+          if (n.startsWith("activ")) return "actividad" as const;
+          if (n.startsWith("input") || n.startsWith("entrada")) return "input" as const;
+          if (n.startsWith("tarea") || n.startsWith("task") || n.startsWith("proceso")) return "tarea" as const;
+          if (n.startsWith("output") || n.startsWith("salida") || n.startsWith("entregable") || n.startsWith("resultado")) return "output" as const;
+          if (n.startsWith("super") || n.startsWith("revis")) return "supervision" as const;
+          return null;
+        };
+
+        rows.forEach((row, i) => {
+          const tipoRaw = pick(row, "tipo", "type")?.toString().trim();
+          if (!tipoRaw) return;
+          const tipo = normTipo(tipoRaw);
+          if (!tipo) return;
+          const idLocal = pick(row, "id_local", "idlocal", "id")?.toString().trim();
+          const parentLocal = pick(row, "parentId", "parent_id", "parent")?.toString().trim();
+          const titulo = pick(row, "titulo", "title", "nombre")?.toString().trim();
+          if (!titulo) return;
+          const descripcion = pick(row, "descripcion", "description", "detalle")?.toString() || undefined;
+          const asignadoEmail = pick(row, "asignado_email", "asignadoemail", "email")?.toString().trim() || undefined;
+          const rol = pick(row, "rol", "role", "responsable")?.toString().trim() || undefined;
+          const fechaInicio = pick(row, "fecha_inicio", "fechainicio")?.toString() || undefined;
+          const fechaTermino = pick(row, "fecha_termino", "fechatermino", "fecha_fin")?.toString() || undefined;
+          const progresoRaw = pick(row, "progreso", "progress")?.toString();
+          const progreso = progresoRaw ? Math.max(0, Math.min(100, parseInt(progresoRaw) || 0)) : 0;
+          const completadoRaw = pick(row, "completado", "completed")?.toString().toLowerCase();
+          const completado = completadoRaw === "true" || completadoRaw === "1" || completadoRaw === "si" || completadoRaw === "sí";
+          const conexionesRaw = pick(row, "conexiones", "connections")?.toString() || "";
+          const conexionesLocal = conexionesRaw
+            .split(/[,;]/).map((s) => s.trim()).filter((s) => s && s !== "—" && s !== "-");
+          const subColRaw = pick(row, "subColumna", "subcolumna", "columna")?.toString();
+          const subCol = subColRaw ? Math.min(Math.max((parseInt(subColRaw) || 0), 0), 2) : undefined;
+          const enlace = pick(row, "enlaceSharepoint", "enlace_sharepoint", "enlace", "sharepoint")?.toString() || undefined;
+
+          const uuid = crypto.randomUUID();
+          if (idLocal) idMap.set(idLocal, uuid);
+
+          built.push({
+            id: uuid,
+            tipo,
+            titulo,
+            descripcion,
+            rol,
+            completado,
+            orden: parseInt(pick(row, "orden", "order")?.toString() || String(i)) || i,
+            subColumna: subCol,
+            enlaceSharepoint: enlace,
+            fecha_inicio: fechaInicio,
+            fecha_termino: fechaTermino,
+            progreso,
+            __idLocal: idLocal,
+            __parentLocal: parentLocal || undefined,
+            __conexionesLocal: conexionesLocal,
+            __asignadoEmail: asignadoEmail,
+          });
+        });
+
+        if (built.length === 0) continue;
+
+        // Resolver asignado_email -> user_id/nombre
+        const emails = [...new Set(built.map((b) => b.__asignadoEmail).filter(Boolean) as string[])];
+        let profileByEmail = new Map<string, { id: string; full_name: string | null; email: string }>();
+        if (emails.length > 0) {
+          try {
+            const { data: profs } = await supabase
+              .from("profiles")
+              .select("id, full_name, email")
+              .in("email", emails);
+            profileByEmail = new Map((profs || []).map((p) => [p.email.toLowerCase(), p]));
+          } catch (e) {
+            console.warn("No se pudieron resolver emails de asignados", e);
+          }
+        }
+
+        // Resolver parentId y conexiones (id_local -> uuid)
+        const finalItems: WorkflowItem[] = built.map((b) => {
+          const { __idLocal, __parentLocal, __conexionesLocal, __asignadoEmail, ...item } = b;
+          if (__parentLocal && idMap.has(__parentLocal)) item.parentId = idMap.get(__parentLocal);
+          if (__conexionesLocal && __conexionesLocal.length > 0) {
+            const conex = __conexionesLocal.map((l) => idMap.get(l)).filter((x): x is string => !!x);
+            if (conex.length > 0) item.conexiones = conex;
+          }
+          if (__asignadoEmail) {
+            const prof = profileByEmail.get(__asignadoEmail.toLowerCase());
+            if (prof) {
+              item.asignado_a = prof.id;
+              item.asignado_nombre = prof.full_name || prof.email;
+            }
+          }
+          return item;
+        });
+        return finalItems;
+      }
+      return null;
+    };
+
+    const hierarchical = await parseHierarchicalSheet();
+    if (hierarchical && hierarchical.length > 0) return hierarchical;
+
     if (!dedicatedActivitiesSheet) {
       const flatItems = parseSingleSheetWorkbook();
       if (flatItems.some((item) => item.tipo === "actividad")) return flatItems;
