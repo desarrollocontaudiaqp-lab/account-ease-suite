@@ -53,6 +53,7 @@ const menuItems: SidebarItem[] = [
     children: [
       { title: "Registro de Egresos", path: "/egresos" },
       { title: "Categorías", path: "/egresos/categorias" },
+      { title: "Aprobaciones", path: "/egresos/aprobaciones" },
       { title: "Reportes", path: "/egresos/reportes" },
     ],
   },
