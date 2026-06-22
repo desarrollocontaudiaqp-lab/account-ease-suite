@@ -31,6 +31,7 @@ function joinDireccion(root: any): string | undefined {
   const direct = deepPick(root, [
     "direccion", "direccion_completa", "direccionCompleta",
     "domicilio_fiscal", "domicilioFiscal", "direccion_fiscal",
+    "address",
   ]);
   if (direct) return direct;
   // SUNAT-style fragmented address fields
