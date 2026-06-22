@@ -1,10 +1,15 @@
 import { useMemo, useState } from "react";
-import { Banknote, Calendar, Eye, Loader2, Plus, Wallet, Download } from "lucide-react";
+import { Banknote, Calendar, CalendarIcon, Eye, Loader2, Wallet, Download } from "lucide-react";
+import { format, parse } from "date-fns";
+import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { useCajaCierres, type CajaCierre } from "@/hooks/useCajaCierres";
 import { CierreCajaDialog } from "@/components/caja/CierreCajaDialog";
 import { BlurredValue } from "@/components/ui/BlurredValue";
@@ -22,13 +27,16 @@ const fmtDate = (s: string) => {
 const fmtDateTime = (s: string) => new Date(s).toLocaleString("es-PE");
 
 const Caja = () => {
-  const { cierres, ingresosHoy, egresosHoy, loading, refresh } = useCajaCierres();
+  const { cierres, ingresosHoy, egresosHoy, loading, refresh, fecha, setFecha } = useCajaCierres();
   const [openDialog, setOpenDialog] = useState<null | "parcial" | "diario">(null);
   const [detail, setDetail] = useState<CajaCierre | null>(null);
 
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toLocalISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const fechaDate = parse(fecha, "yyyy-MM-dd", new Date());
+
   const totals = useMemo(() => {
-    const hoy = new Date().toISOString().slice(0, 10);
-    const dia = cierres.filter((c) => c.fecha === hoy);
+    const dia = cierres.filter((c) => c.fecha === fecha);
     const ti = ingresosHoy.reduce((a, x) => a + Number(x.monto || 0), 0);
     const te = egresosHoy.reduce((a, x) => a + Number(x.total || 0), 0);
     return {
@@ -38,7 +46,7 @@ const Caja = () => {
       cierresHoy: dia.length,
       totalCierres: cierres.length,
     };
-  }, [cierres, ingresosHoy, egresosHoy]);
+  }, [cierres, ingresosHoy, egresosHoy, fecha]);
 
   const exportPDF = (c: CajaCierre) => {
     const doc = new jsPDF();
@@ -90,6 +98,24 @@ const Caja = () => {
           <p className="text-sm text-muted-foreground">Cierres de caja parciales y diarios con ingresos y egresos del día</p>
         </div>
         <div className="flex gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("justify-start text-left font-normal")}>
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                {format(fechaDate, "PPP", { locale: es })}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <CalendarPicker
+                mode="single"
+                selected={fechaDate}
+                onSelect={(d) => d && setFecha(toLocalISO(d))}
+                initialFocus
+                locale={es}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
           <Button variant="outline" onClick={() => setOpenDialog("parcial")}>
             <Wallet className="h-4 w-4 mr-2" /> Cierre Parcial
           </Button>
@@ -101,19 +127,19 @@ const Caja = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4 border-l-4 border-l-emerald-500">
-          <div className="text-xs text-muted-foreground">Ingresos hoy ({ingresosHoy.length})</div>
+          <div className="text-xs text-muted-foreground">Ingresos ({ingresosHoy.length})</div>
           <div className="text-2xl font-bold text-emerald-600 mt-1"><BlurredValue>{fmt(totals.hoyIngresos)}</BlurredValue></div>
         </Card>
         <Card className="p-4 border-l-4 border-l-rose-500">
-          <div className="text-xs text-muted-foreground">Egresos hoy ({egresosHoy.length})</div>
+          <div className="text-xs text-muted-foreground">Egresos ({egresosHoy.length})</div>
           <div className="text-2xl font-bold text-rose-600 mt-1"><BlurredValue>{fmt(totals.hoyEgresos)}</BlurredValue></div>
         </Card>
         <Card className="p-4 border-l-4 border-l-primary">
-          <div className="text-xs text-muted-foreground">Saldo del día</div>
+          <div className="text-xs text-muted-foreground">Saldo del día ({format(fechaDate, "dd/MM", { locale: es })})</div>
           <div className="text-2xl font-bold text-primary mt-1"><BlurredValue>{fmt(totals.hoySaldo)}</BlurredValue></div>
         </Card>
         <Card className="p-4 border-l-4 border-l-amber-500">
-          <div className="text-xs text-muted-foreground">Cierres ({totals.cierresHoy} hoy)</div>
+          <div className="text-xs text-muted-foreground">Cierres ({totals.cierresHoy} en fecha)</div>
           <div className="text-2xl font-bold mt-1">{totals.totalCierres}</div>
         </Card>
       </div>
