@@ -1,10 +1,13 @@
-import { useMemo, useState } from "react";
-import { Banknote, Calendar, CalendarIcon, Eye, Loader2, Wallet, Download } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Banknote, Calendar, CalendarIcon, Eye, Loader2, Wallet, Download, Save, PiggyBank } from "lucide-react";
 import { format, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -27,13 +30,42 @@ const fmtDate = (s: string) => {
 const fmtDateTime = (s: string) => new Date(s).toLocaleString("es-PE");
 
 const Caja = () => {
-  const { cierres, ingresosHoy, egresosHoy, loading, refresh, fecha, setFecha } = useCajaCierres();
+  const {
+    cierres,
+    ingresosHoy,
+    egresosHoy,
+    loading,
+    refresh,
+    fecha,
+    setFecha,
+    saldoInicial,
+    ingresosMes,
+    egresosMes,
+    saveSaldoInicial,
+  } = useCajaCierres();
   const [openDialog, setOpenDialog] = useState<null | "parcial" | "diario">(null);
   const [detail, setDetail] = useState<CajaCierre | null>(null);
+  const [saldoInput, setSaldoInput] = useState<string>("");
+  const [saldoObs, setSaldoObs] = useState<string>("");
+  const [savingSaldo, setSavingSaldo] = useState(false);
 
   const pad = (n: number) => String(n).padStart(2, "0");
   const toLocalISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const fechaDate = parse(fecha, "yyyy-MM-dd", new Date());
+  const mesLabel = format(fechaDate, "MMMM yyyy", { locale: es });
+
+  // sync input when month/saldo changes
+  useEffect(() => {
+    setSaldoInput(String(saldoInicial ?? 0));
+  }, [saldoInicial, fecha.slice(0, 7)]);
+
+  const saldoMes = (Number(saldoInicial) || 0) + (ingresosMes || 0) - (egresosMes || 0);
+
+  const handleSaveSaldo = async () => {
+    setSavingSaldo(true);
+    await saveSaldoInicial(Number(saldoInput || 0), saldoObs);
+    setSavingSaldo(false);
+  };
 
   const totals = useMemo(() => {
     const dia = cierres.filter((c) => c.fecha === fecha);
@@ -143,6 +175,67 @@ const Caja = () => {
           <div className="text-2xl font-bold mt-1">{totals.totalCierres}</div>
         </Card>
       </div>
+
+      <Card className="p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <PiggyBank className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold capitalize">Saldo inicial de {mesLabel}</h2>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Configura el saldo con el que arranca el mes. Se descuentan los egresos pagados y se suman los ingresos cobrados durante el mes para obtener el saldo acumulado.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          <div className="md:col-span-3">
+            <Label htmlFor="saldo-inicial">Saldo inicial (S/)</Label>
+            <Input
+              id="saldo-inicial"
+              type="number"
+              step="0.01"
+              value={saldoInput}
+              onChange={(e) => setSaldoInput(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+          <div className="md:col-span-5">
+            <Label htmlFor="saldo-obs">Observaciones (opcional)</Label>
+            <Textarea
+              id="saldo-obs"
+              rows={1}
+              value={saldoObs}
+              onChange={(e) => setSaldoObs(e.target.value)}
+              placeholder="Apertura de mes, traspaso, etc."
+            />
+          </div>
+          <div className="md:col-span-4 flex justify-end">
+            <Button onClick={handleSaveSaldo} disabled={savingSaldo}>
+              {savingSaldo ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Guardar saldo del mes
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-5">
+          <Card className="p-3 bg-muted/40">
+            <div className="text-xs text-muted-foreground">Saldo inicial</div>
+            <div className="text-xl font-bold mt-1"><BlurredValue>{fmt(Number(saldoInicial) || 0)}</BlurredValue></div>
+          </Card>
+          <Card className="p-3 bg-emerald-50 dark:bg-emerald-950/30">
+            <div className="text-xs text-muted-foreground">+ Ingresos del mes</div>
+            <div className="text-xl font-bold text-emerald-600 mt-1"><BlurredValue>{fmt(ingresosMes)}</BlurredValue></div>
+          </Card>
+          <Card className="p-3 bg-rose-50 dark:bg-rose-950/30">
+            <div className="text-xs text-muted-foreground">− Egresos del mes</div>
+            <div className="text-xl font-bold text-rose-600 mt-1"><BlurredValue>{fmt(egresosMes)}</BlurredValue></div>
+          </Card>
+          <Card className={`p-3 border-2 ${saldoMes >= 0 ? "border-primary" : "border-amber-500"}`}>
+            <div className="text-xs text-muted-foreground">Saldo acumulado</div>
+            <div className={`text-xl font-bold mt-1 ${saldoMes >= 0 ? "text-primary" : "text-amber-600"}`}>
+              <BlurredValue>{fmt(saldoMes)}</BlurredValue>
+            </div>
+          </Card>
+        </div>
+      </Card>
 
       <Card>
         <Table>
