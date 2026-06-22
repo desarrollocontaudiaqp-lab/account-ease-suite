@@ -562,6 +562,9 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     const supervisionAliases = ["Supervisión", "Supervision", "Supervisiones", "Revisión", "Revision"];
     const descriptionAliases = ["Descripción", "Descripcion", "Detalle", "Description"];
 
+    type SheetCell = string | number | boolean | Date | null | undefined;
+    type SheetRow = Record<string, SheetCell>;
+
     const workflowHeaderAliases = [
       ...activityAliases,
       ...inputAliases,
@@ -585,7 +588,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     };
 
     const sheetObjects = (ws: XLSX.WorkSheet) => {
-      const matrix = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: "", raw: false });
+      const matrix = XLSX.utils.sheet_to_json<SheetCell[]>(ws, { header: 1, defval: "", raw: false });
       const headerIndex = matrix.findIndex((row) => {
         const cells = row.map((cell) => cell?.toString().trim()).filter(Boolean);
         if (cells.length === 0) return false;
@@ -593,7 +596,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
       });
 
       if (headerIndex === -1) {
-        return XLSX.utils.sheet_to_json(ws, { defval: "", raw: false }) as any[];
+        return XLSX.utils.sheet_to_json<SheetRow>(ws, { defval: "", raw: false });
       }
 
       const headers = matrix[headerIndex].map((header, index) =>
@@ -601,7 +604,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
       );
 
       return matrix.slice(headerIndex + 1).map((row) => {
-        const obj: Record<string, any> = {};
+        const obj: SheetRow = {};
         headers.forEach((header, index) => {
           obj[header] = row[index] ?? "";
         });
@@ -609,7 +612,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
       }).filter((row) => Object.values(row).some((value) => value !== undefined && value !== null && value !== ""));
     };
 
-    const pick = (row: any, ...keys: string[]) => {
+    const pick = (row: SheetRow, ...keys: string[]) => {
       const wanted = keys.map(norm);
       for (const k of Object.keys(row)) {
         if (wanted.includes(norm(k))) {
@@ -750,7 +753,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
         `Falta hoja 'Actividades'. Hojas encontradas: ${wb.SheetNames.join(", ") || "(ninguna)"}`,
       );
     }
-    const actRows: any[] = sheetObjects(wsAct);
+    const actRows = sheetObjects(wsAct);
     actRows.forEach((row, i) => {
       const name = pick(row, ...activityAliases, "Nombre")?.toString().trim();
       if (!name) return;
@@ -767,7 +770,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
 
     const wsInp = findSheet("Inputs", "Input");
     if (wsInp) {
-      const rows: any[] = sheetObjects(wsInp);
+      const rows = sheetObjects(wsInp);
       rows.forEach((row, i) => {
         const actName = pick(row, ...activityAliases)?.toString().trim();
         const inputName = pick(row, ...inputAliases, "Nombre")?.toString().trim();
@@ -787,7 +790,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
 
     const wsProc = findSheet("Procesos", "Proceso", "Tareas");
     if (wsProc) {
-      const rows: any[] = sheetObjects(wsProc);
+      const rows = sheetObjects(wsProc);
       rows.forEach((row, i) => {
         const actName = pick(row, ...activityAliases)?.toString().trim();
         const inputName = pick(row, ...inputAliases)?.toString().trim();
@@ -808,7 +811,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
 
     const wsOut = findSheet("Outputs", "Output");
     if (wsOut) {
-      const rows: any[] = sheetObjects(wsOut);
+      const rows = sheetObjects(wsOut);
       rows.forEach((row, i) => {
         const actName = pick(row, ...activityAliases)?.toString().trim();
         const outputName = pick(row, ...outputAliases, "Nombre")?.toString().trim();
@@ -826,7 +829,7 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
 
     const wsSup = findSheet("Supervisión", "Supervision", "Supervisiones");
     if (wsSup) {
-      const rows: any[] = sheetObjects(wsSup);
+      const rows = sheetObjects(wsSup);
       rows.forEach((row, i) => {
         const actName = pick(row, ...activityAliases)?.toString().trim();
         const supName = pick(row, ...supervisionAliases, "Nombre")?.toString().trim();
@@ -859,9 +862,9 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
       setImportedItems(items);
       setShowImportApplyDialog(true);
       toast.success(`Se importaron ${items.length} elementos`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err.message || "Error al importar");
+      toast.error(err instanceof Error ? err.message : "Error al importar");
     }
     setImporting(false);
     e.target.value = "";
@@ -912,9 +915,9 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
       setModalWorkflowIdOverride(undefined);
       setNewMode(null);
       setWorkflowModalOpen(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err.message || "Error al importar");
+      toast.error(err instanceof Error ? err.message : "Error al importar");
     }
   };
 
