@@ -7,6 +7,7 @@ export interface SystemConfig {
   default_currency: "PEN" | "USD";
   currency_symbol: string;
   proforma_expiration_days: number;
+  expense_approval_enabled: boolean;
 }
 
 const DEFAULT_CONFIG: SystemConfig = {
@@ -15,6 +16,7 @@ const DEFAULT_CONFIG: SystemConfig = {
   default_currency: "PEN",
   currency_symbol: "S/.",
   proforma_expiration_days: 30,
+  expense_approval_enabled: true,
 };
 
 interface SystemConfigContextType {
@@ -58,6 +60,8 @@ export function SystemConfigProvider({ children }: { children: ReactNode }) {
           default_currency: (savedConfig.default_currency as "PEN" | "USD") ?? DEFAULT_CONFIG.default_currency,
           currency_symbol: (savedConfig.currency_symbol as string) ?? DEFAULT_CONFIG.currency_symbol,
           proforma_expiration_days: (savedConfig.proforma_expiration_days as number) ?? DEFAULT_CONFIG.proforma_expiration_days,
+          expense_approval_enabled:
+            (savedConfig.expense_approval_enabled as boolean) ?? DEFAULT_CONFIG.expense_approval_enabled,
         });
       }
     } catch (error) {

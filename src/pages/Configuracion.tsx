@@ -40,6 +40,7 @@ const Configuracion = () => {
   const [useThousandsSeparator, setUseThousandsSeparator] = useState(config.use_thousands_separator);
   const [defaultCurrency, setDefaultCurrency] = useState<"PEN" | "USD">(config.default_currency);
   const [proformaExpirationDays, setProformaExpirationDays] = useState(config.proforma_expiration_days);
+  const [expenseApprovalEnabled, setExpenseApprovalEnabled] = useState(config.expense_approval_enabled);
   const [generatingManual, setGeneratingManual] = useState(false);
 
   useEffect(() => {
@@ -47,6 +48,7 @@ const Configuracion = () => {
     setUseThousandsSeparator(config.use_thousands_separator);
     setDefaultCurrency(config.default_currency);
     setProformaExpirationDays(config.proforma_expiration_days);
+    setExpenseApprovalEnabled(config.expense_approval_enabled);
   }, [config]);
 
   const handleSaveSystemConfig = async () => {
@@ -55,6 +57,7 @@ const Configuracion = () => {
       use_thousands_separator: useThousandsSeparator,
       default_currency: defaultCurrency,
       proforma_expiration_days: proformaExpirationDays,
+      expense_approval_enabled: expenseApprovalEnabled,
     });
     toast.success("Configuración del sistema guardada correctamente");
   };
@@ -427,6 +430,21 @@ const Configuracion = () => {
               <h3 className="text-lg font-semibold text-foreground mb-6">Opciones Avanzadas</h3>
               
               <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground">Aprobación de egresos</p>
+                    <p className="text-sm text-muted-foreground">
+                      Cuando está activo, los egresos requieren ser aprobados por un Administrador o Gerente antes de pagarse. Si se desactiva, los egresos se aprueban automáticamente al registrarse y pueden marcarse como pagados directamente.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={expenseApprovalEnabled}
+                    onCheckedChange={setExpenseApprovalEnabled}
+                  />
+                </div>
+
+                <Separator />
+
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-foreground">Modo mantenimiento</p>

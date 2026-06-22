@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useSystemConfig } from "@/hooks/useSystemConfig";
 import { Send, CheckCircle2, XCircle, DollarSign, Ban } from "lucide-react";
 
 type Estado = "borrador" | "pendiente" | "aprobado" | "rechazado" | "pagado" | "anulado";
@@ -17,6 +18,8 @@ interface Props {
 
 export function ExpenseApprovalActions({ expenseId, estado, onChanged }: Props) {
   const { user, role } = useAuth();
+  const { config } = useSystemConfig();
+  const approvalEnabled = config.expense_approval_enabled;
   const isApprover = role === "administrador" || role === "gerente";
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState<null | "aprobar" | "rechazar">(null);
@@ -77,12 +80,12 @@ export function ExpenseApprovalActions({ expenseId, estado, onChanged }: Props) 
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        {estado === "borrador" && (
+        {approvalEnabled && estado === "borrador" && (
           <Button size="sm" onClick={() => updateEstado("pendiente")} disabled={busy}>
             <Send className="h-3 w-3 mr-1" /> Enviar a aprobación
           </Button>
         )}
-        {estado === "pendiente" && isApprover && (
+        {approvalEnabled && estado === "pendiente" && isApprover && (
           <>
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setDialog("aprobar")} disabled={busy}>
               <CheckCircle2 className="h-3 w-3 mr-1" /> Aprobar
@@ -92,13 +95,25 @@ export function ExpenseApprovalActions({ expenseId, estado, onChanged }: Props) 
             </Button>
           </>
         )}
-        {estado === "aprobado" && isApprover && (
+        {/* When approval is disabled, borradores legacy pueden auto-aprobarse para luego pagarse */}
+        {!approvalEnabled && estado === "borrador" && (
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => updateEstado("aprobado", { approved_by: user?.id, approved_at: new Date().toISOString() })}
+            disabled={busy}
+          >
+            <CheckCircle2 className="h-3 w-3 mr-1" /> Auto-aprobar
+          </Button>
+        )}
+        {estado === "aprobado" && (isApprover || !approvalEnabled) && (
           <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700"
             onClick={() => updateEstado("pagado", { paid_at: new Date().toISOString() })} disabled={busy}>
             <DollarSign className="h-3 w-3 mr-1" /> Marcar como pagado
           </Button>
         )}
-        {(estado === "borrador" || estado === "pendiente" || estado === "rechazado") && isApprover && (
+        {(estado === "borrador" || estado === "pendiente" || estado === "rechazado") &&
+          (isApprover || !approvalEnabled) && (
           <Button size="sm" variant="outline" onClick={() => updateEstado("anulado")} disabled={busy}>
             <Ban className="h-3 w-3 mr-1" /> Anular
           </Button>
