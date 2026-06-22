@@ -326,6 +326,8 @@ const Caja = () => {
           tipo={openDialog}
           onClose={() => setOpenDialog(null)}
           onSaved={refresh}
+          anio={anioActual}
+          mes={mesActual}
         />
       )}
 
