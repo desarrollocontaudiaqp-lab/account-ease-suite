@@ -201,7 +201,7 @@ export function CierreCajaDialog({ open, onClose, tipo, onSaved }: Props) {
                       {ingresos.map((p) => (
                         <TableRow key={p.id}>
                           <TableCell>{p.contrato?.cliente?.razon_social || "—"}</TableCell>
-                          <TableCell>{p.contrato?.codigo || "—"}</TableCell>
+                          <TableCell>{p.contrato?.numero || "—"}</TableCell>
                           <TableCell>{p.metodo_pago || "—"}</TableCell>
                           <TableCell>{p.referencia || "—"}</TableCell>
                           <TableCell className="text-right font-mono text-emerald-600">{fmt(Number(p.monto || 0))}</TableCell>
