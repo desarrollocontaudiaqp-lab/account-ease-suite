@@ -1,10 +1,15 @@
 import { useMemo, useState } from "react";
-import { Banknote, Calendar, Eye, Loader2, Plus, Wallet, Download } from "lucide-react";
+import { Banknote, Calendar, CalendarIcon, Eye, Loader2, Wallet, Download } from "lucide-react";
+import { format, parse } from "date-fns";
+import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { useCajaCierres, type CajaCierre } from "@/hooks/useCajaCierres";
 import { CierreCajaDialog } from "@/components/caja/CierreCajaDialog";
 import { BlurredValue } from "@/components/ui/BlurredValue";
@@ -22,13 +27,16 @@ const fmtDate = (s: string) => {
 const fmtDateTime = (s: string) => new Date(s).toLocaleString("es-PE");
 
 const Caja = () => {
-  const { cierres, ingresosHoy, egresosHoy, loading, refresh } = useCajaCierres();
+  const { cierres, ingresosHoy, egresosHoy, loading, refresh, fecha, setFecha } = useCajaCierres();
   const [openDialog, setOpenDialog] = useState<null | "parcial" | "diario">(null);
   const [detail, setDetail] = useState<CajaCierre | null>(null);
 
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toLocalISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const fechaDate = parse(fecha, "yyyy-MM-dd", new Date());
+
   const totals = useMemo(() => {
-    const hoy = new Date().toISOString().slice(0, 10);
-    const dia = cierres.filter((c) => c.fecha === hoy);
+    const dia = cierres.filter((c) => c.fecha === fecha);
     const ti = ingresosHoy.reduce((a, x) => a + Number(x.monto || 0), 0);
     const te = egresosHoy.reduce((a, x) => a + Number(x.total || 0), 0);
     return {
@@ -38,7 +46,7 @@ const Caja = () => {
       cierresHoy: dia.length,
       totalCierres: cierres.length,
     };
-  }, [cierres, ingresosHoy, egresosHoy]);
+  }, [cierres, ingresosHoy, egresosHoy, fecha]);
 
   const exportPDF = (c: CajaCierre) => {
     const doc = new jsPDF();
