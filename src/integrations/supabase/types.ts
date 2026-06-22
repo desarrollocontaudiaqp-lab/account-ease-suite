@@ -757,6 +757,354 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_approvals: {
+        Row: {
+          accion: string
+          comentario: string | null
+          created_at: string
+          expense_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          accion: string
+          comentario?: string | null
+          created_at?: string
+          expense_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          accion?: string
+          comentario?: string | null
+          created_at?: string
+          expense_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_approvals_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_attachments: {
+        Row: {
+          created_at: string
+          expense_id: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          expense_id: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          expense_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_attachments_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_categories: {
+        Row: {
+          activo: boolean
+          color: string | null
+          created_at: string
+          descripcion: string | null
+          icono: string | null
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          color?: string | null
+          created_at?: string
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          color?: string | null
+          created_at?: string
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expense_secuencias: {
+        Row: {
+          anio_vigente: number
+          created_at: string
+          digitos_correlativo: number
+          id: string
+          prefijo: string
+          ultimo_numero: number
+          updated_at: string
+        }
+        Insert: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Update: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expense_status_history: {
+        Row: {
+          comentario: string | null
+          created_at: string
+          estado_anterior: Database["public"]["Enums"]["expense_status"] | null
+          estado_nuevo: Database["public"]["Enums"]["expense_status"]
+          expense_id: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          comentario?: string | null
+          created_at?: string
+          estado_anterior?: Database["public"]["Enums"]["expense_status"] | null
+          estado_nuevo: Database["public"]["Enums"]["expense_status"]
+          expense_id: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          comentario?: string | null
+          created_at?: string
+          estado_anterior?: Database["public"]["Enums"]["expense_status"] | null
+          estado_nuevo?: Database["public"]["Enums"]["expense_status"]
+          expense_id?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_status_history_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_subcategories: {
+        Row: {
+          activo: boolean
+          categoria_id: string
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          categoria_id: string
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          categoria_id?: string
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_subcategories_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          banco: string | null
+          categoria_id: string | null
+          centro_costo: string | null
+          codigo: string
+          created_at: string
+          created_by: string | null
+          cuenta_bancaria: string | null
+          descripcion: string | null
+          estado: Database["public"]["Enums"]["expense_status"]
+          fecha_egreso: string
+          fecha_emision: string | null
+          id: string
+          igv: number
+          metodo_pago: string | null
+          moneda: string
+          numero_documento: string | null
+          observaciones: string | null
+          otros_impuestos: number
+          paid_at: string | null
+          proveedor_documento: string | null
+          proveedor_nombre: string | null
+          referencia_pago: string | null
+          sede_id: string | null
+          serie_documento: string | null
+          subcategoria_id: string | null
+          subtotal: number
+          tipo_cambio: number | null
+          tipo_documento: string | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          banco?: string | null
+          categoria_id?: string | null
+          centro_costo?: string | null
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          cuenta_bancaria?: string | null
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["expense_status"]
+          fecha_egreso?: string
+          fecha_emision?: string | null
+          id?: string
+          igv?: number
+          metodo_pago?: string | null
+          moneda?: string
+          numero_documento?: string | null
+          observaciones?: string | null
+          otros_impuestos?: number
+          paid_at?: string | null
+          proveedor_documento?: string | null
+          proveedor_nombre?: string | null
+          referencia_pago?: string | null
+          sede_id?: string | null
+          serie_documento?: string | null
+          subcategoria_id?: string | null
+          subtotal?: number
+          tipo_cambio?: number | null
+          tipo_documento?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          banco?: string | null
+          categoria_id?: string | null
+          centro_costo?: string | null
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          cuenta_bancaria?: string | null
+          descripcion?: string | null
+          estado?: Database["public"]["Enums"]["expense_status"]
+          fecha_egreso?: string
+          fecha_emision?: string | null
+          id?: string
+          igv?: number
+          metodo_pago?: string | null
+          moneda?: string
+          numero_documento?: string | null
+          observaciones?: string | null
+          otros_impuestos?: number
+          paid_at?: string | null
+          proveedor_documento?: string | null
+          proveedor_nombre?: string | null
+          referencia_pago?: string | null
+          sede_id?: string | null
+          serie_documento?: string | null
+          subcategoria_id?: string | null
+          subtotal?: number
+          tipo_cambio?: number | null
+          tipo_documento?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_subcategoria_id_fkey"
+            columns: ["subcategoria_id"]
+            isOneToOne: false
+            referencedRelation: "expense_subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metodos_pago: {
         Row: {
           activo: boolean
@@ -1821,6 +2169,7 @@ export type Database = {
     }
     Functions: {
       can_view_all_sedes: { Args: { _user_id: string }; Returns: boolean }
+      get_next_expense_code: { Args: never; Returns: string }
       get_next_proforma_number: { Args: { p_tipo: string }; Returns: string }
       get_next_workflow_code: { Args: never; Returns: string }
       get_user_role: {
@@ -1866,6 +2215,13 @@ export type Database = {
         | "pausado"
         | "finalizado"
         | "cancelado"
+      expense_status:
+        | "borrador"
+        | "pendiente"
+        | "aprobado"
+        | "rechazado"
+        | "pagado"
+        | "anulado"
       payment_status: "pendiente" | "pagado" | "vencido" | "parcial"
       proforma_status:
         | "borrador"
@@ -2028,6 +2384,14 @@ export const Constants = {
         "pausado",
         "finalizado",
         "cancelado",
+      ],
+      expense_status: [
+        "borrador",
+        "pendiente",
+        "aprobado",
+        "rechazado",
+        "pagado",
+        "anulado",
       ],
       payment_status: ["pendiente", "pagado", "vencido", "parcial"],
       proforma_status: [
