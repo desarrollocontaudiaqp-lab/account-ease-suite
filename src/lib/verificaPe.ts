@@ -10,12 +10,43 @@ export interface VerificaPeResult {
   raw: Record<string, any>;
 }
 
-function pick(obj: any, keys: string[]): string | undefined {
-  for (const k of keys) {
-    const v = obj?.[k];
-    if (typeof v === "string" && v.trim()) return v.trim();
+function deepPick(obj: any, keys: string[]): string | undefined {
+  if (!obj || typeof obj !== "object") return undefined;
+  const lowered = keys.map((k) => k.toLowerCase());
+  const stack: any[] = [obj];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (!cur || typeof cur !== "object") continue;
+    for (const [k, v] of Object.entries(cur)) {
+      if (typeof v === "string" && v.trim() && lowered.includes(k.toLowerCase())) {
+        return v.trim();
+      }
+      if (v && typeof v === "object") stack.push(v);
+    }
   }
   return undefined;
+}
+
+function joinDireccion(root: any): string | undefined {
+  const direct = deepPick(root, [
+    "direccion", "direccion_completa", "direccionCompleta",
+    "domicilio_fiscal", "domicilioFiscal", "direccion_fiscal",
+  ]);
+  if (direct) return direct;
+  // SUNAT-style fragmented address fields
+  const parts = [
+    deepPick(root, ["tipo_via", "tipoVia"]),
+    deepPick(root, ["nombre_via", "nombreVia"]),
+    deepPick(root, ["numero_via", "numeroVia", "numero"]),
+    deepPick(root, ["interior"]),
+    deepPick(root, ["zona_tipo", "zonaTipo"]),
+    deepPick(root, ["zona_nombre", "zonaNombre"]),
+    deepPick(root, ["referencia"]),
+    deepPick(root, ["distrito"]),
+    deepPick(root, ["provincia"]),
+    deepPick(root, ["departamento"]),
+  ].filter(Boolean);
+  return parts.length ? parts.join(" ") : undefined;
 }
 
 export async function lookupVerificaPe(
@@ -34,15 +65,28 @@ export async function lookupVerificaPe(
     },
   });
   const json = await resp.json();
-  if (!resp.ok) throw new Error(json?.error || `HTTP ${resp.status}`);
-  const root = json?.data ?? json;
+  if (!resp.ok) throw new Error(json?.error || json?.message || `HTTP ${resp.status}`);
+  const root = json?.data ?? json?.result ?? json;
+  const nombres = deepPick(root, ["nombres", "nombre"]);
+  const apPat = deepPick(root, ["apellido_paterno", "apellidoPaterno"]);
+  const apMat = deepPick(root, ["apellido_materno", "apellidoMaterno"]);
+  const nombreCompleto =
+    deepPick(root, ["nombre_completo", "nombreCompleto"]) ||
+    [nombres, apPat, apMat].filter(Boolean).join(" ").trim() || undefined;
   return {
-    razon_social: pick(root, ["razon_social", "razonSocial", "nombre_o_razon_social", "nombre"]),
-    nombre: pick(root, ["nombres", "nombre_completo", "nombreCompleto", "nombre"]),
-    direccion: pick(root, ["direccion", "direccion_completa", "domicilio_fiscal", "domicilioFiscal"]),
-    actividad_economica: pick(root, ["actividad_economica", "actividadEconomica", "actividad"]),
-    estado: pick(root, ["estado", "estado_contribuyente"]),
-    condicion: pick(root, ["condicion", "condicion_domicilio"]),
+    razon_social: deepPick(root, [
+      "razon_social", "razonSocial",
+      "nombre_o_razon_social", "nombreORazonSocial",
+      "nombre_razon_social",
+    ]),
+    nombre: nombreCompleto,
+    direccion: joinDireccion(root),
+    actividad_economica: deepPick(root, [
+      "actividad_economica", "actividadEconomica", "actividad",
+      "actividad_economica_principal",
+    ]),
+    estado: deepPick(root, ["estado", "estado_contribuyente", "estadoContribuyente"]),
+    condicion: deepPick(root, ["condicion", "condicion_domicilio", "condicionDomicilio"]),
     raw: root,
   };
 }
