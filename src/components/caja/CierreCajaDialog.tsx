@@ -53,7 +53,7 @@ export function CierreCajaDialog({ open, onClose, tipo, onSaved }: Props) {
         // INGRESOS: pagos con status 'pagado' cuya fecha_pago = hoy
         let pagosQ: any = supabase
           .from("pagos")
-          .select(`id, monto, fecha_pago, metodo_pago, referencia, status, contrato:contratos(codigo, sede_id, cliente:clientes(razon_social))`)
+          .select(`id, monto, fecha_pago, metodo_pago, referencia, status, contrato:contratos(numero, sede_id, cliente:clientes(razon_social))`)
           .eq("status", "pagado")
           .eq("fecha_pago", fechaISO);
         const { data: pagosData, error: pErr } = await pagosQ;
@@ -114,7 +114,7 @@ export function CierreCajaDialog({ open, onClose, tipo, onSaved }: Props) {
         detalle: {
           ingresos: ingresos.map((p) => ({
             id: p.id, monto: Number(p.monto || 0), metodo_pago: p.metodo_pago,
-            referencia: p.referencia, contrato: p.contrato?.codigo,
+            referencia: p.referencia, contrato: p.contrato?.numero,
             cliente: p.contrato?.cliente?.razon_social,
           })),
           egresos: egresos.map((e) => ({
