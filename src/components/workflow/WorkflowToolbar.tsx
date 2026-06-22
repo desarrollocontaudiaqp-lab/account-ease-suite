@@ -545,20 +545,70 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     const activityMap = new Map<string, string>();
     const inputMap = new Map<string, string>();
 
-    // Normaliza nombre de hoja (minúsculas, sin acentos, sin espacios) para
-    // soportar variantes como "Actividades", "actividades", "Activities", etc.
-    const norm = (s: string) =>
-      s
+    // Normaliza nombres de hojas/columnas: ignora acentos, espacios,
+    // puntuación y mayúsculas para soportar plantillas editadas manualmente.
+    const norm = (s: unknown) =>
+      (s ?? "")
         .toString()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, "")
+        .replace(/[^a-zA-Z0-9]/g, "")
         .toLowerCase();
-    const findSheet = (...aliases: string[]) => {
+
+    const activityAliases = ["Actividad", "Actividades", "Actividad (nombre exacto)", "Nombre Actividad", "Activity"];
+    const inputAliases = ["Input", "Inputs", "Entrada", "Nombre Input", "Input (nombre exacto)"];
+    const taskAliases = ["Tarea", "Tareas", "Proceso", "Procesos", "Task", "Actividad Detalle"];
+    const outputAliases = ["Output", "Outputs", "Salida", "Entregable", "Resultado"];
+    const supervisionAliases = ["Supervisión", "Supervision", "Supervisiones", "Revisión", "Revision"];
+    const descriptionAliases = ["Descripción", "Descripcion", "Detalle", "Description"];
+
+    const workflowHeaderAliases = [
+      ...activityAliases,
+      ...inputAliases,
+      ...taskAliases,
+      ...outputAliases,
+      ...supervisionAliases,
+      ...descriptionAliases,
+      "Rol",
+      "Responsable",
+      "SubColumna",
+    ];
+
+    const findSheetName = (...aliases: string[]) => {
       const wanted = aliases.map(norm);
-      const match = wb.SheetNames.find((n) => wanted.includes(norm(n)));
+      return wb.SheetNames.find((n) => wanted.includes(norm(n)));
+    };
+
+    const findSheet = (...aliases: string[]) => {
+      const match = findSheetName(...aliases);
       return match ? wb.Sheets[match] : undefined;
     };
+
+    const sheetObjects = (ws: XLSX.WorkSheet) => {
+      const matrix = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: "", raw: false });
+      const headerIndex = matrix.findIndex((row) => {
+        const cells = row.map((cell) => cell?.toString().trim()).filter(Boolean);
+        if (cells.length === 0) return false;
+        return cells.some((cell) => workflowHeaderAliases.some((alias) => norm(alias) === norm(cell)));
+      });
+
+      if (headerIndex === -1) {
+        return XLSX.utils.sheet_to_json(ws, { defval: "", raw: false }) as any[];
+      }
+
+      const headers = matrix[headerIndex].map((header, index) =>
+        header?.toString().trim() || `__col_${index}`,
+      );
+
+      return matrix.slice(headerIndex + 1).map((row) => {
+        const obj: Record<string, any> = {};
+        headers.forEach((header, index) => {
+          obj[header] = row[index] ?? "";
+        });
+        return obj;
+      }).filter((row) => Object.values(row).some((value) => value !== undefined && value !== null && value !== ""));
+    };
+
     const pick = (row: any, ...keys: string[]) => {
       const wanted = keys.map(norm);
       for (const k of Object.keys(row)) {
@@ -570,21 +620,145 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
       return undefined;
     };
 
-    const wsAct = findSheet("Actividades", "Actividad", "Activities");
+    const parseSingleSheetWorkbook = () => {
+      const flatItems: WorkflowItem[] = [];
+      const flatActivityMap = new Map<string, string>();
+      const flatInputMap = new Map<string, string>();
+      const flatOutputSet = new Set<string>();
+      const flatSupervisionSet = new Set<string>();
+
+      const ensureActivity = (name: string, description: string | undefined, order: number) => {
+        const key = norm(name);
+        const existing = flatActivityMap.get(key);
+        if (existing) return existing;
+        const id = crypto.randomUUID();
+        flatActivityMap.set(key, id);
+        flatItems.push({
+          id,
+          tipo: "actividad",
+          titulo: name,
+          descripcion: description || undefined,
+          completado: false,
+          orden: order,
+        });
+        return id;
+      };
+
+      const ensureInput = (actName: string, inputName: string, description: string | undefined, order: number) => {
+        const key = `${norm(actName)}|${norm(inputName)}`;
+        const existing = flatInputMap.get(key);
+        if (existing) return existing;
+        const parentId = ensureActivity(actName, undefined, order);
+        const id = crypto.randomUUID();
+        flatInputMap.set(key, id);
+        flatItems.push({
+          id,
+          tipo: "input",
+          titulo: inputName,
+          descripcion: description || undefined,
+          completado: false,
+          orden: order,
+          parentId,
+        });
+        return id;
+      };
+
+      wb.SheetNames.forEach((sheetName) => {
+        const rows = sheetObjects(wb.Sheets[sheetName]);
+        rows.forEach((row, i) => {
+          const actName = pick(row, ...activityAliases)?.toString().trim();
+          if (!actName) return;
+
+          const inputName = pick(row, ...inputAliases)?.toString().trim();
+          const taskName = pick(row, ...taskAliases)?.toString().trim();
+          const outputName = pick(row, ...outputAliases)?.toString().trim();
+          const supName = pick(row, ...supervisionAliases)?.toString().trim();
+          const genericDescription = pick(row, ...descriptionAliases)?.toString() || undefined;
+          const activityDescription = pick(row, "Descripción Actividad", "Descripcion Actividad", "Detalle Actividad")?.toString()
+            || (!inputName && !taskName && !outputName && !supName ? genericDescription : undefined);
+          const actId = ensureActivity(actName, activityDescription, flatActivityMap.size);
+
+          let inputId = inputName
+            ? ensureInput(actName, inputName, pick(row, "Descripción Input", "Descripcion Input", "Detalle Input")?.toString() || (!taskName && !outputName && !supName ? genericDescription : undefined), i)
+            : undefined;
+
+          if (taskName) {
+            if (!inputId) inputId = ensureInput(actName, "General", undefined, i);
+            const subCol = parseInt(pick(row, "SubColumna (1, 2 o 3)", "SubColumna", "Columna")?.toString() || "1") - 1;
+            flatItems.push({
+              id: crypto.randomUUID(),
+              tipo: "tarea",
+              titulo: taskName,
+              descripcion: pick(row, "Descripción Tarea", "Descripcion Tarea", "Detalle Tarea")?.toString() || genericDescription,
+              rol: pick(row, "Rol", "Role", "Responsable")?.toString() || undefined,
+              completado: false,
+              orden: i,
+              subColumna: Math.min(Math.max(Number.isNaN(subCol) ? 0 : subCol, 0), 2),
+              parentId: inputId,
+            });
+          }
+
+          if (outputName) {
+            const key = `${norm(actName)}|${norm(outputName)}`;
+            if (!flatOutputSet.has(key)) {
+              flatOutputSet.add(key);
+              flatItems.push({
+                id: crypto.randomUUID(),
+                tipo: "output",
+                titulo: outputName,
+                descripcion: pick(row, "Descripción Output", "Descripcion Output", "Detalle Output")?.toString() || genericDescription,
+                completado: false,
+                orden: i,
+                parentId: actId,
+              });
+            }
+          }
+
+          if (supName) {
+            const key = `${norm(actName)}|${norm(supName)}`;
+            if (!flatSupervisionSet.has(key)) {
+              flatSupervisionSet.add(key);
+              flatItems.push({
+                id: crypto.randomUUID(),
+                tipo: "supervision",
+                titulo: supName,
+                descripcion: pick(row, "Descripción Supervisión", "Descripcion Supervision", "Detalle Supervisión", "Detalle Supervision")?.toString() || genericDescription,
+                completado: false,
+                orden: i,
+                parentId: actId,
+              });
+            }
+          }
+        });
+      });
+
+      return flatItems;
+    };
+
+    const dedicatedActivitiesSheet = findSheetName("Actividades", "Actividad", "Activities");
+    if (!dedicatedActivitiesSheet) {
+      const flatItems = parseSingleSheetWorkbook();
+      if (flatItems.some((item) => item.tipo === "actividad")) return flatItems;
+      throw new Error(
+        `No se encontró una columna u hoja de Actividades. Hojas encontradas: ${wb.SheetNames.join(", ") || "(ninguna)"}`,
+      );
+    }
+
+    const wsAct = wb.Sheets[dedicatedActivitiesSheet];
     if (!wsAct) {
       throw new Error(
         `Falta hoja 'Actividades'. Hojas encontradas: ${wb.SheetNames.join(", ") || "(ninguna)"}`,
       );
     }
-    const actRows: any[] = XLSX.utils.sheet_to_json(wsAct, { defval: "" });
+    const actRows: any[] = sheetObjects(wsAct);
     actRows.forEach((row, i) => {
-      const name = pick(row, "Actividad", "Actividades", "Nombre", "Activity")?.toString().trim();
+      const name = pick(row, ...activityAliases, "Nombre")?.toString().trim();
       if (!name) return;
       const id = crypto.randomUUID();
-      activityMap.set(name, id);
+      activityMap.set(norm(name), id);
       items.push({
         id, tipo: "actividad", titulo: name,
-        descripcion: pick(row, "Descripción", "Descripcion", "Description")?.toString() || undefined,
+        descripcion: pick(row, ...descriptionAliases)?.toString() || undefined,
         completado: false, orden: i,
         fecha_inicio: pick(row, "Fecha Inicio (YYYY-MM-DD)", "Fecha Inicio", "FechaInicio")?.toString() || undefined,
         fecha_termino: pick(row, "Fecha Término (YYYY-MM-DD)", "Fecha Termino (YYYY-MM-DD)", "Fecha Término", "Fecha Termino", "FechaTermino")?.toString() || undefined,
@@ -593,18 +767,18 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
 
     const wsInp = findSheet("Inputs", "Input");
     if (wsInp) {
-      const rows: any[] = XLSX.utils.sheet_to_json(wsInp, { defval: "" });
+      const rows: any[] = sheetObjects(wsInp);
       rows.forEach((row, i) => {
-        const actName = pick(row, "Actividad (nombre exacto)", "Actividad")?.toString().trim();
-        const inputName = pick(row, "Input", "Inputs", "Nombre")?.toString().trim();
+        const actName = pick(row, ...activityAliases)?.toString().trim();
+        const inputName = pick(row, ...inputAliases, "Nombre")?.toString().trim();
         if (!actName || !inputName) return;
-        const parentId = activityMap.get(actName);
+        const parentId = activityMap.get(norm(actName));
         if (!parentId) return;
         const id = crypto.randomUUID();
-        inputMap.set(`${actName}|${inputName}`, id);
+        inputMap.set(`${norm(actName)}|${norm(inputName)}`, id);
         items.push({
           id, tipo: "input", titulo: inputName,
-          descripcion: pick(row, "Descripción", "Descripcion")?.toString() || undefined,
+          descripcion: pick(row, ...descriptionAliases)?.toString() || undefined,
           enlaceSharepoint: pick(row, "Enlace SharePoint", "Enlace", "SharePoint")?.toString() || undefined,
           completado: false, orden: i, parentId,
         });
@@ -613,37 +787,37 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
 
     const wsProc = findSheet("Procesos", "Proceso", "Tareas");
     if (wsProc) {
-      const rows: any[] = XLSX.utils.sheet_to_json(wsProc, { defval: "" });
+      const rows: any[] = sheetObjects(wsProc);
       rows.forEach((row, i) => {
-        const actName = pick(row, "Actividad (nombre exacto)", "Actividad")?.toString().trim();
-        const inputName = pick(row, "Input (nombre exacto)", "Input")?.toString().trim();
+        const actName = pick(row, ...activityAliases)?.toString().trim();
+        const inputName = pick(row, ...inputAliases)?.toString().trim();
         const subCol = parseInt(pick(row, "SubColumna (1, 2 o 3)", "SubColumna", "Columna")?.toString() || "1") - 1;
-        const taskName = pick(row, "Tarea", "Tareas", "Task")?.toString().trim();
+        const taskName = pick(row, ...taskAliases)?.toString().trim();
         if (!actName || !inputName || !taskName) return;
-        const parentId = inputMap.get(`${actName}|${inputName}`);
+        const parentId = inputMap.get(`${norm(actName)}|${norm(inputName)}`);
         if (!parentId) return;
         items.push({
           id: crypto.randomUUID(), tipo: "tarea", titulo: taskName,
-          descripcion: pick(row, "Descripción", "Descripcion")?.toString() || undefined,
+          descripcion: pick(row, ...descriptionAliases)?.toString() || undefined,
           rol: pick(row, "Rol", "Role")?.toString() || undefined,
           completado: false, orden: i,
-          subColumna: Math.min(Math.max(subCol, 0), 2), parentId,
+          subColumna: Math.min(Math.max(Number.isNaN(subCol) ? 0 : subCol, 0), 2), parentId,
         });
       });
     }
 
     const wsOut = findSheet("Outputs", "Output");
     if (wsOut) {
-      const rows: any[] = XLSX.utils.sheet_to_json(wsOut, { defval: "" });
+      const rows: any[] = sheetObjects(wsOut);
       rows.forEach((row, i) => {
-        const actName = pick(row, "Actividad (nombre exacto)", "Actividad")?.toString().trim();
-        const outputName = pick(row, "Output", "Outputs", "Nombre")?.toString().trim();
+        const actName = pick(row, ...activityAliases)?.toString().trim();
+        const outputName = pick(row, ...outputAliases, "Nombre")?.toString().trim();
         if (!actName || !outputName) return;
-        const parentId = activityMap.get(actName);
+        const parentId = activityMap.get(norm(actName));
         if (!parentId) return;
         items.push({
           id: crypto.randomUUID(), tipo: "output", titulo: outputName,
-          descripcion: pick(row, "Descripción", "Descripcion")?.toString() || undefined,
+          descripcion: pick(row, ...descriptionAliases)?.toString() || undefined,
           enlaceSharepoint: pick(row, "Enlace SharePoint", "Enlace", "SharePoint")?.toString() || undefined,
           completado: false, orden: i, parentId,
         });
@@ -652,16 +826,16 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
 
     const wsSup = findSheet("Supervisión", "Supervision", "Supervisiones");
     if (wsSup) {
-      const rows: any[] = XLSX.utils.sheet_to_json(wsSup, { defval: "" });
+      const rows: any[] = sheetObjects(wsSup);
       rows.forEach((row, i) => {
-        const actName = pick(row, "Actividad (nombre exacto)", "Actividad")?.toString().trim();
-        const supName = pick(row, "Supervisión", "Supervision", "Nombre")?.toString().trim();
+        const actName = pick(row, ...activityAliases)?.toString().trim();
+        const supName = pick(row, ...supervisionAliases, "Nombre")?.toString().trim();
         if (!actName || !supName) return;
-        const parentId = activityMap.get(actName);
+        const parentId = activityMap.get(norm(actName));
         if (!parentId) return;
         items.push({
           id: crypto.randomUUID(), tipo: "supervision", titulo: supName,
-          descripcion: pick(row, "Descripción", "Descripcion")?.toString() || undefined,
+          descripcion: pick(row, ...descriptionAliases)?.toString() || undefined,
           completado: false, orden: i, parentId,
         });
       });
