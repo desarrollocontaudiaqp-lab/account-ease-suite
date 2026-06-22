@@ -14,9 +14,11 @@ import {
   Users, Briefcase, Laptop, Megaphone, Wrench, Landmark, Receipt,
   GraduationCap, Coffee, Crown, TrendingUp, AlertTriangle, Repeat,
   Undo2, ArrowLeft, Calculator, Info, FileText, Wallet, ChevronRight,
+  Search, Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { lookupVerificaPe } from "@/lib/verificaPe";
 
 interface Props {
   open: boolean;
@@ -204,6 +206,7 @@ export function CreateExpenseDialog({ open, onOpenChange, onCreated }: Props) {
   const { categories, subcategories } = useExpenseCategories();
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
 
   useEffect(() => { if (open) setForm(initial); }, [open]);
 
@@ -240,6 +243,40 @@ export function CreateExpenseDialog({ open, onOpenChange, onCreated }: Props) {
   const calcIGV = () => {
     const s = parseFloat(form.subtotal || "0");
     set("igv", (s * 0.18).toFixed(2));
+  };
+
+  const supportsRuc = /ruc/i.test(ux.documentoLabel);
+
+  const handleRucLookup = async () => {
+    const ruc = form.proveedor_documento.trim();
+    if (!/^\d{11}$/.test(ruc)) {
+      toast.error("Ingresa un RUC válido de 11 dígitos");
+      return;
+    }
+    setLookingUp(true);
+    try {
+      const res = await lookupVerificaPe("ruc", ruc);
+      const nombre = res.razon_social || res.nombre;
+      if (!nombre) {
+        toast.warning("No se encontró información para el RUC");
+        return;
+      }
+      setForm((p) => ({
+        ...p,
+        proveedor_nombre: nombre,
+        observaciones: [
+          p.observaciones,
+          res.direccion ? `Dirección: ${res.direccion}` : "",
+          res.estado ? `Estado: ${res.estado}` : "",
+          res.condicion ? `Condición: ${res.condicion}` : "",
+        ].filter(Boolean).join("\n"),
+      }));
+      toast.success("Datos del RUC cargados desde VerificaPe");
+    } catch (e: any) {
+      toast.error("Error consultando RUC: " + e.message);
+    } finally {
+      setLookingUp(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -398,7 +435,28 @@ export function CreateExpenseDialog({ open, onOpenChange, onCreated }: Props) {
                   </div>
                   <div>
                     <Label>{ux.documentoLabel}</Label>
-                    <Input value={form.proveedor_documento} onChange={(e) => set("proveedor_documento", e.target.value)} />
+                    {supportsRuc ? (
+                      <div className="flex gap-2">
+                        <Input
+                          value={form.proveedor_documento}
+                          onChange={(e) => set("proveedor_documento", e.target.value.replace(/\D/g, "").slice(0, 11))}
+                          placeholder="11 dígitos"
+                          inputMode="numeric"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleRucLookup}
+                          disabled={lookingUp || form.proveedor_documento.length !== 11}
+                          title="Consultar RUC en VerificaPe"
+                        >
+                          {lookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    ) : (
+                      <Input value={form.proveedor_documento} onChange={(e) => set("proveedor_documento", e.target.value)} />
+                    )}
                   </div>
                 </div>
               </section>
