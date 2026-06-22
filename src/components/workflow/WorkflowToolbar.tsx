@@ -545,29 +545,58 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     const activityMap = new Map<string, string>();
     const inputMap = new Map<string, string>();
 
-    const wsAct = wb.Sheets["Actividades"];
-    if (!wsAct) throw new Error("Falta hoja 'Actividades'");
-    const actRows: any[] = XLSX.utils.sheet_to_json(wsAct);
+    // Normaliza nombre de hoja (minúsculas, sin acentos, sin espacios) para
+    // soportar variantes como "Actividades", "actividades", "Activities", etc.
+    const norm = (s: string) =>
+      s
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "")
+        .toLowerCase();
+    const findSheet = (...aliases: string[]) => {
+      const wanted = aliases.map(norm);
+      const match = wb.SheetNames.find((n) => wanted.includes(norm(n)));
+      return match ? wb.Sheets[match] : undefined;
+    };
+    const pick = (row: any, ...keys: string[]) => {
+      const wanted = keys.map(norm);
+      for (const k of Object.keys(row)) {
+        if (wanted.includes(norm(k))) {
+          const v = row[k];
+          if (v !== undefined && v !== null && v !== "") return v;
+        }
+      }
+      return undefined;
+    };
+
+    const wsAct = findSheet("Actividades", "Actividad", "Activities");
+    if (!wsAct) {
+      throw new Error(
+        `Falta hoja 'Actividades'. Hojas encontradas: ${wb.SheetNames.join(", ") || "(ninguna)"}`,
+      );
+    }
+    const actRows: any[] = XLSX.utils.sheet_to_json(wsAct, { defval: "" });
     actRows.forEach((row, i) => {
-      const name = row["Actividad"]?.toString().trim();
+      const name = pick(row, "Actividad", "Actividades", "Nombre", "Activity")?.toString().trim();
       if (!name) return;
       const id = crypto.randomUUID();
       activityMap.set(name, id);
       items.push({
         id, tipo: "actividad", titulo: name,
-        descripcion: row["Descripción"]?.toString() || undefined,
+        descripcion: pick(row, "Descripción", "Descripcion", "Description")?.toString() || undefined,
         completado: false, orden: i,
-        fecha_inicio: row["Fecha Inicio (YYYY-MM-DD)"]?.toString() || undefined,
-        fecha_termino: row["Fecha Término (YYYY-MM-DD)"]?.toString() || undefined,
+        fecha_inicio: pick(row, "Fecha Inicio (YYYY-MM-DD)", "Fecha Inicio", "FechaInicio")?.toString() || undefined,
+        fecha_termino: pick(row, "Fecha Término (YYYY-MM-DD)", "Fecha Termino (YYYY-MM-DD)", "Fecha Término", "Fecha Termino", "FechaTermino")?.toString() || undefined,
       });
     });
 
-    const wsInp = wb.Sheets["Inputs"];
+    const wsInp = findSheet("Inputs", "Input");
     if (wsInp) {
-      const rows: any[] = XLSX.utils.sheet_to_json(wsInp);
+      const rows: any[] = XLSX.utils.sheet_to_json(wsInp, { defval: "" });
       rows.forEach((row, i) => {
-        const actName = row["Actividad (nombre exacto)"]?.toString().trim();
-        const inputName = row["Input"]?.toString().trim();
+        const actName = pick(row, "Actividad (nombre exacto)", "Actividad")?.toString().trim();
+        const inputName = pick(row, "Input", "Inputs", "Nombre")?.toString().trim();
         if (!actName || !inputName) return;
         const parentId = activityMap.get(actName);
         if (!parentId) return;
@@ -575,64 +604,64 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
         inputMap.set(`${actName}|${inputName}`, id);
         items.push({
           id, tipo: "input", titulo: inputName,
-          descripcion: row["Descripción"]?.toString() || undefined,
-          enlaceSharepoint: row["Enlace SharePoint"]?.toString() || undefined,
+          descripcion: pick(row, "Descripción", "Descripcion")?.toString() || undefined,
+          enlaceSharepoint: pick(row, "Enlace SharePoint", "Enlace", "SharePoint")?.toString() || undefined,
           completado: false, orden: i, parentId,
         });
       });
     }
 
-    const wsProc = wb.Sheets["Procesos"];
+    const wsProc = findSheet("Procesos", "Proceso", "Tareas");
     if (wsProc) {
-      const rows: any[] = XLSX.utils.sheet_to_json(wsProc);
+      const rows: any[] = XLSX.utils.sheet_to_json(wsProc, { defval: "" });
       rows.forEach((row, i) => {
-        const actName = row["Actividad (nombre exacto)"]?.toString().trim();
-        const inputName = row["Input (nombre exacto)"]?.toString().trim();
-        const subCol = parseInt(row["SubColumna (1, 2 o 3)"]?.toString() || "1") - 1;
-        const taskName = row["Tarea"]?.toString().trim();
+        const actName = pick(row, "Actividad (nombre exacto)", "Actividad")?.toString().trim();
+        const inputName = pick(row, "Input (nombre exacto)", "Input")?.toString().trim();
+        const subCol = parseInt(pick(row, "SubColumna (1, 2 o 3)", "SubColumna", "Columna")?.toString() || "1") - 1;
+        const taskName = pick(row, "Tarea", "Tareas", "Task")?.toString().trim();
         if (!actName || !inputName || !taskName) return;
         const parentId = inputMap.get(`${actName}|${inputName}`);
         if (!parentId) return;
         items.push({
           id: crypto.randomUUID(), tipo: "tarea", titulo: taskName,
-          descripcion: row["Descripción"]?.toString() || undefined,
-          rol: row["Rol"]?.toString() || undefined,
+          descripcion: pick(row, "Descripción", "Descripcion")?.toString() || undefined,
+          rol: pick(row, "Rol", "Role")?.toString() || undefined,
           completado: false, orden: i,
           subColumna: Math.min(Math.max(subCol, 0), 2), parentId,
         });
       });
     }
 
-    const wsOut = wb.Sheets["Outputs"];
+    const wsOut = findSheet("Outputs", "Output");
     if (wsOut) {
-      const rows: any[] = XLSX.utils.sheet_to_json(wsOut);
+      const rows: any[] = XLSX.utils.sheet_to_json(wsOut, { defval: "" });
       rows.forEach((row, i) => {
-        const actName = row["Actividad (nombre exacto)"]?.toString().trim();
-        const outputName = row["Output"]?.toString().trim();
+        const actName = pick(row, "Actividad (nombre exacto)", "Actividad")?.toString().trim();
+        const outputName = pick(row, "Output", "Outputs", "Nombre")?.toString().trim();
         if (!actName || !outputName) return;
         const parentId = activityMap.get(actName);
         if (!parentId) return;
         items.push({
           id: crypto.randomUUID(), tipo: "output", titulo: outputName,
-          descripcion: row["Descripción"]?.toString() || undefined,
-          enlaceSharepoint: row["Enlace SharePoint"]?.toString() || undefined,
+          descripcion: pick(row, "Descripción", "Descripcion")?.toString() || undefined,
+          enlaceSharepoint: pick(row, "Enlace SharePoint", "Enlace", "SharePoint")?.toString() || undefined,
           completado: false, orden: i, parentId,
         });
       });
     }
 
-    const wsSup = wb.Sheets["Supervisión"];
+    const wsSup = findSheet("Supervisión", "Supervision", "Supervisiones");
     if (wsSup) {
-      const rows: any[] = XLSX.utils.sheet_to_json(wsSup);
+      const rows: any[] = XLSX.utils.sheet_to_json(wsSup, { defval: "" });
       rows.forEach((row, i) => {
-        const actName = row["Actividad (nombre exacto)"]?.toString().trim();
-        const supName = row["Supervisión"]?.toString().trim();
+        const actName = pick(row, "Actividad (nombre exacto)", "Actividad")?.toString().trim();
+        const supName = pick(row, "Supervisión", "Supervision", "Nombre")?.toString().trim();
         if (!actName || !supName) return;
         const parentId = activityMap.get(actName);
         if (!parentId) return;
         items.push({
           id: crypto.randomUUID(), tipo: "supervision", titulo: supName,
-          descripcion: row["Descripción"]?.toString() || undefined,
+          descripcion: pick(row, "Descripción", "Descripcion")?.toString() || undefined,
           completado: false, orden: i, parentId,
         });
       });
