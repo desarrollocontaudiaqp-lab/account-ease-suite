@@ -19,6 +19,7 @@ import {
   X,
   LogOut,
   HelpCircle,
+  Wallet,
 } from "lucide-react";
 import logo from "@/assets/logo-ca.png";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,16 @@ const menuItems: SidebarItem[] = [
   { title: "Carteras", icon: Briefcase, path: "/carteras" },
   { title: "Calendario Pagos", icon: Calendar, path: "/calendario-pagos" },
   { title: "WorkFlow", icon: Workflow, path: "/calendario-trabajo" },
+  {
+    title: "Egresos",
+    icon: Wallet,
+    path: "/egresos",
+    children: [
+      { title: "Registro de Egresos", path: "/egresos" },
+      { title: "Categorías", path: "/egresos/categorias" },
+      { title: "Reportes", path: "/egresos/reportes" },
+    ],
+  },
   {
     title: "Reportes",
     icon: BarChart3,
@@ -162,7 +173,7 @@ export function AppSidebar() {
             Menú Principal
           </p>
         )}
-        {menuItems.slice(0, 8).map((item, index) => {
+        {menuItems.slice(0, 9).map((item, index) => {
           const Icon = item.icon;
           const hasChildren = item.children && item.children.length > 0;
           const isExpanded = expandedItems.includes(item.title);
@@ -260,7 +271,7 @@ export function AppSidebar() {
               ADM
             </p>
           )}
-          {menuItems.slice(8).map((item) => {
+          {menuItems.slice(9).map((item) => {
             const Icon = item.icon;
             
             if (isCollapsed) {
