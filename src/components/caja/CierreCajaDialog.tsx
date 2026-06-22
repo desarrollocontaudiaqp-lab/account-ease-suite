@@ -156,11 +156,13 @@ export function CierreCajaDialog({ open, onClose, tipo, onSaved, anio, mes }: Pr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
-            Cierre de Caja {tipo === "diario" ? "Diario" : "Parcial"}
+            Cierre de Caja {tipo === "diario" ? "Diario" : tipo === "mensual" ? "Mensual" : "Parcial"}
           </DialogTitle>
           <DialogDescription>
             {tipo === "diario"
               ? `Consolida todos los movimientos del día ${fechaISO}.`
+              : tipo === "mensual"
+              ? `Consolida todos los movimientos del mes ${pad(mes || 0)}/${anio}.`
               : `Movimientos desde las 00:00 hasta ${horaFin.toLocaleTimeString("es-PE")} del ${fechaISO}.`}
           </DialogDescription>
         </DialogHeader>
