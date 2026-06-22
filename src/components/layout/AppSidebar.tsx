@@ -19,6 +19,7 @@ import {
   X,
   LogOut,
   HelpCircle,
+  Wallet,
 } from "lucide-react";
 import logo from "@/assets/logo-ca.png";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,16 @@ const menuItems: SidebarItem[] = [
   { title: "Carteras", icon: Briefcase, path: "/carteras" },
   { title: "Calendario Pagos", icon: Calendar, path: "/calendario-pagos" },
   { title: "WorkFlow", icon: Workflow, path: "/calendario-trabajo" },
+  {
+    title: "Egresos",
+    icon: Wallet,
+    path: "/egresos",
+    children: [
+      { title: "Registro de Egresos", path: "/egresos" },
+      { title: "Categorías", path: "/egresos/categorias" },
+      { title: "Reportes", path: "/egresos/reportes" },
+    ],
+  },
   {
     title: "Reportes",
     icon: BarChart3,
