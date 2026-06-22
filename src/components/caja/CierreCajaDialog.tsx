@@ -11,13 +11,15 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSedeContext } from "@/hooks/useSedeContext";
 
-type Tipo = "parcial" | "diario";
+type Tipo = "parcial" | "diario" | "mensual";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   tipo: Tipo;
   onSaved: () => void;
+  anio?: number;
+  mes?: number;
 }
 
 const fmt = (n: number, c = "PEN") =>
