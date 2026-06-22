@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { CheckSquare, Loader2, Eye } from "lucide-react";
+import { CheckSquare, Loader2, Eye, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,6 +9,7 @@ import { ExpenseStatusBadge } from "@/components/egresos/ExpenseStatusBadge";
 import { ExpenseDetailModal } from "@/components/egresos/ExpenseDetailModal";
 import { BlurredValue } from "@/components/ui/BlurredValue";
 import { useAuth } from "@/hooks/useAuth";
+import { useSystemConfig } from "@/hooks/useSystemConfig";
 
 const formatDate = (s: string | null) => {
   if (!s) return "—";
@@ -22,6 +23,8 @@ const EgresosAprobaciones = () => {
   const { expenses, loading, refresh } = useExpenses();
   const { categories } = useExpenseCategories();
   const { role } = useAuth();
+  const { config } = useSystemConfig();
+  const approvalEnabled = config.expense_approval_enabled;
   const isApprover = role === "administrador" || role === "gerente";
   const [detail, setDetail] = useState<Expense | null>(null);
 
@@ -45,6 +48,22 @@ const EgresosAprobaciones = () => {
           Cola de egresos pendientes de aprobación
         </p>
       </div>
+
+      {!approvalEnabled && (
+        <Card className="p-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold text-amber-800 dark:text-amber-200">
+                Aprobación de egresos deshabilitada
+              </p>
+              <p className="text-amber-700 dark:text-amber-300 mt-1">
+                Los egresos se aprueban automáticamente al registrarse. Esta cola permanecerá vacía mientras el flujo de aprobación esté desactivado en Configuración → Sistema.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4">
