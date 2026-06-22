@@ -204,6 +204,7 @@ const initial = {
 
 export function CreateExpenseDialog({ open, onOpenChange, onCreated }: Props) {
   const { user } = useAuth();
+  const { config } = useSystemConfig();
   const { categories, subcategories } = useExpenseCategories();
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
