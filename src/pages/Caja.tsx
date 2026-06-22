@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Banknote, Calendar, CalendarIcon, Eye, Loader2, Wallet, Download, Save, PiggyBank } from "lucide-react";
+import { Banknote, Calendar, CalendarIcon, Eye, Loader2, Wallet, Download, Save, PiggyBank, CalendarRange } from "lucide-react";
 import { format, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useCajaCierres, type CajaCierre } from "@/hooks/useCajaCierres";
 import { CierreCajaDialog } from "@/components/caja/CierreCajaDialog";
@@ -43,7 +44,7 @@ const Caja = () => {
     egresosMes,
     saveSaldoInicial,
   } = useCajaCierres();
-  const [openDialog, setOpenDialog] = useState<null | "parcial" | "diario">(null);
+  const [openDialog, setOpenDialog] = useState<null | "parcial" | "diario" | "mensual">(null);
   const [detail, setDetail] = useState<CajaCierre | null>(null);
   const [saldoInput, setSaldoInput] = useState<string>("");
   const [saldoObs, setSaldoObs] = useState<string>("");
@@ -53,6 +54,22 @@ const Caja = () => {
   const toLocalISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const fechaDate = parse(fecha, "yyyy-MM-dd", new Date());
   const mesLabel = format(fechaDate, "MMMM yyyy", { locale: es });
+  const anioActual = fechaDate.getFullYear();
+  const mesActual = fechaDate.getMonth() + 1;
+  const aniosDisponibles = useMemo(() => {
+    const cur = new Date().getFullYear();
+    return [cur - 2, cur - 1, cur, cur + 1];
+  }, []);
+  const meses = [
+    "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+    "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
+  ];
+  const handleMesChange = (m: string) => {
+    setFecha(`${anioActual}-${pad(Number(m))}-01`);
+  };
+  const handleAnioChange = (a: string) => {
+    setFecha(`${a}-${pad(mesActual)}-01`);
+  };
 
   // sync input when month/saldo changes
   useEffect(() => {
@@ -130,6 +147,22 @@ const Caja = () => {
           <p className="text-sm text-muted-foreground">Cierres de caja parciales y diarios con ingresos y egresos del día</p>
         </div>
         <div className="flex gap-2">
+          <Select value={String(mesActual)} onValueChange={handleMesChange}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {meses.map((nombre, i) => (
+                <SelectItem key={i} value={String(i + 1)}>{nombre}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={String(anioActual)} onValueChange={handleAnioChange}>
+            <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {aniosDisponibles.map((a) => (
+                <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className={cn("justify-start text-left font-normal")}>
@@ -151,8 +184,11 @@ const Caja = () => {
           <Button variant="outline" onClick={() => setOpenDialog("parcial")}>
             <Wallet className="h-4 w-4 mr-2" /> Cierre Parcial
           </Button>
-          <Button onClick={() => setOpenDialog("diario")}>
+          <Button variant="outline" onClick={() => setOpenDialog("diario")}>
             <Calendar className="h-4 w-4 mr-2" /> Cierre Diario
+          </Button>
+          <Button onClick={() => setOpenDialog("mensual")}>
+            <CalendarRange className="h-4 w-4 mr-2" /> Cierre Mensual
           </Button>
         </div>
       </div>
@@ -290,6 +326,8 @@ const Caja = () => {
           tipo={openDialog}
           onClose={() => setOpenDialog(null)}
           onSaved={refresh}
+          anio={anioActual}
+          mes={mesActual}
         />
       )}
 

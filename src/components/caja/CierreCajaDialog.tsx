@@ -11,13 +11,15 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSedeContext } from "@/hooks/useSedeContext";
 
-type Tipo = "parcial" | "diario";
+type Tipo = "parcial" | "diario" | "mensual";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   tipo: Tipo;
   onSaved: () => void;
+  anio?: number;
+  mes?: number;
 }
 
 const fmt = (n: number, c = "PEN") =>
@@ -27,7 +29,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const toLocalISO = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-export function CierreCajaDialog({ open, onClose, tipo, onSaved }: Props) {
+export function CierreCajaDialog({ open, onClose, tipo, onSaved, anio, mes }: Props) {
   const { user } = useAuth();
   const { activeSedeId } = useSedeContext();
   const [loading, setLoading] = useState(false);
@@ -36,26 +38,34 @@ export function CierreCajaDialog({ open, onClose, tipo, onSaved }: Props) {
   const [egresos, setEgresos] = useState<any[]>([]);
   const [obs, setObs] = useState("");
 
-  // Window: cierre diario = todo el día; parcial = desde 00:00 hasta ahora
+  // Window: diario = día; parcial = 00:00→ahora; mensual = mes completo
   const { horaInicio, horaFin, fechaISO } = useMemo(() => {
     const now = new Date();
+    if (tipo === "mensual" && anio && mes) {
+      const start = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
+      const end = new Date(anio, mes, 0, 23, 59, 59, 999);
+      return { horaInicio: start, horaFin: end, fechaISO: toLocalISO(end) };
+    }
     const start = new Date(now);
     start.setHours(0, 0, 0, 0);
     const end = tipo === "diario" ? (() => { const d = new Date(now); d.setHours(23, 59, 59, 999); return d; })() : now;
     return { horaInicio: start, horaFin: end, fechaISO: toLocalISO(now) };
-  }, [tipo, open]);
+  }, [tipo, open, anio, mes]);
 
   useEffect(() => {
     if (!open) return;
     (async () => {
       setLoading(true);
       try {
-        // INGRESOS: pagos con status 'pagado' cuya fecha_pago = hoy
+        const startISO = toLocalISO(horaInicio);
+        const endISO = toLocalISO(horaFin);
+        // INGRESOS: pagos 'pagado' dentro del rango
         let pagosQ: any = supabase
           .from("pagos")
           .select(`id, monto, fecha_pago, metodo_pago, referencia, status, contrato:contratos(numero, sede_id, cliente:clientes(razon_social))`)
           .eq("status", "pagado")
-          .eq("fecha_pago", fechaISO);
+          .gte("fecha_pago", startISO)
+          .lte("fecha_pago", endISO);
         const { data: pagosData, error: pErr } = await pagosQ;
         if (pErr) throw pErr;
         let ing = (pagosData || []) as any[];
@@ -146,11 +156,13 @@ export function CierreCajaDialog({ open, onClose, tipo, onSaved }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
-            Cierre de Caja {tipo === "diario" ? "Diario" : "Parcial"}
+            Cierre de Caja {tipo === "diario" ? "Diario" : tipo === "mensual" ? "Mensual" : "Parcial"}
           </DialogTitle>
           <DialogDescription>
             {tipo === "diario"
               ? `Consolida todos los movimientos del día ${fechaISO}.`
+              : tipo === "mensual"
+              ? `Consolida todos los movimientos del mes ${pad(mes || 0)}/${anio}.`
               : `Movimientos desde las 00:00 hasta ${horaFin.toLocaleTimeString("es-PE")} del ${fechaISO}.`}
           </DialogDescription>
         </DialogHeader>
