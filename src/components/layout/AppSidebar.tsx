@@ -20,6 +20,7 @@ import {
   LogOut,
   HelpCircle,
   Wallet,
+  Banknote,
 } from "lucide-react";
 import logo from "@/assets/logo-ca.png";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,7 @@ const menuItems: SidebarItem[] = [
       { title: "Reportes", path: "/egresos/reportes" },
     ],
   },
+  { title: "Caja", icon: Banknote, path: "/caja" },
   {
     title: "Reportes",
     icon: BarChart3,
