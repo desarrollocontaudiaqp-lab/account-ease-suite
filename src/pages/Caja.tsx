@@ -98,6 +98,24 @@ const Caja = () => {
           <p className="text-sm text-muted-foreground">Cierres de caja parciales y diarios con ingresos y egresos del día</p>
         </div>
         <div className="flex gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("justify-start text-left font-normal")}>
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                {format(fechaDate, "PPP", { locale: es })}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <CalendarPicker
+                mode="single"
+                selected={fechaDate}
+                onSelect={(d) => d && setFecha(toLocalISO(d))}
+                initialFocus
+                locale={es}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
           <Button variant="outline" onClick={() => setOpenDialog("parcial")}>
             <Wallet className="h-4 w-4 mr-2" /> Cierre Parcial
           </Button>
