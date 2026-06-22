@@ -1,14 +1,15 @@
 import { useState, useMemo } from "react";
-import { Plus, Search, Wallet, Loader2, CheckCircle2, Clock, Trash2 } from "lucide-react";
+import { Plus, Search, Wallet, Loader2, CheckCircle2, Clock, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useExpenses } from "@/hooks/useExpenses";
+import { useExpenses, type Expense } from "@/hooks/useExpenses";
 import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { ExpenseStatusBadge } from "@/components/egresos/ExpenseStatusBadge";
 import { CreateExpenseDialog } from "@/components/egresos/CreateExpenseDialog";
+import { ExpenseDetailModal } from "@/components/egresos/ExpenseDetailModal";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ const Egresos = () => {
   const isAdmin = role === "administrador" || role === "gerente";
 
   const [openCreate, setOpenCreate] = useState(false);
+  const [detail, setDetail] = useState<Expense | null>(null);
   const [search, setSearch] = useState("");
   const [estado, setEstado] = useState("all");
   const [categoria, setCategoria] = useState("all");
@@ -168,11 +170,16 @@ const Egresos = () => {
                     <TableCell className="text-right font-semibold"><BlurredValue>{fmtMoney(Number(e.total), e.moneda)}</BlurredValue></TableCell>
                     <TableCell><ExpenseStatusBadge estado={e.estado} /></TableCell>
                     <TableCell className="text-right">
-                      {isAdmin && (
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(e.id, e.codigo)}>
-                          <Trash2 className="h-4 w-4 text-rose-600" />
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="outline" size="sm" onClick={() => setDetail(e)}>
+                          <Eye className="h-3.5 w-3.5 mr-1" /> Ver detalle
                         </Button>
-                      )}
+                        {isAdmin && e.estado !== "pagado" && (
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(e.id, e.codigo)}>
+                            <Trash2 className="h-4 w-4 text-rose-600" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -183,6 +190,12 @@ const Egresos = () => {
       </Card>
 
       <CreateExpenseDialog open={openCreate} onOpenChange={setOpenCreate} onCreated={refresh} />
+      <ExpenseDetailModal
+        expense={detail}
+        open={!!detail}
+        onOpenChange={(o) => { if (!o) setDetail(null); }}
+        onChanged={() => { refresh(); }}
+      />
     </div>
   );
 };
