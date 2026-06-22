@@ -60,14 +60,14 @@ const Caja = () => {
       autoTable(doc, {
         head: [["Cliente", "Contrato", "Método", "Referencia", "Monto"]],
         body: ing.map((x: any) => [x.cliente || "—", x.contrato || "—", x.metodo_pago || "—", x.referencia || "—", fmt(Number(x.monto))]),
-        didDrawPage: (data) => doc.text("Detalle de Ingresos", 14, data.settings.startY ? data.settings.startY - 4 : 10),
+        didDrawPage: (data) => { doc.text("Detalle de Ingresos", 14, data.settings.startY ? Number(data.settings.startY) - 4 : 10); },
       });
     }
     if (eg.length) {
       autoTable(doc, {
         head: [["Código", "Proveedor", "Método", "Descripción", "Total"]],
         body: eg.map((x: any) => [x.codigo || "—", x.proveedor || "—", x.metodo_pago || "—", x.descripcion || "—", fmt(Number(x.total))]),
-        didDrawPage: (data) => doc.text("Detalle de Egresos", 14, data.settings.startY ? data.settings.startY - 4 : 10),
+        didDrawPage: (data) => { doc.text("Detalle de Egresos", 14, data.settings.startY ? Number(data.settings.startY) - 4 : 10); },
       });
     }
     if (c.observaciones) {
