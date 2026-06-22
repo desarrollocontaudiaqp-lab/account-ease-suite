@@ -29,7 +29,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const toLocalISO = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-export function CierreCajaDialog({ open, onClose, tipo, onSaved }: Props) {
+export function CierreCajaDialog({ open, onClose, tipo, onSaved, anio, mes }: Props) {
   const { user } = useAuth();
   const { activeSedeId } = useSedeContext();
   const [loading, setLoading] = useState(false);
@@ -38,14 +38,19 @@ export function CierreCajaDialog({ open, onClose, tipo, onSaved }: Props) {
   const [egresos, setEgresos] = useState<any[]>([]);
   const [obs, setObs] = useState("");
 
-  // Window: cierre diario = todo el día; parcial = desde 00:00 hasta ahora
+  // Window: diario = día; parcial = 00:00→ahora; mensual = mes completo
   const { horaInicio, horaFin, fechaISO } = useMemo(() => {
     const now = new Date();
+    if (tipo === "mensual" && anio && mes) {
+      const start = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
+      const end = new Date(anio, mes, 0, 23, 59, 59, 999);
+      return { horaInicio: start, horaFin: end, fechaISO: toLocalISO(end) };
+    }
     const start = new Date(now);
     start.setHours(0, 0, 0, 0);
     const end = tipo === "diario" ? (() => { const d = new Date(now); d.setHours(23, 59, 59, 999); return d; })() : now;
     return { horaInicio: start, horaFin: end, fechaISO: toLocalISO(now) };
-  }, [tipo, open]);
+  }, [tipo, open, anio, mes]);
 
   useEffect(() => {
     if (!open) return;
