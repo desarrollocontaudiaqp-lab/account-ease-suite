@@ -271,7 +271,7 @@ export function CreateExpenseDialog({ open, onOpenChange, onCreated }: Props) {
           res.condicion ? `Condición: ${res.condicion}` : "",
         ].filter(Boolean).join("\n"),
       }));
-      toast.success("Datos del RUC cargados desde VerificaPe");
+      toast.success("Datos del RUC cargados");
     } catch (e: any) {
       toast.error("Error consultando RUC: " + e.message);
     } finally {
