@@ -173,7 +173,7 @@ export function AppSidebar() {
             Menú Principal
           </p>
         )}
-        {menuItems.slice(0, 8).map((item, index) => {
+        {menuItems.slice(0, 9).map((item, index) => {
           const Icon = item.icon;
           const hasChildren = item.children && item.children.length > 0;
           const isExpanded = expandedItems.includes(item.title);
@@ -271,7 +271,7 @@ export function AppSidebar() {
               ADM
             </p>
           )}
-          {menuItems.slice(8).map((item) => {
+          {menuItems.slice(9).map((item) => {
             const Icon = item.icon;
             
             if (isCollapsed) {
