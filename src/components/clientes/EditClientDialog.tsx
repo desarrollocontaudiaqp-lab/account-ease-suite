@@ -141,9 +141,9 @@ export function EditClientDialog({
       }
       if (result.direccion) setValue("direccion", result.direccion);
       if (result.actividad_economica) setValue("actividad_economica", result.actividad_economica);
-      toast.success("Datos obtenidos de VerificaPe");
+      toast.success("Consulta realizada con éxito");
     } catch (e: any) {
-      toast.error("VerificaPe: " + (e?.message || "error desconocido"));
+      toast.error("No se pudo completar la consulta: " + (e?.message || "error desconocido"));
     } finally {
       setLookupLoading(false);
     }
