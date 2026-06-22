@@ -290,7 +290,7 @@ export function CreateExpenseDialog({ open, onOpenChange, onCreated }: Props) {
       if (cErr) throw cErr;
       const payload: any = {
         codigo,
-        estado: "borrador",
+        estado: config.expense_approval_enabled ? "borrador" : "aprobado",
         fecha_egreso: form.fecha_egreso,
         fecha_emision: form.fecha_emision || null,
         proveedor_nombre: form.proveedor_nombre.trim(),
@@ -314,6 +314,10 @@ export function CreateExpenseDialog({ open, onOpenChange, onCreated }: Props) {
         observaciones: form.observaciones || null,
         created_by: user?.id,
       };
+      if (!config.expense_approval_enabled) {
+        payload.approved_by = user?.id;
+        payload.approved_at = new Date().toISOString();
+      }
       const { error } = await (supabase as any).from("expenses").insert(payload);
       if (error) throw error;
       toast.success(`Egreso ${codigo} creado`);
