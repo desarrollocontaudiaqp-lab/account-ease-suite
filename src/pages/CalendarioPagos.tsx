@@ -1262,6 +1262,11 @@ export default function CalendarioPagos() {
         contractPayments={selectedContractPayments}
         formatCurrency={formatCurrency}
       />
+
+      <WorkflowBibliotecaDialog
+        open={bibliotecaOpen}
+        onOpenChange={setBibliotecaOpen}
+      />
     </div>
   );
 }
