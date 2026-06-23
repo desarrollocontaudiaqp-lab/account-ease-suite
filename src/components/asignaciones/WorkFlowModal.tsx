@@ -268,6 +268,31 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros, tipoWork
   const loadWorkflow = async () => {
     setLoading(true);
     try {
+      // 0. Biblioteca: load from workflow_biblioteca table
+      if (tipoWorkflow === "biblioteca") {
+        if (workflowIdOverride) {
+          const { data, error } = await supabase
+            .from("workflow_biblioteca" as any)
+            .select("id, codigo, created_at, items")
+            .eq("id", workflowIdOverride)
+            .maybeSingle();
+          if (error) throw error;
+          if (data) {
+            setWorkflowData({
+              id: (data as any).id,
+              codigo: (data as any).codigo,
+              fecha_creacion: (data as any).created_at,
+            });
+            setItems((((data as any).items as unknown) as WorkFlowItem[]) || []);
+          }
+        } else {
+          setItems(initialItems || []);
+          setWorkflowData(null);
+        }
+        setLoading(false);
+        return;
+      }
+
       // 1. If we have an override workflow ID (opening an existing workflow / template), load by ID
       if (workflowIdOverride) {
         const { data, error } = await supabase
