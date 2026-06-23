@@ -69,6 +69,7 @@ import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { useSedeContext } from "@/hooks/useSedeContext";
+import { WorkflowBibliotecaDialog } from "@/components/workflow/WorkflowBibliotecaDialog";
 
 type DateFilterType = "Hoy" | "Semana Actual" | "Mes Actual" | "Mes" | "Año" | "Todo";
 
