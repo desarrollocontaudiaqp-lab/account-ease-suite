@@ -499,6 +499,10 @@ const Asignaciones = () => {
             <RefreshCw className="h-4 w-4" />
             Actualizar
           </Button>
+          <Button variant="outline" onClick={() => setBibliotecaOpen(true)} className="gap-2">
+            <Library className="h-4 w-4" />
+            Biblioteca de Workflows
+          </Button>
         </div>
       </div>
 
