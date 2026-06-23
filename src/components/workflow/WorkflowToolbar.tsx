@@ -1358,6 +1358,20 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
           Abrir
         </Button>
 
+        <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => setBibliotecaOpen(true)}>
+          <Library className="h-3.5 w-3.5" />
+          Biblioteca
+        </Button>
+
+        <label htmlFor="workflow-import-input">
+          <Button asChild variant="outline" size="sm" className="gap-1.5 h-8 cursor-pointer">
+            <span>
+              {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileUp className="h-3.5 w-3.5" />}
+              Importar a Biblioteca
+            </span>
+          </Button>
+        </label>
+
         <input
           id="workflow-import-input"
           type="file"
@@ -1366,6 +1380,12 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
           onChange={handleImportExcel}
         />
       </div>
+
+      <WorkflowBibliotecaDialog
+        open={bibliotecaOpen}
+        onOpenChange={setBibliotecaOpen}
+        onAssigned={onRefresh}
+      />
 
       {/* ============= NUEVO: SELECT MODE ============= */}
       <Dialog open={newMode === "select"} onOpenChange={(o) => { if (!o) setNewMode(null); }}>
