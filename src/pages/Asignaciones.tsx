@@ -1082,6 +1082,12 @@ const Asignaciones = () => {
           miembros={selectedCarteraMiembros}
         />
       )}
+
+      <WorkflowBibliotecaDialog
+        open={bibliotecaOpen}
+        onOpenChange={setBibliotecaOpen}
+        onAssigned={fetchData}
+      />
     </div>
   );
 };
