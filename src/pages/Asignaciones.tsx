@@ -167,6 +167,7 @@ const Asignaciones = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
+  const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
   const [selectedContrato, setSelectedContrato] = useState<ContratoAsignado | null>(null);
   const [selectedCarteraId, setSelectedCarteraId] = useState<string>("");
   const [saving, setSaving] = useState(false);
