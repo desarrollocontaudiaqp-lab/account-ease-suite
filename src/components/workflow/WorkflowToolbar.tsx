@@ -498,48 +498,35 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
   // ============= EXCEL TEMPLATE =============
   const downloadTemplate = () => {
     const wb = XLSX.utils.book_new();
-    const actData = [
-      ["Actividad", "Descripción", "Fecha Inicio (YYYY-MM-DD)", "Fecha Término (YYYY-MM-DD)"],
-      ["Creación de Carpeta", "Organización inicial del expediente", "", ""],
+    const headers = [
+      "ID_WorkFlow", "orden", "tipo", "id_local", "parentId", "subColumna",
+      "titulo", "descripcion", "asignado_email", "rol",
+      "fecha_inicio", "fecha_termino", "fecha_vencimiento",
+      "progreso", "completado", "conexiones", "enlaceSharepoint",
     ];
-    const wsAct = XLSX.utils.aoa_to_sheet(actData);
-    wsAct["!cols"] = [{ wch: 30 }, { wch: 45 }, { wch: 22 }, { wch: 22 }];
-    XLSX.utils.book_append_sheet(wb, wsAct, "Actividades");
-
-    const inpData = [
-      ["Actividad (nombre exacto)", "Input", "Descripción", "Enlace SharePoint"],
-      ["Creación de Carpeta", "Documentos de constitución", "Recopilar documentos legales", ""],
+    const sample = [
+      // Workflow WF1 - sample with one activity
+      ["WF1", 1, "actividad", "A1", "", "", "Creación de Carpeta", "Organización inicial", "", "", "2026-01-01", "2026-01-15", "", 0, "false", "", ""],
+      ["WF1", 2, "input", "I1.1", "A1", "", "Documentos de constitución", "Recopilar legales", "", "", "", "", "", 0, "false", "", ""],
+      ["WF1", 3, "tarea", "T1.1", "I1.1", 1, "Verificar documentos", "Revisar completitud", "", "Asistente", "", "", "", 0, "false", "", ""],
+      ["WF1", 4, "output", "O1.1", "A1", "", "Carpeta digital organizada", "", "", "", "", "", "", 0, "false", "T1.1", ""],
+      ["WF1", 5, "supervision", "S1.1", "A1", "", "Verificar carpeta", "", "", "", "", "", "", 0, "false", "", ""],
+      // Workflow WF2 - another independent workflow
+      ["WF2", 1, "actividad", "A1", "", "", "Declaración Mensual", "Declaración SUNAT", "", "", "2026-02-01", "2026-02-15", "", 0, "false", "", ""],
+      ["WF2", 2, "input", "I1.1", "A1", "", "Libros contables", "", "", "", "", "", "", 0, "false", "", ""],
+      ["WF2", 3, "tarea", "T1.1", "I1.1", 1, "Procesar libros", "", "", "Contador", "", "", "", 0, "false", "", ""],
+      ["WF2", 4, "output", "O1.1", "A1", "", "PDT presentado", "", "", "", "", "", "", 0, "false", "T1.1", ""],
     ];
-    const wsInp = XLSX.utils.aoa_to_sheet(inpData);
-    wsInp["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 45 }, { wch: 40 }];
-    XLSX.utils.book_append_sheet(wb, wsInp, "Inputs");
-
-    const procData = [
-      ["Actividad (nombre exacto)", "Input (nombre exacto)", "SubColumna (1, 2 o 3)", "Tarea", "Descripción", "Rol"],
-      ["Creación de Carpeta", "Documentos de constitución", "1", "Verificar documentos", "Revisar completitud", "Asistente"],
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
+    ws["!cols"] = [
+      { wch: 14 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+      { wch: 32 }, { wch: 40 }, { wch: 28 }, { wch: 16 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 18 }, { wch: 40 },
     ];
-    const wsProc = XLSX.utils.aoa_to_sheet(procData);
-    wsProc["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 18 }, { wch: 30 }, { wch: 40 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(wb, wsProc, "Procesos");
-
-    const outData = [
-      ["Actividad (nombre exacto)", "Output", "Descripción", "Enlace SharePoint"],
-      ["Creación de Carpeta", "Carpeta digital organizada", "", ""],
-    ];
-    const wsOut = XLSX.utils.aoa_to_sheet(outData);
-    wsOut["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 45 }, { wch: 40 }];
-    XLSX.utils.book_append_sheet(wb, wsOut, "Outputs");
-
-    const supData = [
-      ["Actividad (nombre exacto)", "Supervisión", "Descripción"],
-      ["Creación de Carpeta", "Verificar carpeta completa", ""],
-    ];
-    const wsSup = XLSX.utils.aoa_to_sheet(supData);
-    wsSup["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 50 }];
-    XLSX.utils.book_append_sheet(wb, wsSup, "Supervisión");
+    XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
 
     XLSX.writeFile(wb, "Plantilla_Workflow.xlsx");
-    toast.success("Plantilla descargada");
+    toast.success("Plantilla descargada. Usa la columna ID_WorkFlow para separar varios workflows.");
   };
 
   const parseExcelToItems = async (file: File): Promise<WorkflowItem[]> => {
