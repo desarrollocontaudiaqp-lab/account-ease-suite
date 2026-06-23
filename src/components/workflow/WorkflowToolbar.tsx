@@ -150,6 +150,9 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
   const [importTargetContratoId, setImportTargetContratoId] = useState("");
   const [applyingTemplate, setApplyingTemplate] = useState(false);
 
+  // ===== Biblioteca =====
+  const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
+
   // ============= LOADERS =============
   const loadContratos = async () => {
     if (contratos.length > 0) return;
