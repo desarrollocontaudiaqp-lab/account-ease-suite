@@ -18,6 +18,7 @@ import {
   Users,
   RefreshCw,
   Workflow,
+  Library,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,7 @@ import { ContractDetailModal } from "@/components/contratos/ContractDetailModal"
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
+import { WorkflowBibliotecaDialog } from "@/components/workflow/WorkflowBibliotecaDialog";
 import { useSedeContext } from "@/hooks/useSedeContext";
 
 type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
