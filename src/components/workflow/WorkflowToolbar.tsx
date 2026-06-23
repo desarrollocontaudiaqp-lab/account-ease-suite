@@ -956,16 +956,40 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     if (!file) return;
     setImporting(true);
     try {
-      const items = await parseExcelToItems(file);
-      if (items.length === 0) {
-        toast.error("No se encontraron datos en el archivo");
+      const groups = await parseExcelToBibliotecaGroups(file);
+      if (groups.length === 0) {
+        toast.error("No se encontraron workflows en el archivo. Verifica la columna ID_WorkFlow.");
         setImporting(false);
         return;
       }
-      await loadContratos();
-      setImportedItems(items);
-      setShowImportApplyDialog(true);
-      toast.success(`Se importaron ${items.length} elementos`);
+      // Save each group to workflow_biblioteca
+      const { data: userData } = await supabase.auth.getUser();
+      let inserted = 0;
+      const errors: string[] = [];
+      for (const g of groups) {
+        try {
+          const { data: codeData, error: codeError } = await supabase.rpc("get_next_biblioteca_code" as any);
+          if (codeError) throw codeError;
+          const { error: insErr } = await supabase.from("workflow_biblioteca" as any).insert({
+            codigo: codeData as string,
+            nombre: g.nombre,
+            descripcion: g.descripcion,
+            id_workflow_origen: g.idWorkflow,
+            items: g.items as any,
+            created_by: userData?.user?.id,
+          } as any);
+          if (insErr) throw insErr;
+          inserted++;
+        } catch (err: any) {
+          console.error("Error saving biblioteca workflow", g.idWorkflow, err);
+          errors.push(g.idWorkflow);
+        }
+      }
+      if (inserted > 0) {
+        toast.success(`${inserted} workflow${inserted === 1 ? "" : "s"} agregado${inserted === 1 ? "" : "s"} a la Biblioteca`);
+        setBibliotecaOpen(true);
+      }
+      if (errors.length > 0) toast.error(`Errores al guardar: ${errors.join(", ")}`);
     } catch (err: unknown) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Error al importar");
