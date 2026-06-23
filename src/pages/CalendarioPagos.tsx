@@ -213,6 +213,7 @@ export default function CalendarioPagos() {
 
   // Contract calendar modal state
   const [contractCalendarOpen, setContractCalendarOpen] = useState(false);
+  const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
   const [selectedContractPayments, setSelectedContractPayments] = useState<UnifiedPayment[]>([]);
 
   const handleViewContractCalendar = (payment: UnifiedPayment) => {
