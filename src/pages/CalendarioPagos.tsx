@@ -21,6 +21,7 @@ import {
   CalendarDays,
   Bell,
   Receipt,
+  Library,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ import { usePaymentNotifications } from "@/hooks/usePaymentNotifications";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { useSedeContext } from "@/hooks/useSedeContext";
+import { WorkflowBibliotecaDialog } from "@/components/workflow/WorkflowBibliotecaDialog";
 
 type DateFilterType = "Hoy" | "Semana Actual" | "Mes Actual" | "Mes" | "Año" | "Todo";
 
@@ -211,6 +213,7 @@ export default function CalendarioPagos() {
 
   // Contract calendar modal state
   const [contractCalendarOpen, setContractCalendarOpen] = useState(false);
+  const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
   const [selectedContractPayments, setSelectedContractPayments] = useState<UnifiedPayment[]>([]);
 
   const handleViewContractCalendar = (payment: UnifiedPayment) => {
@@ -607,6 +610,10 @@ export default function CalendarioPagos() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          <Button variant="outline" onClick={() => setBibliotecaOpen(true)} className="gap-2">
+            <Library className="h-4 w-4" />
+            Biblioteca de Workflows
+          </Button>
         </div>
       </div>
 
@@ -1254,6 +1261,11 @@ export default function CalendarioPagos() {
         onOpenChange={setContractCalendarOpen}
         contractPayments={selectedContractPayments}
         formatCurrency={formatCurrency}
+      />
+
+      <WorkflowBibliotecaDialog
+        open={bibliotecaOpen}
+        onOpenChange={setBibliotecaOpen}
       />
     </div>
   );

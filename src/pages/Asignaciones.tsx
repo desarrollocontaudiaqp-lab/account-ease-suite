@@ -18,6 +18,7 @@ import {
   Users,
   RefreshCw,
   Workflow,
+  Library,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,7 @@ import { ContractDetailModal } from "@/components/contratos/ContractDetailModal"
 import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
+import { WorkflowBibliotecaDialog } from "@/components/workflow/WorkflowBibliotecaDialog";
 import { useSedeContext } from "@/hooks/useSedeContext";
 
 type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
@@ -165,6 +167,7 @@ const Asignaciones = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
+  const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
   const [selectedContrato, setSelectedContrato] = useState<ContratoAsignado | null>(null);
   const [selectedCarteraId, setSelectedCarteraId] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -495,6 +498,10 @@ const Asignaciones = () => {
           <Button variant="outline" onClick={fetchData} className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Actualizar
+          </Button>
+          <Button variant="outline" onClick={() => setBibliotecaOpen(true)} className="gap-2">
+            <Library className="h-4 w-4" />
+            Biblioteca de Workflows
           </Button>
         </div>
       </div>
@@ -1075,6 +1082,12 @@ const Asignaciones = () => {
           miembros={selectedCarteraMiembros}
         />
       )}
+
+      <WorkflowBibliotecaDialog
+        open={bibliotecaOpen}
+        onOpenChange={setBibliotecaOpen}
+        onAssigned={fetchData}
+      />
     </div>
   );
 };

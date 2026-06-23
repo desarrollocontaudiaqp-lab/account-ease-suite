@@ -107,9 +107,9 @@ interface WorkFlowModalProps {
   onOpenChange: (open: boolean) => void;
   contrato: ContratoWorkflow;
   miembros: MiembroCartera[];
-  /** 'asignado' (default) o 'plantilla' */
-  tipoWorkflow?: "asignado" | "plantilla";
-  /** Nombre de la plantilla (sólo cuando tipoWorkflow='plantilla') */
+  /** 'asignado' (default), 'plantilla' o 'biblioteca' */
+  tipoWorkflow?: "asignado" | "plantilla" | "biblioteca";
+  /** Nombre de la plantilla (sólo cuando tipoWorkflow='plantilla' o 'biblioteca') */
   nombrePlantilla?: string;
   /** Items pre-cargados (ej. al usar una plantilla como base) */
   initialItems?: WorkFlowItem[];
@@ -268,6 +268,31 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros, tipoWork
   const loadWorkflow = async () => {
     setLoading(true);
     try {
+      // 0. Biblioteca: load from workflow_biblioteca table
+      if (tipoWorkflow === "biblioteca") {
+        if (workflowIdOverride) {
+          const { data, error } = await supabase
+            .from("workflow_biblioteca" as any)
+            .select("id, codigo, created_at, items")
+            .eq("id", workflowIdOverride)
+            .maybeSingle();
+          if (error) throw error;
+          if (data) {
+            setWorkflowData({
+              id: (data as any).id,
+              codigo: (data as any).codigo,
+              fecha_creacion: (data as any).created_at,
+            });
+            setItems((((data as any).items as unknown) as WorkFlowItem[]) || []);
+          }
+        } else {
+          setItems(initialItems || []);
+          setWorkflowData(null);
+        }
+        setLoading(false);
+        return;
+      }
+
       // 1. If we have an override workflow ID (opening an existing workflow / template), load by ID
       if (workflowIdOverride) {
         const { data, error } = await supabase
@@ -370,16 +395,52 @@ export function WorkFlowModal({ open, onOpenChange, contrato, miembros, tipoWork
           items: workflowItemsJson as any,
           updated_at: new Date().toISOString(),
         };
-        if (tipoWorkflow === "plantilla" && nombrePlantilla) {
+        if ((tipoWorkflow === "plantilla" || tipoWorkflow === "biblioteca") && nombrePlantilla) {
           updatePayload.nombre_plantilla = nombrePlantilla;
         }
-        const { error } = await supabase
-          .from("workflows")
-          .update(updatePayload)
-          .eq("id", workflowData.id);
-
-        if (error) throw error;
+        if (tipoWorkflow === "biblioteca") {
+          const bibPayload: any = {
+            items: workflowItemsJson as any,
+            updated_at: new Date().toISOString(),
+          };
+          if (nombrePlantilla) bibPayload.nombre = nombrePlantilla;
+          const { error } = await supabase
+            .from("workflow_biblioteca" as any)
+            .update(bibPayload)
+            .eq("id", workflowData.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("workflows")
+            .update(updatePayload)
+            .eq("id", workflowData.id);
+          if (error) throw error;
+        }
       } else {
+        if (tipoWorkflow === "biblioteca") {
+          const { data: codeData, error: codeError } = await supabase.rpc("get_next_biblioteca_code" as any);
+          if (codeError) throw codeError;
+          const newCodigo = codeData as string;
+          const { data: newBib, error: insertError } = await supabase
+            .from("workflow_biblioteca" as any)
+            .insert({
+              codigo: newCodigo,
+              nombre: nombrePlantilla || `Biblioteca ${newCodigo}`,
+              items: workflowItemsJson as any,
+              created_by: userData?.user?.id,
+            } as any)
+            .select("id, codigo, created_at")
+            .single();
+          if (insertError) throw insertError;
+          setWorkflowData({
+            id: (newBib as any).id,
+            codigo: (newBib as any).codigo,
+            fecha_creacion: (newBib as any).created_at,
+          });
+          toast.success("WorkFlow guardado correctamente");
+          setSaving(false);
+          return;
+        }
         // Create new workflow with code
         const { data: codeData, error: codeError } = await supabase
           .rpc("get_next_workflow_code");

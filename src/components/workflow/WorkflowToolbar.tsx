@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, FileDown, FileUp, FolderOpen, Download, Loader2, Search, Workflow, Building2, Trash2, Edit2, ExternalLink, Check, LayoutTemplate, FileSpreadsheet, PenSquare } from "lucide-react";
+import { Plus, FileDown, FileUp, FolderOpen, Download, Loader2, Search, Workflow, Building2, Trash2, Edit2, ExternalLink, Check, LayoutTemplate, FileSpreadsheet, PenSquare, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
+import { WorkflowBibliotecaDialog } from "@/components/workflow/WorkflowBibliotecaDialog";
 import * as XLSX from "xlsx";
 
 interface WorkflowItem {
@@ -148,6 +149,9 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
   const [showImportApplyDialog, setShowImportApplyDialog] = useState(false);
   const [importTargetContratoId, setImportTargetContratoId] = useState("");
   const [applyingTemplate, setApplyingTemplate] = useState(false);
+
+  // ===== Biblioteca =====
+  const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
 
   // ============= LOADERS =============
   const loadContratos = async () => {
@@ -494,48 +498,35 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
   // ============= EXCEL TEMPLATE =============
   const downloadTemplate = () => {
     const wb = XLSX.utils.book_new();
-    const actData = [
-      ["Actividad", "Descripción", "Fecha Inicio (YYYY-MM-DD)", "Fecha Término (YYYY-MM-DD)"],
-      ["Creación de Carpeta", "Organización inicial del expediente", "", ""],
+    const headers = [
+      "ID_WorkFlow", "orden", "tipo", "id_local", "parentId", "subColumna",
+      "titulo", "descripcion", "asignado_email", "rol",
+      "fecha_inicio", "fecha_termino", "fecha_vencimiento",
+      "progreso", "completado", "conexiones", "enlaceSharepoint",
     ];
-    const wsAct = XLSX.utils.aoa_to_sheet(actData);
-    wsAct["!cols"] = [{ wch: 30 }, { wch: 45 }, { wch: 22 }, { wch: 22 }];
-    XLSX.utils.book_append_sheet(wb, wsAct, "Actividades");
-
-    const inpData = [
-      ["Actividad (nombre exacto)", "Input", "Descripción", "Enlace SharePoint"],
-      ["Creación de Carpeta", "Documentos de constitución", "Recopilar documentos legales", ""],
+    const sample = [
+      // Workflow WF1 - sample with one activity
+      ["WF1", 1, "actividad", "A1", "", "", "Creación de Carpeta", "Organización inicial", "", "", "2026-01-01", "2026-01-15", "", 0, "false", "", ""],
+      ["WF1", 2, "input", "I1.1", "A1", "", "Documentos de constitución", "Recopilar legales", "", "", "", "", "", 0, "false", "", ""],
+      ["WF1", 3, "tarea", "T1.1", "I1.1", 1, "Verificar documentos", "Revisar completitud", "", "Asistente", "", "", "", 0, "false", "", ""],
+      ["WF1", 4, "output", "O1.1", "A1", "", "Carpeta digital organizada", "", "", "", "", "", "", 0, "false", "T1.1", ""],
+      ["WF1", 5, "supervision", "S1.1", "A1", "", "Verificar carpeta", "", "", "", "", "", "", 0, "false", "", ""],
+      // Workflow WF2 - another independent workflow
+      ["WF2", 1, "actividad", "A1", "", "", "Declaración Mensual", "Declaración SUNAT", "", "", "2026-02-01", "2026-02-15", "", 0, "false", "", ""],
+      ["WF2", 2, "input", "I1.1", "A1", "", "Libros contables", "", "", "", "", "", "", 0, "false", "", ""],
+      ["WF2", 3, "tarea", "T1.1", "I1.1", 1, "Procesar libros", "", "", "Contador", "", "", "", 0, "false", "", ""],
+      ["WF2", 4, "output", "O1.1", "A1", "", "PDT presentado", "", "", "", "", "", "", 0, "false", "T1.1", ""],
     ];
-    const wsInp = XLSX.utils.aoa_to_sheet(inpData);
-    wsInp["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 45 }, { wch: 40 }];
-    XLSX.utils.book_append_sheet(wb, wsInp, "Inputs");
-
-    const procData = [
-      ["Actividad (nombre exacto)", "Input (nombre exacto)", "SubColumna (1, 2 o 3)", "Tarea", "Descripción", "Rol"],
-      ["Creación de Carpeta", "Documentos de constitución", "1", "Verificar documentos", "Revisar completitud", "Asistente"],
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
+    ws["!cols"] = [
+      { wch: 14 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+      { wch: 32 }, { wch: 40 }, { wch: 28 }, { wch: 16 },
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 18 }, { wch: 40 },
     ];
-    const wsProc = XLSX.utils.aoa_to_sheet(procData);
-    wsProc["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 18 }, { wch: 30 }, { wch: 40 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(wb, wsProc, "Procesos");
-
-    const outData = [
-      ["Actividad (nombre exacto)", "Output", "Descripción", "Enlace SharePoint"],
-      ["Creación de Carpeta", "Carpeta digital organizada", "", ""],
-    ];
-    const wsOut = XLSX.utils.aoa_to_sheet(outData);
-    wsOut["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 45 }, { wch: 40 }];
-    XLSX.utils.book_append_sheet(wb, wsOut, "Outputs");
-
-    const supData = [
-      ["Actividad (nombre exacto)", "Supervisión", "Descripción"],
-      ["Creación de Carpeta", "Verificar carpeta completa", ""],
-    ];
-    const wsSup = XLSX.utils.aoa_to_sheet(supData);
-    wsSup["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 50 }];
-    XLSX.utils.book_append_sheet(wb, wsSup, "Supervisión");
+    XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
 
     XLSX.writeFile(wb, "Plantilla_Workflow.xlsx");
-    toast.success("Plantilla descargada");
+    toast.success("Plantilla descargada. Usa la columna ID_WorkFlow para separar varios workflows.");
   };
 
   const parseExcelToItems = async (file: File): Promise<WorkflowItem[]> => {
@@ -960,21 +951,220 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     return items;
   };
 
+  // ============= PARSE EXCEL FOR BIBLIOTECA (groups by ID_WorkFlow) =============
+  const parseExcelToBibliotecaGroups = async (
+    file: File,
+  ): Promise<Array<{ idWorkflow: string; nombre: string; descripcion: string | null; items: WorkflowItem[] }>> => {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf);
+
+    const norm = (s: unknown) =>
+      (s ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+
+    type SheetCell = string | number | boolean | Date | null | undefined;
+    type SheetRow = Record<string, SheetCell>;
+
+    const sheetObjects = (ws: XLSX.WorkSheet) => {
+      const matrix = XLSX.utils.sheet_to_json<SheetCell[]>(ws, { header: 1, defval: "", raw: false });
+      // Find header row: row containing 'tipo' and either 'id_local' or 'id_workflow'
+      const headerIndex = matrix.findIndex((row) => {
+        const cells = row.map((c) => norm(c));
+        return cells.includes("tipo") && (cells.some((c) => c === "idworkflow" || c === "idlocal" || c === "id"));
+      });
+      if (headerIndex === -1) return [] as SheetRow[];
+      const headers = matrix[headerIndex].map((h, i) => (h?.toString().trim() || `__col_${i}`));
+      return matrix.slice(headerIndex + 1).map((row) => {
+        const obj: SheetRow = {};
+        headers.forEach((h, i) => (obj[h] = row[i] ?? ""));
+        return obj;
+      }).filter((row) => Object.values(row).some((v) => v !== undefined && v !== null && v !== ""));
+    };
+
+    const pick = (row: SheetRow, ...keys: string[]) => {
+      const wanted = keys.map(norm);
+      for (const k of Object.keys(row)) {
+        if (wanted.includes(norm(k))) {
+          const v = row[k];
+          if (v !== undefined && v !== null && v !== "") return v;
+        }
+      }
+      return undefined;
+    };
+
+    const normTipo = (raw: string) => {
+      const n = norm(raw);
+      if (n.startsWith("activ")) return "actividad" as const;
+      if (n.startsWith("input") || n.startsWith("entrada")) return "input" as const;
+      if (n.startsWith("tarea") || n.startsWith("task") || n.startsWith("proceso")) return "tarea" as const;
+      if (n.startsWith("output") || n.startsWith("salida") || n.startsWith("entregable") || n.startsWith("resultado")) return "output" as const;
+      if (n.startsWith("super") || n.startsWith("revis")) return "supervision" as const;
+      return null;
+    };
+
+    // Collect rows from any sheet that has a proper header
+    let allRows: SheetRow[] = [];
+    for (const sheetName of wb.SheetNames) {
+      const rows = sheetObjects(wb.Sheets[sheetName]);
+      if (rows.length > 0) allRows = allRows.concat(rows);
+    }
+    if (allRows.length === 0) return [];
+
+    // Group rows by ID_WorkFlow. If column missing, treat as single group.
+    const rowsByGroup = new Map<string, SheetRow[]>();
+    let lastGroup: string | null = null;
+    allRows.forEach((row) => {
+      let id = pick(row, "id_workflow", "idworkflow", "workflow_id", "id_wf", "wf_id")?.toString().trim();
+      if (!id) {
+        // Carry-forward: if the row has no ID_WorkFlow, attribute it to the last seen group
+        id = lastGroup || "WF1";
+      } else {
+        lastGroup = id;
+      }
+      if (!rowsByGroup.has(id)) rowsByGroup.set(id, []);
+      rowsByGroup.get(id)!.push(row);
+    });
+
+    // Resolve emails once
+    const allEmails = new Set<string>();
+    allRows.forEach((row) => {
+      const e = pick(row, "asignado_email", "asignadoemail", "email")?.toString().trim();
+      if (e) allEmails.add(e);
+    });
+    let profileByEmail = new Map<string, { id: string; full_name: string | null; email: string }>();
+    if (allEmails.size > 0) {
+      try {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("email", [...allEmails]);
+        profileByEmail = new Map((profs || []).map((p) => [p.email.toLowerCase(), p]));
+      } catch (e) {
+        console.warn("No se pudieron resolver emails", e);
+      }
+    }
+
+    const groups: Array<{ idWorkflow: string; nombre: string; descripcion: string | null; items: WorkflowItem[] }> = [];
+
+    for (const [idWorkflow, rows] of rowsByGroup.entries()) {
+      const idMap = new Map<string, string>();
+      const built: Array<WorkflowItem & { __idLocal?: string; __parentLocal?: string; __conexionesLocal?: string[]; __email?: string }> = [];
+
+      rows.forEach((row, i) => {
+        const tipoRaw = pick(row, "tipo", "type")?.toString().trim();
+        if (!tipoRaw) return;
+        const tipo = normTipo(tipoRaw);
+        if (!tipo) return;
+        const idLocal = pick(row, "id_local", "idlocal", "id")?.toString().trim();
+        const parentLocal = pick(row, "parentId", "parent_id", "parent")?.toString().trim();
+        const titulo = pick(row, "titulo", "title", "nombre")?.toString().trim();
+        if (!titulo) return;
+        const descripcion = pick(row, "descripcion", "description", "detalle")?.toString() || undefined;
+        const email = pick(row, "asignado_email", "asignadoemail", "email")?.toString().trim() || undefined;
+        const rol = pick(row, "rol", "role", "responsable")?.toString().trim() || undefined;
+        const fechaInicio = pick(row, "fecha_inicio", "fechainicio")?.toString() || undefined;
+        const fechaTermino = pick(row, "fecha_termino", "fechatermino", "fecha_fin")?.toString() || undefined;
+        const progresoRaw = pick(row, "progreso", "progress")?.toString();
+        const progreso = progresoRaw ? Math.max(0, Math.min(100, parseInt(progresoRaw) || 0)) : 0;
+        const completadoRaw = pick(row, "completado", "completed")?.toString().toLowerCase();
+        const completado = completadoRaw === "true" || completadoRaw === "1" || completadoRaw === "si" || completadoRaw === "sí";
+        const conexionesRaw = pick(row, "conexiones", "connections")?.toString() || "";
+        const conexionesLocal = conexionesRaw.split(/[,;]/).map((s) => s.trim()).filter((s) => s && s !== "—" && s !== "-");
+        const subColRaw = pick(row, "subColumna", "subcolumna", "columna")?.toString();
+        const subCol = subColRaw ? Math.min(Math.max((parseInt(subColRaw) || 0), 0), 2) : undefined;
+        const enlace = pick(row, "enlaceSharepoint", "enlace_sharepoint", "enlace", "sharepoint")?.toString() || undefined;
+
+        const uuid = crypto.randomUUID();
+        if (idLocal) idMap.set(idLocal, uuid);
+
+        built.push({
+          id: uuid,
+          tipo,
+          titulo,
+          descripcion,
+          rol,
+          completado,
+          orden: parseInt(pick(row, "orden", "order")?.toString() || String(i)) || i,
+          subColumna: subCol,
+          enlaceSharepoint: enlace,
+          fecha_inicio: fechaInicio,
+          fecha_termino: fechaTermino,
+          progreso,
+          __idLocal: idLocal,
+          __parentLocal: parentLocal || undefined,
+          __conexionesLocal: conexionesLocal,
+          __email: email,
+        });
+      });
+
+      if (built.length === 0) continue;
+
+      const items: WorkflowItem[] = built.map((b) => {
+        const { __idLocal, __parentLocal, __conexionesLocal, __email, ...item } = b;
+        if (__parentLocal && idMap.has(__parentLocal)) item.parentId = idMap.get(__parentLocal);
+        if (__conexionesLocal && __conexionesLocal.length > 0) {
+          const conex = __conexionesLocal.map((l) => idMap.get(l)).filter((x): x is string => !!x);
+          if (conex.length > 0) item.conexiones = conex;
+        }
+        if (__email) {
+          const prof = profileByEmail.get(__email.toLowerCase());
+          if (prof) {
+            item.asignado_a = prof.id;
+            item.asignado_nombre = prof.full_name || prof.email;
+          }
+        }
+        return item;
+      });
+
+      // Workflow name = first 'actividad' titulo, fallback to idWorkflow
+      const firstAct = items.find((i) => i.tipo === "actividad");
+      const nombre = firstAct?.titulo || idWorkflow;
+      const descripcion = firstAct?.descripcion || null;
+
+      groups.push({ idWorkflow, nombre, descripcion, items });
+    }
+
+    return groups;
+  };
+
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
     try {
-      const items = await parseExcelToItems(file);
-      if (items.length === 0) {
-        toast.error("No se encontraron datos en el archivo");
+      const groups = await parseExcelToBibliotecaGroups(file);
+      if (groups.length === 0) {
+        toast.error("No se encontraron workflows en el archivo. Verifica la columna ID_WorkFlow.");
         setImporting(false);
         return;
       }
-      await loadContratos();
-      setImportedItems(items);
-      setShowImportApplyDialog(true);
-      toast.success(`Se importaron ${items.length} elementos`);
+      // Save each group to workflow_biblioteca
+      const { data: userData } = await supabase.auth.getUser();
+      let inserted = 0;
+      const errors: string[] = [];
+      for (const g of groups) {
+        try {
+          const { data: codeData, error: codeError } = await supabase.rpc("get_next_biblioteca_code" as any);
+          if (codeError) throw codeError;
+          const { error: insErr } = await supabase.from("workflow_biblioteca" as any).insert({
+            codigo: codeData as string,
+            nombre: g.nombre,
+            descripcion: g.descripcion,
+            id_workflow_origen: g.idWorkflow,
+            items: g.items as any,
+            created_by: userData?.user?.id,
+          } as any);
+          if (insErr) throw insErr;
+          inserted++;
+        } catch (err: any) {
+          console.error("Error saving biblioteca workflow", g.idWorkflow, err);
+          errors.push(g.idWorkflow);
+        }
+      }
+      if (inserted > 0) {
+        toast.success(`${inserted} workflow${inserted === 1 ? "" : "s"} agregado${inserted === 1 ? "" : "s"} a la Biblioteca`);
+        setBibliotecaOpen(true);
+      }
+      if (errors.length > 0) toast.error(`Errores al guardar: ${errors.join(", ")}`);
     } catch (err: unknown) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Error al importar");
@@ -1168,6 +1358,20 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
           Abrir
         </Button>
 
+        <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => setBibliotecaOpen(true)}>
+          <Library className="h-3.5 w-3.5" />
+          Biblioteca
+        </Button>
+
+        <label htmlFor="workflow-import-input">
+          <Button asChild variant="outline" size="sm" className="gap-1.5 h-8 cursor-pointer">
+            <span>
+              {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileUp className="h-3.5 w-3.5" />}
+              Importar a Biblioteca
+            </span>
+          </Button>
+        </label>
+
         <input
           id="workflow-import-input"
           type="file"
@@ -1176,6 +1380,12 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
           onChange={handleImportExcel}
         />
       </div>
+
+      <WorkflowBibliotecaDialog
+        open={bibliotecaOpen}
+        onOpenChange={setBibliotecaOpen}
+        onAssigned={onRefresh}
+      />
 
       {/* ============= NUEVO: SELECT MODE ============= */}
       <Dialog open={newMode === "select"} onOpenChange={(o) => { if (!o) setNewMode(null); }}>
