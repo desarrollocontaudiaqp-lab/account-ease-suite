@@ -951,6 +951,181 @@ export function WorkflowToolbar({ onRefresh }: WorkflowToolbarProps) {
     return items;
   };
 
+  // ============= PARSE EXCEL FOR BIBLIOTECA (groups by ID_WorkFlow) =============
+  const parseExcelToBibliotecaGroups = async (
+    file: File,
+  ): Promise<Array<{ idWorkflow: string; nombre: string; descripcion: string | null; items: WorkflowItem[] }>> => {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf);
+
+    const norm = (s: unknown) =>
+      (s ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+
+    type SheetCell = string | number | boolean | Date | null | undefined;
+    type SheetRow = Record<string, SheetCell>;
+
+    const sheetObjects = (ws: XLSX.WorkSheet) => {
+      const matrix = XLSX.utils.sheet_to_json<SheetCell[]>(ws, { header: 1, defval: "", raw: false });
+      // Find header row: row containing 'tipo' and either 'id_local' or 'id_workflow'
+      const headerIndex = matrix.findIndex((row) => {
+        const cells = row.map((c) => norm(c));
+        return cells.includes("tipo") && (cells.some((c) => c === "idworkflow" || c === "idlocal" || c === "id"));
+      });
+      if (headerIndex === -1) return [] as SheetRow[];
+      const headers = matrix[headerIndex].map((h, i) => (h?.toString().trim() || `__col_${i}`));
+      return matrix.slice(headerIndex + 1).map((row) => {
+        const obj: SheetRow = {};
+        headers.forEach((h, i) => (obj[h] = row[i] ?? ""));
+        return obj;
+      }).filter((row) => Object.values(row).some((v) => v !== undefined && v !== null && v !== ""));
+    };
+
+    const pick = (row: SheetRow, ...keys: string[]) => {
+      const wanted = keys.map(norm);
+      for (const k of Object.keys(row)) {
+        if (wanted.includes(norm(k))) {
+          const v = row[k];
+          if (v !== undefined && v !== null && v !== "") return v;
+        }
+      }
+      return undefined;
+    };
+
+    const normTipo = (raw: string) => {
+      const n = norm(raw);
+      if (n.startsWith("activ")) return "actividad" as const;
+      if (n.startsWith("input") || n.startsWith("entrada")) return "input" as const;
+      if (n.startsWith("tarea") || n.startsWith("task") || n.startsWith("proceso")) return "tarea" as const;
+      if (n.startsWith("output") || n.startsWith("salida") || n.startsWith("entregable") || n.startsWith("resultado")) return "output" as const;
+      if (n.startsWith("super") || n.startsWith("revis")) return "supervision" as const;
+      return null;
+    };
+
+    // Collect rows from any sheet that has a proper header
+    let allRows: SheetRow[] = [];
+    for (const sheetName of wb.SheetNames) {
+      const rows = sheetObjects(wb.Sheets[sheetName]);
+      if (rows.length > 0) allRows = allRows.concat(rows);
+    }
+    if (allRows.length === 0) return [];
+
+    // Group rows by ID_WorkFlow. If column missing, treat as single group.
+    const rowsByGroup = new Map<string, SheetRow[]>();
+    let lastGroup: string | null = null;
+    allRows.forEach((row) => {
+      let id = pick(row, "id_workflow", "idworkflow", "workflow_id", "id_wf", "wf_id")?.toString().trim();
+      if (!id) {
+        // Carry-forward: if the row has no ID_WorkFlow, attribute it to the last seen group
+        id = lastGroup || "WF1";
+      } else {
+        lastGroup = id;
+      }
+      if (!rowsByGroup.has(id)) rowsByGroup.set(id, []);
+      rowsByGroup.get(id)!.push(row);
+    });
+
+    // Resolve emails once
+    const allEmails = new Set<string>();
+    allRows.forEach((row) => {
+      const e = pick(row, "asignado_email", "asignadoemail", "email")?.toString().trim();
+      if (e) allEmails.add(e);
+    });
+    let profileByEmail = new Map<string, { id: string; full_name: string | null; email: string }>();
+    if (allEmails.size > 0) {
+      try {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("email", [...allEmails]);
+        profileByEmail = new Map((profs || []).map((p) => [p.email.toLowerCase(), p]));
+      } catch (e) {
+        console.warn("No se pudieron resolver emails", e);
+      }
+    }
+
+    const groups: Array<{ idWorkflow: string; nombre: string; descripcion: string | null; items: WorkflowItem[] }> = [];
+
+    for (const [idWorkflow, rows] of rowsByGroup.entries()) {
+      const idMap = new Map<string, string>();
+      const built: Array<WorkflowItem & { __idLocal?: string; __parentLocal?: string; __conexionesLocal?: string[]; __email?: string }> = [];
+
+      rows.forEach((row, i) => {
+        const tipoRaw = pick(row, "tipo", "type")?.toString().trim();
+        if (!tipoRaw) return;
+        const tipo = normTipo(tipoRaw);
+        if (!tipo) return;
+        const idLocal = pick(row, "id_local", "idlocal", "id")?.toString().trim();
+        const parentLocal = pick(row, "parentId", "parent_id", "parent")?.toString().trim();
+        const titulo = pick(row, "titulo", "title", "nombre")?.toString().trim();
+        if (!titulo) return;
+        const descripcion = pick(row, "descripcion", "description", "detalle")?.toString() || undefined;
+        const email = pick(row, "asignado_email", "asignadoemail", "email")?.toString().trim() || undefined;
+        const rol = pick(row, "rol", "role", "responsable")?.toString().trim() || undefined;
+        const fechaInicio = pick(row, "fecha_inicio", "fechainicio")?.toString() || undefined;
+        const fechaTermino = pick(row, "fecha_termino", "fechatermino", "fecha_fin")?.toString() || undefined;
+        const progresoRaw = pick(row, "progreso", "progress")?.toString();
+        const progreso = progresoRaw ? Math.max(0, Math.min(100, parseInt(progresoRaw) || 0)) : 0;
+        const completadoRaw = pick(row, "completado", "completed")?.toString().toLowerCase();
+        const completado = completadoRaw === "true" || completadoRaw === "1" || completadoRaw === "si" || completadoRaw === "sí";
+        const conexionesRaw = pick(row, "conexiones", "connections")?.toString() || "";
+        const conexionesLocal = conexionesRaw.split(/[,;]/).map((s) => s.trim()).filter((s) => s && s !== "—" && s !== "-");
+        const subColRaw = pick(row, "subColumna", "subcolumna", "columna")?.toString();
+        const subCol = subColRaw ? Math.min(Math.max((parseInt(subColRaw) || 0), 0), 2) : undefined;
+        const enlace = pick(row, "enlaceSharepoint", "enlace_sharepoint", "enlace", "sharepoint")?.toString() || undefined;
+
+        const uuid = crypto.randomUUID();
+        if (idLocal) idMap.set(idLocal, uuid);
+
+        built.push({
+          id: uuid,
+          tipo,
+          titulo,
+          descripcion,
+          rol,
+          completado,
+          orden: parseInt(pick(row, "orden", "order")?.toString() || String(i)) || i,
+          subColumna: subCol,
+          enlaceSharepoint: enlace,
+          fecha_inicio: fechaInicio,
+          fecha_termino: fechaTermino,
+          progreso,
+          __idLocal: idLocal,
+          __parentLocal: parentLocal || undefined,
+          __conexionesLocal: conexionesLocal,
+          __email: email,
+        });
+      });
+
+      if (built.length === 0) continue;
+
+      const items: WorkflowItem[] = built.map((b) => {
+        const { __idLocal, __parentLocal, __conexionesLocal, __email, ...item } = b;
+        if (__parentLocal && idMap.has(__parentLocal)) item.parentId = idMap.get(__parentLocal);
+        if (__conexionesLocal && __conexionesLocal.length > 0) {
+          const conex = __conexionesLocal.map((l) => idMap.get(l)).filter((x): x is string => !!x);
+          if (conex.length > 0) item.conexiones = conex;
+        }
+        if (__email) {
+          const prof = profileByEmail.get(__email.toLowerCase());
+          if (prof) {
+            item.asignado_a = prof.id;
+            item.asignado_nombre = prof.full_name || prof.email;
+          }
+        }
+        return item;
+      });
+
+      // Workflow name = first 'actividad' titulo, fallback to idWorkflow
+      const firstAct = items.find((i) => i.tipo === "actividad");
+      const nombre = firstAct?.titulo || idWorkflow;
+      const descripcion = firstAct?.descripcion || null;
+
+      groups.push({ idWorkflow, nombre, descripcion, items });
+    }
+
+    return groups;
+  };
+
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
