@@ -2034,6 +2034,83 @@ export type Database = {
           },
         ]
       }
+      workflow_biblioteca: {
+        Row: {
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descripcion: string | null
+          id: string
+          id_workflow_origen: string | null
+          items: Json
+          nombre: string
+          sede_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          id_workflow_origen?: string | null
+          items?: Json
+          nombre: string
+          sede_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          id_workflow_origen?: string | null
+          items?: Json
+          nombre?: string
+          sede_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_biblioteca_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_biblioteca_secuencias: {
+        Row: {
+          anio_vigente: number
+          created_at: string
+          digitos_correlativo: number
+          id: string
+          prefijo: string
+          ultimo_numero: number
+          updated_at: string
+        }
+        Insert: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Update: {
+          anio_vigente?: number
+          created_at?: string
+          digitos_correlativo?: number
+          id?: string
+          prefijo?: string
+          ultimo_numero?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       workflow_checklists: {
         Row: {
           created_at: string
@@ -2317,6 +2394,7 @@ export type Database = {
     }
     Functions: {
       can_view_all_sedes: { Args: { _user_id: string }; Returns: boolean }
+      get_next_biblioteca_code: { Args: never; Returns: string }
       get_next_caja_code: { Args: never; Returns: string }
       get_next_expense_code: { Args: never; Returns: string }
       get_next_proforma_number: { Args: { p_tipo: string }; Returns: string }
