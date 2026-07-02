@@ -17,6 +17,7 @@ export interface PermisosPorModulo {
   clientes: Permiso;
   contratos: Permiso;
   proformas: Permiso;
+  egresos: Permiso;
   usuarios: Permiso;
   configuracion: { ver: boolean; editar: boolean };
   reportes: { ver: boolean; exportar: boolean };
@@ -41,6 +42,7 @@ const defaultPermisos: PermisosPorModulo = {
   clientes: { ver: true, crear: false, editar: false, eliminar: false },
   contratos: { ver: true, crear: false, editar: false, eliminar: false },
   proformas: { ver: true, crear: false, editar: false, eliminar: false },
+  egresos: { ver: true, crear: false, editar: false, eliminar: false },
   usuarios: { ver: false, crear: false, editar: false, eliminar: false },
   configuracion: { ver: false, editar: false },
   reportes: { ver: true, exportar: false },
