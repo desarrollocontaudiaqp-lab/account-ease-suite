@@ -42,6 +42,7 @@ const moduloLabels: Record<string, string> = {
   clientes: 'Clientes',
   contratos: 'Contratos',
   proformas: 'Proformas',
+  egresos: 'Egresos',
   usuarios: 'Usuarios',
   configuracion: 'Configuración',
   reportes: 'Reportes',
