@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Search, Wallet, Loader2, CheckCircle2, Clock, Trash2, Eye } from "lucide-react";
+import { Plus, Search, Wallet, Loader2, CheckCircle2, Clock, Trash2, Eye, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -10,7 +10,8 @@ import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { ExpenseStatusBadge } from "@/components/egresos/ExpenseStatusBadge";
 import { CreateExpenseDialog } from "@/components/egresos/CreateExpenseDialog";
 import { ExpenseDetailModal } from "@/components/egresos/ExpenseDetailModal";
-import { useAuth } from "@/hooks/useAuth";
+import { EditExpenseDialog } from "@/components/egresos/EditExpenseDialog";
+import { useCurrentPermisos } from "@/hooks/useCurrentPermisos";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BlurredValue } from "@/components/ui/BlurredValue";
@@ -26,11 +27,14 @@ const fmtMoney = (n: number, c = "PEN") =>
 const Egresos = () => {
   const { expenses, loading, refresh } = useExpenses();
   const { categories } = useExpenseCategories();
-  const { role } = useAuth();
-  const isAdmin = role === "administrador" || role === "gerente";
+  const { can } = useCurrentPermisos();
+  const canEdit = can("egresos", "editar");
+  const canDelete = can("egresos", "eliminar");
+  const canCreate = can("egresos", "crear");
 
   const [openCreate, setOpenCreate] = useState(false);
   const [detail, setDetail] = useState<Expense | null>(null);
+  const [editing, setEditing] = useState<Expense | null>(null);
   const [search, setSearch] = useState("");
   const [estado, setEstado] = useState("all");
   const [categoria, setCategoria] = useState("all");
@@ -82,9 +86,11 @@ const Egresos = () => {
             Gestiona los gastos y egresos de la empresa
           </p>
         </div>
-        <Button onClick={() => setOpenCreate(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Nuevo Egreso
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setOpenCreate(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Nuevo Egreso
+          </Button>
+        )}
       </div>
 
       {/* KPIs */}
@@ -174,8 +180,13 @@ const Egresos = () => {
                         <Button variant="outline" size="sm" onClick={() => setDetail(e)}>
                           <Eye className="h-3.5 w-3.5 mr-1" /> Ver detalle
                         </Button>
-                        {isAdmin && e.estado !== "pagado" && (
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(e.id, e.codigo)}>
+                        {canEdit && e.estado !== "pagado" && e.estado !== "anulado" && (
+                          <Button variant="outline" size="sm" onClick={() => setEditing(e)}>
+                            <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                          </Button>
+                        )}
+                        {canDelete && e.estado !== "pagado" && (
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(e.id, e.codigo)} title="Eliminar">
                             <Trash2 className="h-4 w-4 text-rose-600" />
                           </Button>
                         )}
@@ -190,6 +201,12 @@ const Egresos = () => {
       </Card>
 
       <CreateExpenseDialog open={openCreate} onOpenChange={setOpenCreate} onCreated={refresh} />
+      <EditExpenseDialog
+        expense={editing}
+        open={!!editing}
+        onOpenChange={(o) => { if (!o) setEditing(null); }}
+        onSaved={refresh}
+      />
       <ExpenseDetailModal
         expense={detail}
         open={!!detail}
