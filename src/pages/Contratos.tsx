@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSedeContext } from "@/hooks/useSedeContext";
-import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban, CalendarDays } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban, CalendarDays, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/useAuth";
+import { MigrateContractsDialog } from "@/components/contratos/MigrateContractsDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +70,7 @@ interface Contract {
   notas: string | null;
   proforma_id: string | null;
   created_at?: string;
+  sede_id?: string | null;
 }
 
 interface ProformaState {
@@ -118,6 +122,8 @@ const Contratos = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { activeSedeId, canViewAllSedes } = useSedeContext();
+  const { role } = useAuth();
+  const canMigrate = role === "administrador" || role === "gerente";
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -140,6 +146,10 @@ const Contratos = () => {
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editContractId, setEditContractId] = useState<string | null>(null);
+
+  // Selection & migration
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [migrateOpen, setMigrateOpen] = useState(false);
   
   // Form state for new contract
   const [newContract, setNewContract] = useState({
@@ -208,6 +218,7 @@ const Contratos = () => {
         cliente: c.cliente as Contract["cliente"],
       }));
       setContracts(parsed);
+      setSelectedIds(new Set());
     }
     setLoading(false);
   };
@@ -319,6 +330,27 @@ const Contratos = () => {
     setEditDialogOpen(true);
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (ids: string[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = ids.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
   // Get date range based on filter
   const getDateRange = (filter: DateFilter): { start: Date; end: Date } | null => {
     const now = new Date();
@@ -426,6 +458,16 @@ const Contratos = () => {
 
         <TabsContent value="contratos" className="space-y-6 mt-4">
           <div className="flex justify-end gap-2">
+            {canMigrate && selectedIds.size > 0 && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setMigrateOpen(true)}
+              >
+                <Building2 className="h-4 w-4" />
+                Migrar a otra sede ({selectedIds.size})
+              </Button>
+            )}
             <ExportExcelButton
               allRows={contracts}
               filteredRows={filteredContracts}
@@ -635,6 +677,13 @@ const Contratos = () => {
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
+                        {canMigrate && (
+                          <Checkbox
+                            checked={selectedIds.has(contract.id)}
+                            onCheckedChange={() => toggleSelect(contract.id)}
+                            aria-label={`Seleccionar ${contract.numero}`}
+                          />
+                        )}
                         <div className="p-2 rounded-lg bg-primary/10">
                           <FileCheck className="h-5 w-5 text-primary" />
                         </div>
@@ -745,6 +794,20 @@ const Contratos = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-muted/50">
+                      {canMigrate && (
+                        <th className="px-4 py-3 w-10">
+                          <Checkbox
+                            checked={
+                              filteredContracts.length > 0 &&
+                              filteredContracts.every((c) => selectedIds.has(c.id))
+                            }
+                            onCheckedChange={() =>
+                              toggleSelectAll(filteredContracts.map((c) => c.id))
+                            }
+                            aria-label="Seleccionar todos"
+                          />
+                        </th>
+                      )}
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
                         Contrato
                       </th>
@@ -779,6 +842,15 @@ const Contratos = () => {
                       const progress = calculateProgress(contract.fecha_inicio, contract.fecha_fin);
                       return (
                         <tr key={contract.id} className="table-row-hover">
+                          {canMigrate && (
+                            <td className="px-4 py-4 w-10">
+                              <Checkbox
+                                checked={selectedIds.has(contract.id)}
+                                onCheckedChange={() => toggleSelect(contract.id)}
+                                aria-label={`Seleccionar ${contract.numero}`}
+                              />
+                            </td>
+                          )}
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="p-2 rounded-lg bg-primary/10">
@@ -912,6 +984,21 @@ const Contratos = () => {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         contractId={editContractId}
+        onSuccess={fetchContracts}
+      />
+
+      {/* Migrate Contracts Dialog */}
+      <MigrateContractsDialog
+        open={migrateOpen}
+        onOpenChange={setMigrateOpen}
+        contracts={contracts
+          .filter((c) => selectedIds.has(c.id))
+          .map((c) => ({
+            id: c.id,
+            numero: c.numero,
+            cliente_nombre: c.cliente?.razon_social || "Sin cliente",
+            sede_id: c.sede_id ?? null,
+          }))}
         onSuccess={fetchContracts}
       />
         </TabsContent>
