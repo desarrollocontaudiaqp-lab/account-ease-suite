@@ -677,6 +677,13 @@ const Contratos = () => {
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
+                        {canMigrate && (
+                          <Checkbox
+                            checked={selectedIds.has(contract.id)}
+                            onCheckedChange={() => toggleSelect(contract.id)}
+                            aria-label={`Seleccionar ${contract.numero}`}
+                          />
+                        )}
                         <div className="p-2 rounded-lg bg-primary/10">
                           <FileCheck className="h-5 w-5 text-primary" />
                         </div>
@@ -977,6 +984,21 @@ const Contratos = () => {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         contractId={editContractId}
+        onSuccess={fetchContracts}
+      />
+
+      {/* Migrate Contracts Dialog */}
+      <MigrateContractsDialog
+        open={migrateOpen}
+        onOpenChange={setMigrateOpen}
+        contracts={contracts
+          .filter((c) => selectedIds.has(c.id))
+          .map((c) => ({
+            id: c.id,
+            numero: c.numero,
+            cliente_nombre: c.cliente?.razon_social || "Sin cliente",
+            sede_id: c.sede_id ?? null,
+          }))}
         onSuccess={fetchContracts}
       />
         </TabsContent>
