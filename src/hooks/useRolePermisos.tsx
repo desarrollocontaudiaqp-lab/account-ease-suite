@@ -11,6 +11,7 @@ export interface Permiso {
   editar: boolean;
   eliminar: boolean;
   exportar?: boolean;
+  migrar?: boolean;
 }
 
 export interface PermisosPorModulo {
@@ -40,7 +41,7 @@ export const availableEnumRoles: AppRole[] = [
 
 const defaultPermisos: PermisosPorModulo = {
   clientes: { ver: true, crear: false, editar: false, eliminar: false },
-  contratos: { ver: true, crear: false, editar: false, eliminar: false },
+  contratos: { ver: true, crear: false, editar: false, eliminar: false, migrar: false },
   proformas: { ver: true, crear: false, editar: false, eliminar: false },
   egresos: { ver: true, crear: false, editar: false, eliminar: false },
   usuarios: { ver: false, crear: false, editar: false, eliminar: false },

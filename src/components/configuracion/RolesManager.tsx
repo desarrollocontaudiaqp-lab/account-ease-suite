@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -54,6 +55,7 @@ const permisoLabels: Record<string, string> = {
   editar: 'Editar',
   eliminar: 'Eliminar',
   exportar: 'Exportar',
+  migrar: 'Migrar Sedes',
 };
 
 const roleDisplayNames: Record<string, string> = {
@@ -368,27 +370,49 @@ export const RolesManager = () => {
             <DialogDescription>Configura los permisos para cada módulo</DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4">
-            {editingPermisos && Object.entries(editingPermisos).map(([modulo, permisos]) => (
-              <div key={modulo} className="space-y-3">
-                <h4 className="font-medium text-foreground border-b border-border pb-2">
-                  {moduloLabels[modulo] || modulo}
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {Object.entries(permisos as Record<string, boolean>).map(([permiso, value]) => (
-                    <div key={permiso} className="flex items-center space-x-2">
-                      <Checkbox
+            {editingPermisos && Object.entries(editingPermisos).map(([modulo, permisos]) => {
+              const entries = Object.entries(permisos as Record<string, boolean>);
+              const standard = entries.filter(([k]) => k !== 'migrar');
+              const special = entries.filter(([k]) => k === 'migrar');
+              return (
+                <div key={modulo} className="space-y-3">
+                  <h4 className="font-medium text-foreground border-b border-border pb-2">
+                    {moduloLabels[modulo] || modulo}
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {standard.map(([permiso, value]) => (
+                      <div key={permiso} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`${modulo}-${permiso}`}
+                          checked={value}
+                          onCheckedChange={(checked) => togglePermiso(modulo, permiso, checked === true)}
+                        />
+                        <Label htmlFor={`${modulo}-${permiso}`} className="text-sm cursor-pointer">
+                          {permisoLabels[permiso] || permiso}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {special.map(([permiso, value]) => (
+                    <div key={permiso} className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2">
+                      <div>
+                        <Label htmlFor={`${modulo}-${permiso}`} className="text-sm font-medium cursor-pointer">
+                          {permisoLabels[permiso] || permiso}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Permite migrar contratos y sus componentes (proformas, pagos, workflows) a otra sede
+                        </p>
+                      </div>
+                      <Switch
                         id={`${modulo}-${permiso}`}
-                        checked={value}
+                        checked={!!value}
                         onCheckedChange={(checked) => togglePermiso(modulo, permiso, checked === true)}
                       />
-                      <Label htmlFor={`${modulo}-${permiso}`} className="text-sm cursor-pointer">
-                        {permisoLabels[permiso] || permiso}
-                      </Label>
                     </div>
                   ))}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditPermisosDialogOpen(false)}>

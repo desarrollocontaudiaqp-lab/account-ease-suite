@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentPermisos } from "@/hooks/useCurrentPermisos";
 import { MigrateContractsDialog } from "@/components/contratos/MigrateContractsDialog";
 import {
   DropdownMenu,
@@ -123,7 +124,8 @@ const Contratos = () => {
   const navigate = useNavigate();
   const { activeSedeId, canViewAllSedes } = useSedeContext();
   const { role } = useAuth();
-  const canMigrate = role === "administrador" || role === "gerente";
+  const { can, isAdmin } = useCurrentPermisos();
+  const canMigrate = isAdmin || can("contratos", "migrar");
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [contracts, setContracts] = useState<Contract[]>([]);
