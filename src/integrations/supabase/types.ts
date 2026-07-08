@@ -570,6 +570,61 @@ export type Database = {
         }
         Relationships: []
       }
+      contrato_migraciones: {
+        Row: {
+          contrato_id: string
+          entidades_afectadas: Json
+          id: string
+          migrated_at: string
+          migrated_by: string | null
+          notas: string | null
+          sede_destino_id: string
+          sede_origen_id: string | null
+        }
+        Insert: {
+          contrato_id: string
+          entidades_afectadas?: Json
+          id?: string
+          migrated_at?: string
+          migrated_by?: string | null
+          notas?: string | null
+          sede_destino_id: string
+          sede_origen_id?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          entidades_afectadas?: Json
+          id?: string
+          migrated_at?: string
+          migrated_by?: string | null
+          notas?: string | null
+          sede_destino_id?: string
+          sede_origen_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_migraciones_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_migraciones_sede_destino_id_fkey"
+            columns: ["sede_destino_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_migraciones_sede_origen_id_fkey"
+            columns: ["sede_origen_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contrato_plantilla_anexos: {
         Row: {
           created_at: string
