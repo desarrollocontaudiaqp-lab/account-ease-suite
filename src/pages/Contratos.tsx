@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSedeContext } from "@/hooks/useSedeContext";
-import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban, CalendarDays } from "lucide-react";
+import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban, CalendarDays, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/useAuth";
+import { MigrateContractsDialog } from "@/components/contratos/MigrateContractsDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +70,7 @@ interface Contract {
   notas: string | null;
   proforma_id: string | null;
   created_at?: string;
+  sede_id?: string | null;
 }
 
 interface ProformaState {
@@ -118,6 +122,8 @@ const Contratos = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { activeSedeId, canViewAllSedes } = useSedeContext();
+  const { role } = useAuth();
+  const canMigrate = role === "administrador" || role === "gerente";
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -140,6 +146,10 @@ const Contratos = () => {
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editContractId, setEditContractId] = useState<string | null>(null);
+
+  // Selection & migration
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [migrateOpen, setMigrateOpen] = useState(false);
   
   // Form state for new contract
   const [newContract, setNewContract] = useState({
@@ -208,6 +218,7 @@ const Contratos = () => {
         cliente: c.cliente as Contract["cliente"],
       }));
       setContracts(parsed);
+      setSelectedIds(new Set());
     }
     setLoading(false);
   };
@@ -317,6 +328,27 @@ const Contratos = () => {
   const handleEdit = (contractId: string) => {
     setEditContractId(contractId);
     setEditDialogOpen(true);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (ids: string[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = ids.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
   };
 
   // Get date range based on filter
