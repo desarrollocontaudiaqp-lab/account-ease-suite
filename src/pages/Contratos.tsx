@@ -458,6 +458,16 @@ const Contratos = () => {
 
         <TabsContent value="contratos" className="space-y-6 mt-4">
           <div className="flex justify-end gap-2">
+            {canMigrate && selectedIds.size > 0 && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setMigrateOpen(true)}
+              >
+                <Building2 className="h-4 w-4" />
+                Migrar a otra sede ({selectedIds.size})
+              </Button>
+            )}
             <ExportExcelButton
               allRows={contracts}
               filteredRows={filteredContracts}
