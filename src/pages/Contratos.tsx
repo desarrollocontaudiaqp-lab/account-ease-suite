@@ -787,6 +787,20 @@ const Contratos = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-muted/50">
+                      {canMigrate && (
+                        <th className="px-4 py-3 w-10">
+                          <Checkbox
+                            checked={
+                              filteredContracts.length > 0 &&
+                              filteredContracts.every((c) => selectedIds.has(c.id))
+                            }
+                            onCheckedChange={() =>
+                              toggleSelectAll(filteredContracts.map((c) => c.id))
+                            }
+                            aria-label="Seleccionar todos"
+                          />
+                        </th>
+                      )}
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">
                         Contrato
                       </th>
@@ -821,6 +835,15 @@ const Contratos = () => {
                       const progress = calculateProgress(contract.fecha_inicio, contract.fecha_fin);
                       return (
                         <tr key={contract.id} className="table-row-hover">
+                          {canMigrate && (
+                            <td className="px-4 py-4 w-10">
+                              <Checkbox
+                                checked={selectedIds.has(contract.id)}
+                                onCheckedChange={() => toggleSelect(contract.id)}
+                                aria-label={`Seleccionar ${contract.numero}`}
+                              />
+                            </td>
+                          )}
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="p-2 rounded-lg bg-primary/10">
