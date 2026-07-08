@@ -1,140 +1,89 @@
-## Módulo Egresos — Plan de implementación
 
-Módulo completo de gestión de egresos siguiendo la arquitectura existente (React + Supabase + RLS + Plus Jakarta Sans + sidebar shadcn).
+# Migración de Contratos a Otra Sede
 
-### 1. Base de datos (migración Supabase)
+## Viabilidad
+Confirmado: las tablas `contratos`, `proformas`, `pagos`, `clientes` y `workflows` ya tienen columna `sede_id`. `registro_ventas` NO tiene `sede_id` (se filtra vía `pago_id → pagos.sede_id`, no requiere cambio). Es viable sin migraciones de esquema, solo actualizaciones de datos y UI. Solo usuarios con permiso podrán ejecutarlo (Administrador/Gerente).
 
-Tablas nuevas en `public`:
+## Alcance de la migración
+Al migrar un contrato a una sede destino, se actualiza `sede_id` en:
+1. `contratos` (el contrato seleccionado).
+2. `proformas` vinculadas al contrato (por `proforma_id` en el contrato y/o `contrato_id` en proforma si existe).
+3. `pagos` con `contrato_id` = contrato migrado.
+4. `workflows` con `contrato_id` = contrato migrado.
+5. `registro_ventas`: no se toca (hereda vía pago).
+6. `clientes`: NO se migra (un cliente puede tener contratos en varias sedes). Opcional configurable.
 
-- **expense_categories** — id, nombre, orden, icono, activo, created_at
-- **expense_subcategories** — id, categoria_id (FK), nombre, orden, activo
-- **expenses** — id, codigo, fecha, empresa_id (sede_id), centro_costo, categoria_id, subcategoria_id, concepto, proveedor_nombre, proveedor_ruc, tipo_comprobante, serie, numero, moneda, subtotal, igv, total, metodo_pago_id, cuenta_bancaria, estado, responsable_id, observaciones, created_by, created_at, updated_at, sede_id
-- **expense_attachments** — id, expense_id (FK cascade), file_name, file_path, mime_type, size_bytes, uploaded_by, uploaded_at
-- **expense_approvals** — id, expense_id, aprobador_id, accion (aprobado/rechazado), comentario, created_at
-- **expense_status_history** — id, expense_id, estado_anterior, estado_nuevo, user_id, comentario, created_at
+## Trazabilidad
+- Nueva tabla `contrato_migraciones` para auditoría: `id, contrato_id, sede_origen_id, sede_destino_id, migrated_by, migrated_at, entidades_afectadas jsonb (conteos), notas`.
+- Se registra una fila por contrato migrado en cada operación batch.
+- Se conserva el `numero` original del contrato (no se re-numera).
 
-Cada tabla con: `GRANT`s correctos (`authenticated` + `service_role`), `ENABLE ROW LEVEL SECURITY`, políticas alineadas con roles existentes (Admin/Gerente full, otros según sede vía `user_has_sede` y `has_role`).
+## UI / UX (página /contratos)
+1. Checkboxes de selección múltiple en la tabla de contratos (columna izquierda) + "seleccionar todo en página".
+2. Barra de acción cuando hay ≥1 seleccionado con botón **"Migrar a otra sede"** (visible solo si `role ∈ {administrador, gerente}`).
+3. Modal `MigrateContractsDialog`:
+   - Muestra lista de contratos seleccionados (número, cliente, sede actual).
+   - Select de **Sede destino** (excluye sedes actuales si todas coinciden).
+   - Resumen de entidades a migrar (conteo de proformas, pagos, workflows por contrato) obtenido en preview.
+   - Checkbox "Confirmo la migración" + botón Ejecutar.
+4. Toast con resultado y refresco de la lista.
 
-Secuencia: función `get_next_expense_code()` (formato `EGR-YYYY-NNNNN`) siguiendo el patrón de `get_next_workflow_code`.
+## Lógica de ejecución (cliente)
+Para cada contrato seleccionado, en secuencia:
+1. Leer `proforma_id` del contrato.
+2. `UPDATE contratos SET sede_id=destino WHERE id=?`
+3. `UPDATE pagos SET sede_id=destino WHERE contrato_id=?`
+4. `UPDATE workflows SET sede_id=destino WHERE contrato_id=?`
+5. `UPDATE proformas SET sede_id=destino WHERE id=proforma_id` (si existe).
+6. `INSERT INTO contrato_migraciones (...)` con conteos.
 
-Seeds: insertar las 14 categorías + subcategorías listadas por el usuario.
+Si algún paso falla, se registra el error, se continúa con los siguientes contratos, y al final se muestra un reporte (éxitos/fallos). No hay transacción atómica cliente-side; para atomicidad real se puede envolver en una edge function (opcional, fase 2).
 
-Storage: bucket privado `expense-attachments` con políticas RLS en `storage.objects`.
+## Cambios técnicos
 
-### 2. Sidebar
-
-Agregar a `src/components/layout/AppSidebar.tsx` la entrada "Egresos" (icono `Wallet` o `Receipt`) con submenú colapsable:
-
-- Registro de Egresos → `/egresos`
-- Categorías → `/egresos/categorias`
-- Reportes → `/egresos/reportes`
-- Aprobaciones → `/egresos/aprobaciones`
-- Dashboard → `/egresos/dashboard`
-
-Permisos vía `useRolePermisos` con clave `egresos` (Admin/Gerente/Contador acceso completo; otros solo lectura).
-
-### 3. Rutas
-
-Registrar en `src/App.tsx`:
-
-```
-/egresos              → Egresos.tsx (lista + crear)
-/egresos/categorias   → EgresosCategorias.tsx
-/egresos/reportes     → EgresosReportes.tsx
-/egresos/aprobaciones → EgresosAprobaciones.tsx
-/egresos/dashboard    → EgresosDashboard.tsx
-```
-
-### 4. Componentes nuevos
-
-```
-src/pages/
-  Egresos.tsx
-  EgresosCategorias.tsx
-  EgresosReportes.tsx
-  EgresosAprobaciones.tsx
-  EgresosDashboard.tsx
-
-src/components/egresos/
-  CreateExpenseDialog.tsx        # Modal de creación rápida + completa
-  EditExpenseDialog.tsx
-  ExpenseDetailModal.tsx         # Detalle + historial + adjuntos
-  ExpenseTable.tsx               # Tabla con búsqueda/filtros/paginación
-  ExpenseFilters.tsx             # Filtros: fecha, empresa, categoría, estado, proveedor, responsable
-  ExpenseStatusBadge.tsx
-  ExpenseAttachments.tsx         # Upload/list/delete (storage)
-  ExpenseApprovalActions.tsx     # Aprobar/Rechazar con comentario
-  CategoryManager.tsx            # CRUD categorías y subcategorías jerárquico
-  ExpenseDashboardCards.tsx
-  ExpenseChartsByCategory.tsx
-  ExpenseChartsMonthly.tsx
-  TopProveedoresChart.tsx
-
-src/hooks/
-  useExpenses.tsx
-  useExpenseCategories.tsx
-  useExpenseDashboard.tsx
-
-src/lib/
-  expenseExport.ts               # Excel (xlsx), CSV, PDF (jsPDF/reportlab-equivalent ya usado)
+### Base de datos (migración)
+```sql
+CREATE TABLE public.contrato_migraciones (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  contrato_id uuid NOT NULL REFERENCES public.contratos(id) ON DELETE CASCADE,
+  sede_origen_id uuid REFERENCES public.sedes(id),
+  sede_destino_id uuid NOT NULL REFERENCES public.sedes(id),
+  migrated_by uuid REFERENCES auth.users(id),
+  migrated_at timestamptz NOT NULL DEFAULT now(),
+  entidades_afectadas jsonb NOT NULL DEFAULT '{}'::jsonb,
+  notas text
+);
+GRANT SELECT, INSERT ON public.contrato_migraciones TO authenticated;
+GRANT ALL ON public.contrato_migraciones TO service_role;
+ALTER TABLE public.contrato_migraciones ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "admins gerentes ven migraciones" ON public.contrato_migraciones
+  FOR SELECT TO authenticated
+  USING (has_role(auth.uid(),'administrador') OR has_role(auth.uid(),'gerente'));
+CREATE POLICY "admins gerentes crean migraciones" ON public.contrato_migraciones
+  FOR INSERT TO authenticated
+  WITH CHECK (has_role(auth.uid(),'administrador') OR has_role(auth.uid(),'gerente'));
 ```
 
-### 5. Flujo de estados
+### Archivos
+- **Nuevo** `src/components/contratos/MigrateContractsDialog.tsx`: modal + lógica de migración + preview de conteos.
+- **Editar** `src/pages/Contratos.tsx`: estado `selectedIds`, columna de checkbox, botón "Migrar a otra sede" y renderizado del modal.
+- **Editar** `src/integrations/supabase/types.ts` (auto-regenerado por Supabase tras la migración).
 
-`Borrador → Pendiente → Aprobado/Rechazado → Pagado → Anulado`
+## Validación pre-implementación
+- Confirmado que `contratos`, `proformas`, `pagos`, `workflows` tienen `sede_id`.
+- `registro_ventas` no requiere cambio (filtra vía `pagos`).
+- Permiso restringido a Administrador/Gerente para evitar movimientos accidentales.
+- Auditoría persistida en `contrato_migraciones`.
 
-- Transiciones validadas en frontend + trigger SQL que escribe en `expense_status_history`.
-- Solo Admin/Gerente/Contador pueden aprobar.
-- Cada cambio registra usuario, fecha y comentario.
+## Validación post-implementación
+1. Seleccionar 1 contrato y migrarlo → verificar en DB que contrato, sus pagos, proforma y workflows quedan con `sede_id` destino.
+2. Seleccionar 3 contratos con distintos escenarios (con/sin proforma, con/sin workflows) → verificar conteos en `contrato_migraciones`.
+3. Verificar que reportes filtrados por sede destino ahora incluyen las entidades migradas y la sede origen ya no las muestra.
+4. Verificar que un usuario Asesor NO ve el botón.
 
-### 6. Dashboard
+## Fuera de alcance (fase 2, opcional)
+- Edge function transaccional (rollback atómico entre tablas).
+- Migración también del cliente asociado.
+- Vista de historial de migraciones en Configuración.
 
-Cards: total mes, total año, # documentos, ticket promedio.
-Gráficos (recharts, ya en el stack):
-- Barra: egresos por categoría
-- Barra apilada: por empresa/sede
-- Donut: por centro de costo
-- Línea: evolución mensual (12 meses)
-- Tabla: top 10 proveedores
-- Comparativo año actual vs anterior
-
-Aplicar `BlurredValue` para roles sin permiso financiero (regla del proyecto).
-
-### 7. Reportes
-
-Pantalla con filtros + tabla paginada + botones de exportación:
-- Excel: usa `src/lib/exportToExcel.ts` existente
-- CSV: helper nuevo en `expenseExport.ts`
-- PDF: patrón de `generateProformaPDF.ts`
-
-### 8. UX/UI
-
-- Tipografía Plus Jakarta Sans (regla del proyecto).
-- Acciones críticas (Ver Detalle, Aprobar, Pago) **siempre visibles** en tabla (regla del proyecto).
-- Parseo manual de fechas YYYY-MM-DD (regla del proyecto).
-- Responsive con `useIsMobile`.
-- Modal de creación rápida desde sidebar/topbar.
-
-### 9. Detalles técnicos
-
-- **Múltiples empresas/sucursales**: reutilizar `sedes` + `useSedeContext` ya existentes.
-- **Centro de costo**: campo libre por ahora (texto) — extensible a tabla futura.
-- **Adjuntos**: bucket Supabase `expense-attachments`, límite 10MB (regla del proyecto), tipos: PDF/XML/imagen/Office.
-- **Auditoría**: `created_by`, `updated_at`, trigger `expense_status_history`.
-- **Códigos**: `EGR-YYYY-NNNNN` vía función SQL con `WHERE id = v_id` (regla del proyecto sobre RLS-compliant sequences).
-- **Métodos de pago / cuenta bancaria**: reutilizar tabla `metodos_pago` existente; cuenta bancaria como texto.
-
-### 10. Orden de ejecución
-
-1. Migración SQL (tablas + grants + RLS + función secuencia + seeds + bucket)
-2. Tipos Supabase se auto-regeneran
-3. Hooks (`useExpenses`, `useExpenseCategories`, `useExpenseDashboard`)
-4. Componentes compartidos (badge, filters, attachments)
-5. Páginas: Registro → Categorías → Aprobaciones → Reportes → Dashboard
-6. Sidebar + rutas
-7. Verificación: build + smoke test de creación/aprobación
-
-### Notas
-
-- Es un módulo grande (~15-20 archivos nuevos + 1 migración importante). Implementación incremental en este turno enfocada primero en base de datos, sidebar, rutas y pantalla principal de Registro; el resto en iteraciones siguientes para mantener cada cambio verificable.
-- Confirma si quieres que avance todo en este turno o por fases (recomiendo fases: Fase 1 = DB + sidebar + Registro + Categorías; Fase 2 = Aprobaciones + estados; Fase 3 = Dashboard + Reportes + exportaciones).
+¿Confirmas para implementar?
