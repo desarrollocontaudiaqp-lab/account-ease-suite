@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.verifica-pe-lookup]
 verify_jwt = true
+
+[functions.mcp]
+verify_jwt = false
