@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import type { ToolContext } from "@lovable.dev/mcp-js";
 
+// Resolved at runtime inside the generated Deno edge function.
+declare const process: { env: Record<string, string | undefined> };
+
 /**
  * Supabase client bound to the MCP caller's verified access token so every
  * query runs under that user's RLS policies. Never build a service-role
