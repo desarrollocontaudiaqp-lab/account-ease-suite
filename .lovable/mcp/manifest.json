@@ -1,0 +1,205 @@
+{
+  "version": 1,
+  "sdk_version": "0.25.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://mnrassdxhwykmldzubzr.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "studioflow-pro",
+      "version": "0.1.0",
+      "title": "StudioFlow Pro"
+    },
+    "tools": [
+      {
+        "name": "buscar_clientes",
+        "title": "Buscar clientes",
+        "description": "Busca clientes por razón social, código o documento. Devuelve datos de contacto, tipo de cliente y estado.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Texto a buscar en razón social, código o nombre de persona natural."
+            },
+            "limite": {
+              "type": "integer",
+              "description": "Máximo de resultados (por defecto 20)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listar_contratos",
+        "title": "Listar contratos",
+        "description": "Lista contratos con su cliente, estado, condición, montos y vigencia. Permite filtrar por estado o por texto del número/descripción.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "estado": {
+              "type": "string",
+              "description": "Estado del contrato, por ejemplo 'activo'."
+            },
+            "query": {
+              "type": "string",
+              "description": "Texto a buscar en número o descripción del contrato."
+            },
+            "limite": {
+              "type": "integer",
+              "description": "Máximo de resultados (por defecto 20)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listar_proformas",
+        "title": "Listar proformas",
+        "description": "Lista proformas con cliente, estado, fechas de emisión/vencimiento y montos (subtotal, IGV, total).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "estado": {
+              "type": "string",
+              "description": "Estado de la proforma, por ejemplo 'pendiente'."
+            },
+            "desde": {
+              "type": "string",
+              "description": "Fecha mínima de emisión en formato YYYY-MM-DD."
+            },
+            "hasta": {
+              "type": "string",
+              "description": "Fecha máxima de emisión en formato YYYY-MM-DD."
+            },
+            "limite": {
+              "type": "integer",
+              "description": "Máximo de resultados (por defecto 20)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listar_pagos",
+        "title": "Listar pagos",
+        "description": "Lista cuotas y pagos de contratos con su estado, monto, fecha de vencimiento y fecha de pago. Útil para revisar cobranzas pendientes o vencidas.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "estado": {
+              "type": "string",
+              "description": "Estado del pago, por ejemplo 'pendiente' o 'pagado'."
+            },
+            "vence_desde": {
+              "type": "string",
+              "description": "Fecha mínima de vencimiento en formato YYYY-MM-DD."
+            },
+            "vence_hasta": {
+              "type": "string",
+              "description": "Fecha máxima de vencimiento en formato YYYY-MM-DD."
+            },
+            "limite": {
+              "type": "integer",
+              "description": "Máximo de resultados (por defecto 20)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listar_egresos",
+        "title": "Listar egresos",
+        "description": "Lista egresos con su código, proveedor, categoría, estado, método de pago y montos, filtrables por estado y rango de fechas.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "estado": {
+              "type": "string",
+              "description": "Estado del egreso: borrador, pendiente, aprobado, rechazado, pagado o anulado."
+            },
+            "desde": {
+              "type": "string",
+              "description": "Fecha mínima del egreso en formato YYYY-MM-DD."
+            },
+            "hasta": {
+              "type": "string",
+              "description": "Fecha máxima del egreso en formato YYYY-MM-DD."
+            },
+            "limite": {
+              "type": "integer",
+              "description": "Máximo de resultados (por defecto 20)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "resumen_caja",
+        "title": "Resumen de caja",
+        "description": "Calcula ingresos cobrados, egresos pagados y saldo del periodo indicado (por defecto el mes en curso).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "desde": {
+              "type": "string",
+              "description": "Fecha inicial en formato YYYY-MM-DD."
+            },
+            "hasta": {
+              "type": "string",
+              "description": "Fecha final en formato YYYY-MM-DD."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
