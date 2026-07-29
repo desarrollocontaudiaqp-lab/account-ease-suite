@@ -27,6 +27,7 @@ import EgresosReportes from "./pages/EgresosReportes";
 import EgresosAprobaciones from "./pages/EgresosAprobaciones";
 import Caja from "./pages/Caja";
 import Auth from "./pages/Auth";
+import OAuthConsent from "./pages/OAuthConsent";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -54,6 +55,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
+      <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
       <Route
         element={
           <ProtectedRoute>
