@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,11 @@ const signupSchema = loginSchema.extend({
 const Auth = () => {
   const { user, signIn, signUp, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get('next');
+  // Only allow same-origin relative paths.
+  const nextPath =
+    rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -52,9 +57,9 @@ const Auth = () => {
 
   useEffect(() => {
     if (shouldAutoRedirectAuthenticatedUser({ user, authLoading, loginInProgress: loading })) {
-      navigate('/');
+      navigate(nextPath);
     }
-  }, [user, authLoading, loading, navigate]);
+  }, [user, authLoading, loading, navigate, nextPath]);
 
   useEffect(() => {
     const loadSedes = async () => {
@@ -127,7 +132,7 @@ const Auth = () => {
     persistSedeSelection();
     setLoading(false);
     toast.success('Sesión iniciada correctamente');
-    navigate('/');
+    navigate(nextPath);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
