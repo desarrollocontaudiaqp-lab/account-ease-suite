@@ -20,6 +20,7 @@ import {
   Workflow,
   Library,
   ListChecks,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,8 @@ import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { WorkflowBibliotecaDialog } from "@/components/workflow/WorkflowBibliotecaDialog";
 import { AsignarDetallesDialog } from "@/components/asignaciones/AsignarDetallesDialog";
+import { SupervisarDetallesDialog } from "@/components/asignaciones/SupervisarDetallesDialog";
+import { useCanEditProgress } from "@/hooks/useCanEditProgress";
 import { useSedeContext } from "@/hooks/useSedeContext";
 
 type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
@@ -171,6 +174,8 @@ const Asignaciones = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
   const [detallesModalOpen, setDetallesModalOpen] = useState(false);
+  const [supervisionModalOpen, setSupervisionModalOpen] = useState(false);
+  const { canEditAll: canSupervise } = useCanEditProgress();
   const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
   const [selectedContrato, setSelectedContrato] = useState<ContratoAsignado | null>(null);
   const [selectedCarteraId, setSelectedCarteraId] = useState<string>("");
@@ -463,6 +468,11 @@ const Asignaciones = () => {
       setSelectedCarteraMiembros([]);
     }
     setDetallesModalOpen(true);
+  };
+
+  const openSupervisionModal = (contrato: ContratoAsignado) => {
+    setSelectedContrato(contrato);
+    setSupervisionModalOpen(true);
   };
 
   const getInitials = (name: string | null | undefined) => {
@@ -876,6 +886,15 @@ const Asignaciones = () => {
                           >
                             <ListChecks className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openSupervisionModal(contrato)}
+                            title="Supervisar Detalles"
+                          >
+                            <ShieldCheck className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1128,6 +1147,21 @@ const Asignaciones = () => {
         }
         miembros={selectedCarteraMiembros}
         onSuccess={fetchData}
+      />
+
+      <SupervisarDetallesDialog
+        open={supervisionModalOpen}
+        onOpenChange={setSupervisionModalOpen}
+        contrato={
+          selectedContrato
+            ? {
+                id: selectedContrato.id,
+                numero: selectedContrato.numero,
+                descripcion: selectedContrato.descripcion,
+              }
+            : null
+        }
+        canSupervise={canSupervise}
       />
     </div>
   );
