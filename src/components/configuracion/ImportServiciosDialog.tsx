@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
 interface ParsedServicio {
-  grupo_servicio: "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
+  grupo_servicio: GrupoServicio;
   tipo_servicio: string | null;
   regimen_tributario: string | null;
   compras_ventas_mensual_soles: string | null;
@@ -61,7 +61,7 @@ const COLUMN_HEADERS = [
   "PRECIO DEL SERVICIO",
 ];
 
-const VALID_GRUPOS = ["Contabilidad", "Trámites", "Auditoría y Control Interno"] as const;
+const VALID_GRUPOS = GRUPOS_SERVICIO;
 
 export function ImportServiciosDialog() {
   const [open, setOpen] = useState(false);
@@ -81,11 +81,12 @@ export function ImportServiciosDialog() {
     return isNaN(num) ? null : num;
   };
 
-  const normalizeGrupoServicio = (value: string): "Contabilidad" | "Trámites" | "Auditoría y Control Interno" | null => {
+  const normalizeGrupoServicio = (value: string): GrupoServicio | null => {
     const lower = value.toLowerCase().trim();
     if (lower.includes("contab")) return "Contabilidad";
     if (lower.includes("tramit") || lower.includes("trámit")) return "Trámites";
-    if (lower.includes("audit") || lower.includes("control")) return "Auditoría y Control Interno";
+    if (lower.includes("audit")) return "Auditoría";
+    if (lower.includes("control")) return "Control Interno";
     return null;
   };
 
@@ -119,7 +120,7 @@ export function ImportServiciosDialog() {
       const grupoServicio = normalizeGrupoServicio(grupoServicioRaw || "");
       
       if (!grupoServicio) {
-        newErrors.push(`Fila ${i + 1}: Grupo de servicio inválido "${grupoServicioRaw}". Debe ser Contabilidad, Trámites o Auditoría y Control Interno`);
+        newErrors.push(`Fila ${i + 1}: Grupo de servicio inválido "${grupoServicioRaw}". Debe ser ${GRUPOS_SERVICIO.join(", ")}`);
         continue;
       }
 
@@ -256,7 +257,9 @@ export function ImportServiciosDialog() {
         return "bg-blue-100 text-blue-800";
       case "Trámites":
         return "bg-green-100 text-green-800";
-      case "Auditoría y Control Interno":
+      case "Auditoría":
+        return "bg-amber-100 text-amber-800";
+      case "Control Interno":
         return "bg-purple-100 text-purple-800";
       default:
         return "bg-gray-100 text-gray-800";
