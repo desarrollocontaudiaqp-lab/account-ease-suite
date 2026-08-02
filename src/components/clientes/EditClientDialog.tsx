@@ -402,6 +402,11 @@ export function EditClientDialog({
                   <Label htmlFor="direccion">Dirección</Label>
                   <Input id="direccion" {...register("direccion")} />
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fecha_ingreso">Fecha de Ingreso</Label>
+                  <Input id="fecha_ingreso" type="date" {...register("fecha_ingreso")} />
+                </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
