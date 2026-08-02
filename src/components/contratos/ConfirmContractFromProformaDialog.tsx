@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { grupoToContractSlug } from "@/lib/serviceGroups";
 import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
