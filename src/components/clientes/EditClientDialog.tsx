@@ -32,6 +32,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 import { lookupVerificaPe } from "@/lib/verificaPe";
+import {
+  ClientContactsManager,
+  saveClientContacts,
+  type ClientContact,
+} from "./ClientContactsManager";
 
 const clientSchema = z.object({
   tipo_cliente: z.string(),
@@ -102,6 +107,7 @@ export function EditClientDialog({
   const [datosClienteOpen, setDatosClienteOpen] = useState(true);
   const [contactoOpen, setContactoOpen] = useState(true);
   const [tributarioOpen, setTributarioOpen] = useState(true);
+  const [contacts, setContacts] = useState<ClientContact[]>([]);
   
   const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
   const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
@@ -151,6 +157,45 @@ export function EditClientDialog({
 
   useEffect(() => {
     if (client && open) {
+      (async () => {
+        const { data } = await (supabase as any)
+          .from("cliente_contactos")
+          .select("id, nombre, cargo, telefono, email, orden")
+          .eq("cliente_id", client.id)
+          .order("orden", { ascending: true });
+
+        if (data && data.length > 0) {
+          setContacts(
+            data.map((c: any) => ({
+              id: c.id,
+              nombre: c.nombre || "",
+              cargo: c.cargo || "",
+              telefono: c.telefono || "",
+              email: c.email || "",
+            })),
+          );
+        } else {
+          const legacy: ClientContact[] = [];
+          if (client.contacto_nombre) {
+            legacy.push({
+              nombre: client.contacto_nombre,
+              cargo: "",
+              telefono: client.contacto_telefono || "",
+              email: client.contacto_email || "",
+            });
+          }
+          if (client.contacto_nombre2) {
+            legacy.push({
+              nombre: client.contacto_nombre2,
+              cargo: "",
+              telefono: client.contacto_telefono2 || "",
+              email: "",
+            });
+          }
+          setContacts(legacy);
+        }
+      })();
+
       reset({
         tipo_cliente: client.tipo_cliente,
         codigo: client.codigo,
@@ -182,6 +227,7 @@ export function EditClientDialog({
     
     setLoading(true);
     try {
+      const validContacts = contacts.filter((c) => c.nombre.trim().length > 0);
       const updateData = {
         ...data,
         nombre_persona_natural: data.nombre_persona_natural || null,
@@ -189,11 +235,11 @@ export function EditClientDialog({
         direccion: data.direccion || null,
         telefono: data.telefono || null,
         email: data.email || null,
-        contacto_nombre: data.contacto_nombre || null,
-        contacto_telefono: data.contacto_telefono || null,
-        contacto_email: data.contacto_email || null,
-        contacto_nombre2: data.contacto_nombre2 || null,
-        contacto_telefono2: data.contacto_telefono2 || null,
+        contacto_nombre: validContacts[0]?.nombre || null,
+        contacto_telefono: validContacts[0]?.telefono || null,
+        contacto_email: validContacts[0]?.email || null,
+        contacto_nombre2: validContacts[1]?.nombre || null,
+        contacto_telefono2: validContacts[1]?.telefono || null,
         sector: data.sector || null,
         notas: data.notas || null,
         regimen_tributario: data.regimen_tributario || null,
@@ -210,6 +256,8 @@ export function EditClientDialog({
         .eq("id", client.id);
 
       if (error) throw error;
+
+      await saveClientContacts(supabase, client.id, validContacts);
 
       toast.success("Cliente actualizado exitosamente");
       onOpenChange(false);
@@ -359,12 +407,16 @@ export function EditClientDialog({
             <CollapsibleContent className="space-y-4 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Label htmlFor="telefono">
+                    {tipoCliente === "empresa" ? "Teléfono de la Empresa" : "Teléfono"}
+                  </Label>
                   <Input id="telefono" {...register("telefono")} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">
+                    {tipoCliente === "empresa" ? "Email de la Empresa" : "Email"}
+                  </Label>
                   <Input id="email" type="email" {...register("email")} />
                   {errors.email && (
                     <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -372,44 +424,7 @@ export function EditClientDialog({
                 </div>
               </div>
 
-              {tipoCliente === "empresa" && (
-                <>
-                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
-                    <Label className="text-sm font-medium">Persona de Contacto 1</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_nombre">Nombre</Label>
-                        <Input id="contacto_nombre" {...register("contacto_nombre")} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_telefono">Teléfono</Label>
-                        <Input id="contacto_telefono" {...register("contacto_telefono")} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_email">Email</Label>
-                        <Input id="contacto_email" type="email" {...register("contacto_email")} />
-                        {errors.contacto_email && (
-                          <p className="text-sm text-destructive">{errors.contacto_email.message}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
-                    <Label className="text-sm font-medium">Persona de Contacto 2</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_nombre2">Nombre</Label>
-                        <Input id="contacto_nombre2" {...register("contacto_nombre2")} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_telefono2">Teléfono</Label>
-                        <Input id="contacto_telefono2" {...register("contacto_telefono2")} />
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
+              <ClientContactsManager contacts={contacts} onChange={setContacts} />
             </CollapsibleContent>
           </Collapsible>
 

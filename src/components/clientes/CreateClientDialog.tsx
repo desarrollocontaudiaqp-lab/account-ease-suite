@@ -40,6 +40,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 import { lookupVerificaPe } from "@/lib/verificaPe";
+import {
+  ClientContactsManager,
+  saveClientContacts,
+  type ClientContact,
+} from "./ClientContactsManager";
 
 const clientSchema = z.object({
   tipo_cliente: z.enum(["empresa", "persona_natural"]),
@@ -87,6 +92,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
   const [datosClienteOpen, setDatosClienteOpen] = useState(true);
   const [contactoOpen, setContactoOpen] = useState(true);
   const [tributarioOpen, setTributarioOpen] = useState(true);
+  const [contacts, setContacts] = useState<ClientContact[]>([]);
   
   const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
   const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
@@ -150,6 +156,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
   const onSubmit = async (data: ClientFormData) => {
     setLoading(true);
     try {
+      const validContacts = contacts.filter((c) => c.nombre.trim().length > 0);
       const insertData = {
         tipo_cliente: data.tipo_cliente,
         codigo: data.codigo,
@@ -160,11 +167,11 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
         telefono: data.telefono || null,
         direccion: data.direccion || null,
         sector: data.sector || null,
-        contacto_nombre: data.contacto_nombre || null,
-        contacto_email: data.contacto_email || null,
-        contacto_telefono: data.contacto_telefono || null,
-        contacto_nombre2: data.contacto_nombre2 || null,
-        contacto_telefono2: data.contacto_telefono2 || null,
+        contacto_nombre: validContacts[0]?.nombre || null,
+        contacto_email: validContacts[0]?.email || null,
+        contacto_telefono: validContacts[0]?.telefono || null,
+        contacto_nombre2: validContacts[1]?.nombre || null,
+        contacto_telefono2: validContacts[1]?.telefono || null,
         regimen_tributario: data.regimen_tributario || null,
         regimen_laboral: data.regimen_laboral || null,
         actividad_economica: data.actividad_economica || null,
@@ -174,12 +181,21 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
         notas: data.notas || null,
       };
 
-      const { error } = await supabase.from("clientes").insert(insertData);
+      const { data: created, error } = await supabase
+        .from("clientes")
+        .insert(insertData)
+        .select("id")
+        .single();
 
       if (error) throw error;
 
+      if (created?.id && validContacts.length > 0) {
+        await saveClientContacts(supabase, created.id, validContacts);
+      }
+
       toast.success("Cliente creado exitosamente");
       form.reset();
+      setContacts([]);
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
@@ -191,6 +207,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
 
   const handleClose = () => {
     form.reset();
+    setContacts([]);
     onOpenChange(false);
   };
 
@@ -400,7 +417,9 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>
+                          {tipoCliente === "empresa" ? "Email de la Empresa" : "Email"}
+                        </FormLabel>
                         <FormControl>
                           <Input type="email" placeholder="cliente@email.com" {...field} />
                         </FormControl>
@@ -413,7 +432,9 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                     name="telefono"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Teléfono</FormLabel>
+                        <FormLabel>
+                          {tipoCliente === "empresa" ? "Teléfono de la Empresa" : "Teléfono"}
+                        </FormLabel>
                         <FormControl>
                           <Input placeholder="054-123456" {...field} />
                         </FormControl>
@@ -423,88 +444,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                   />
                 </div>
 
-                {/* Persona de contacto 1 (solo para empresas) */}
-                {tipoCliente === "empresa" && (
-                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
-                    <Label className="text-sm font-medium">Persona de Contacto 1</Label>
-                    <FormField
-                      control={form.control}
-                      name="contacto_nombre"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nombre</FormLabel>
-                          <FormControl>
-                            <Input placeholder="María García" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="contacto_email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email</FormLabel>
-                            <FormControl>
-                              <Input type="email" placeholder="contacto@empresa.com" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="contacto_telefono"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Teléfono</FormLabel>
-                            <FormControl>
-                              <Input placeholder="951-123456" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Persona de contacto 2 (solo para empresas) */}
-                {tipoCliente === "empresa" && (
-                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
-                    <Label className="text-sm font-medium">Persona de Contacto 2</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="contacto_nombre2"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nombre</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Juan Pérez" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="contacto_telefono2"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Teléfono</FormLabel>
-                            <FormControl>
-                              <Input placeholder="951-654321" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                )}
+                <ClientContactsManager contacts={contacts} onChange={setContacts} />
               </CollapsibleContent>
             </Collapsible>
 
