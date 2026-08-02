@@ -44,7 +44,7 @@ interface Client {
   razon_social: string;
   nombre_persona_natural: string | null;
   direccion: string | null;
-  fecha_ingreso: string | null;
+  fecha_ingreso?: string | null;
   telefono: string | null;
   email: string | null;
   contacto_nombre: string | null;
@@ -106,7 +106,7 @@ const Clientes = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setClients(data || []);
+      setClients((data as any) || []);
     } catch (error: any) {
       toast.error("Error al cargar clientes: " + error.message);
     } finally {
