@@ -507,7 +507,7 @@ export function ConfirmContractFromProformaDialog({
         .insert({
           numero,
           descripcion: contractDescription,
-          tipo_servicio: proformaDetails?.tipo || proformaData.tipo,
+          tipo_servicio: grupoToContractSlug(proformaDetails?.tipo || proformaData.tipo),
           fecha_inicio: fechaInicio,
           fecha_fin: fechaFin,
           monto_total: totalGeneral,
