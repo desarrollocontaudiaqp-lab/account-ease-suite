@@ -104,6 +104,7 @@ const SERVICE_TYPES: Record<string, string> = {
   contabilidad: "Contabilidad",
   tramites: "Trámites",
   auditoria: "Auditoría",
+  control_interno: "Control Interno",
 };
 
 function formatCurrency(amount: number, currency: string = "PEN"): string {
