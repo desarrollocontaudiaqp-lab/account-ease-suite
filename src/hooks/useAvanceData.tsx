@@ -37,7 +37,7 @@ export function useAvanceData() {
       let query = supabase
         .from("pagos")
         .select(
-          `id, monto, moneda:contrato_id, fecha_vencimiento, fecha_pago, status, tipo_comprobante,
+          `id, monto, fecha_vencimiento, fecha_pago, status, tipo_comprobante,
            serie_comprobante, numero_comprobante, metodo_pago, contrato_id, sede_id,
            contrato:contratos(id, numero, moneda, responsable_id, cliente_id,
              cliente:clientes(id, codigo, razon_social))`
