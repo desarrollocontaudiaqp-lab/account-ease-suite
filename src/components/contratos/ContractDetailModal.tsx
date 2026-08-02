@@ -821,6 +821,31 @@ export const ContractDetailModal = ({
                   </div>
                 )}
 
+                {/* Service details */}
+                {(contract.datos_plantilla?.projections || []).some(
+                  (p: any) => Array.isArray(p?.detalles) && p.detalles.length > 0
+                ) && (
+                  <div className="border border-border rounded-xl overflow-hidden print:break-inside-avoid">
+                    <div className="bg-muted/50 px-4 py-3 border-b border-border">
+                      <h3 className="font-semibold text-sm uppercase tracking-wide">Detalles por Servicio</h3>
+                    </div>
+                    <div className="p-4 space-y-4">
+                      {(contract.datos_plantilla?.projections || [])
+                        .filter((p: any) => Array.isArray(p?.detalles) && p.detalles.length > 0)
+                        .map((p: any, idx: number) => (
+                          <div key={p.id || idx}>
+                            <p className="text-sm font-medium mb-1">{p.descripcion || `Servicio ${idx + 1}`}</p>
+                            <ol className="list-decimal list-inside space-y-0.5 text-sm text-muted-foreground">
+                              {p.detalles.map((d: any, i: number) => (
+                                <li key={d.id || i}>{d.descripcion}</li>
+                              ))}
+                            </ol>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Notes */}
                 {contract.notas && (
                   <div className="border border-border rounded-xl overflow-hidden print:break-inside-avoid">
