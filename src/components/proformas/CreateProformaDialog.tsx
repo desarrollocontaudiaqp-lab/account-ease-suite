@@ -58,7 +58,7 @@ interface Plantilla {
   servicios: ServicioPlantilla[];
 }
 
-type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
+import { GRUPO_PROFORMA_PREFIX, normalizeGrupoServicio, type GrupoServicio } from "@/lib/serviceGroups";
 
 interface Cliente {
   id: string;
@@ -276,9 +276,7 @@ export function CreateProformaDialog({
         // Fallback to random number if DB function fails
         const year = new Date().getFullYear();
         const random = Math.floor(Math.random() * 10000).toString().padStart(5, "0");
-        let prefix = "PC";
-        if (tipo === "Trámites") prefix = "PT";
-        else if (tipo === "Auditoría y Control Interno") prefix = "PA";
+        const prefix = GRUPO_PROFORMA_PREFIX[normalizeGrupoServicio(tipo) ?? "Contabilidad"];
         return `${prefix}-${year}-${random}`;
       }
       
@@ -287,9 +285,7 @@ export function CreateProformaDialog({
       console.error("Error generating proforma number:", err);
       const year = new Date().getFullYear();
       const random = Math.floor(Math.random() * 10000).toString().padStart(5, "0");
-      let prefix = "PC";
-      if (tipo === "Trámites") prefix = "PT";
-      else if (tipo === "Auditoría y Control Interno") prefix = "PA";
+      const prefix = GRUPO_PROFORMA_PREFIX[normalizeGrupoServicio(tipo) ?? "Contabilidad"];
       return `${prefix}-${year}-${random}`;
     }
   };
