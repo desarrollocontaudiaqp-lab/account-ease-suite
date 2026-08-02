@@ -25,6 +25,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { GRUPOS_SERVICIO, type GrupoServicio } from "@/lib/serviceGroups";
 
 interface ParsedServicio {
   grupo_servicio: GrupoServicio;
