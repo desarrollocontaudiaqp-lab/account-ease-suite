@@ -432,6 +432,53 @@ export type Database = {
           },
         ]
       }
+      cliente_contactos: {
+        Row: {
+          cargo: string | null
+          cliente_id: string
+          created_at: string
+          email: string | null
+          id: string
+          nombre: string
+          orden: number
+          principal: boolean
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          cargo?: string | null
+          cliente_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre: string
+          orden?: number
+          principal?: boolean
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cargo?: string | null
+          cliente_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          nombre?: string
+          orden?: number
+          principal?: boolean
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cliente_contactos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           actividad_economica: string | null
