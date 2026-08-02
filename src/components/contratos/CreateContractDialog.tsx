@@ -117,11 +117,7 @@ const SERVICE_COLORS = [
   "bg-yellow-500",
 ];
 
-const SERVICE_TYPES = [
-  { value: "contabilidad", label: "Contabilidad" },
-  { value: "tramites", label: "Trámites" },
-  { value: "auditoria", label: "Auditoría" },
-];
+const SERVICE_TYPES = [...CONTRACT_SERVICE_TYPES];
 
 type CalendarViewType = "month" | "quarter" | "year" | "summary";
 
