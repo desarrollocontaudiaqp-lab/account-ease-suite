@@ -39,7 +39,12 @@ import { toast } from "sonner";
 import { useSedeContext } from "@/hooks/useSedeContext";
 import { BlurredValue } from "@/components/ui/BlurredValue";
 
-type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
+import {
+  GRUPO_BADGE_STYLES,
+  matchesGrupoServicio,
+  normalizeGrupoServicio,
+  type GrupoServicio,
+} from "@/lib/serviceGroups";
 
 interface Proforma {
   id: string;
@@ -90,9 +95,8 @@ interface ProformaEstado {
 }
 
 const typeStyles: Record<string, string> = {
-  "Contabilidad": "bg-primary/10 text-primary",
-  "Trámites": "bg-secondary/20 text-secondary-foreground",
-  "Auditoría y Control Interno": "bg-purple-100 text-purple-700",
+  ...GRUPO_BADGE_STYLES,
+  "Auditoría y Control Interno": GRUPO_BADGE_STYLES["Auditoría"],
   // Legacy support
   contabilidad: "bg-primary/10 text-primary",
   tramites: "bg-secondary/20 text-secondary-foreground",
@@ -101,6 +105,8 @@ const typeStyles: Record<string, string> = {
 const typeLabels: Record<string, string> = {
   "Contabilidad": "Contabilidad",
   "Trámites": "Trámites",
+  "Auditoría": "Auditoría",
+  "Control Interno": "Control Interno",
   "Auditoría y Control Interno": "Auditoría",
   // Legacy support
   contabilidad: "Contabilidad",
