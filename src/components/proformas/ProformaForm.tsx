@@ -73,7 +73,7 @@ interface Plantilla {
   servicios: ServicioPlantilla[];
 }
 
-type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
+import { GRUPO_PROFORMA_PREFIX, normalizeGrupoServicio, type GrupoServicio } from "@/lib/serviceGroups";
 
 interface Cliente {
   id: string;
