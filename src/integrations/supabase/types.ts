@@ -983,6 +983,103 @@ export type Database = {
           },
         ]
       }
+      detalle_supervision_historial: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          estado_anterior: string | null
+          estado_nuevo: string
+          id: string
+          observaciones: string | null
+          supervision_id: string
+          user_id: string | null
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          estado_anterior?: string | null
+          estado_nuevo: string
+          id?: string
+          observaciones?: string | null
+          supervision_id: string
+          user_id?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          estado_anterior?: string | null
+          estado_nuevo?: string
+          id?: string
+          observaciones?: string | null
+          supervision_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detalle_supervision_historial_supervision_id_fkey"
+            columns: ["supervision_id"]
+            isOneToOne: false
+            referencedRelation: "detalle_supervisiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      detalle_supervisiones: {
+        Row: {
+          asignado_a: string | null
+          contrato_id: string
+          created_at: string
+          detalle_descripcion: string | null
+          detalle_id: string
+          estado: string
+          id: string
+          observaciones: string | null
+          servicio_descripcion: string | null
+          servicio_id: string
+          supervisado_en: string | null
+          supervisado_por: string | null
+          updated_at: string
+        }
+        Insert: {
+          asignado_a?: string | null
+          contrato_id: string
+          created_at?: string
+          detalle_descripcion?: string | null
+          detalle_id: string
+          estado?: string
+          id?: string
+          observaciones?: string | null
+          servicio_descripcion?: string | null
+          servicio_id: string
+          supervisado_en?: string | null
+          supervisado_por?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asignado_a?: string | null
+          contrato_id?: string
+          created_at?: string
+          detalle_descripcion?: string | null
+          detalle_id?: string
+          estado?: string
+          id?: string
+          observaciones?: string | null
+          servicio_descripcion?: string | null
+          servicio_id?: string
+          supervisado_en?: string | null
+          supervisado_por?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detalle_supervisiones_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documentos_pago: {
         Row: {
           activo: boolean
