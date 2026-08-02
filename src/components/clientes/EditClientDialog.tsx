@@ -32,6 +32,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
 import { lookupVerificaPe } from "@/lib/verificaPe";
+import {
+  ClientContactsManager,
+  saveClientContacts,
+  type ClientContact,
+} from "./ClientContactsManager";
 
 const clientSchema = z.object({
   tipo_cliente: z.string(),
@@ -102,6 +107,7 @@ export function EditClientDialog({
   const [datosClienteOpen, setDatosClienteOpen] = useState(true);
   const [contactoOpen, setContactoOpen] = useState(true);
   const [tributarioOpen, setTributarioOpen] = useState(true);
+  const [contacts, setContacts] = useState<ClientContact[]>([]);
   
   const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
   const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
@@ -151,6 +157,45 @@ export function EditClientDialog({
 
   useEffect(() => {
     if (client && open) {
+      (async () => {
+        const { data } = await (supabase as any)
+          .from("cliente_contactos")
+          .select("id, nombre, cargo, telefono, email, orden")
+          .eq("cliente_id", client.id)
+          .order("orden", { ascending: true });
+
+        if (data && data.length > 0) {
+          setContacts(
+            data.map((c: any) => ({
+              id: c.id,
+              nombre: c.nombre || "",
+              cargo: c.cargo || "",
+              telefono: c.telefono || "",
+              email: c.email || "",
+            })),
+          );
+        } else {
+          const legacy: ClientContact[] = [];
+          if (client.contacto_nombre) {
+            legacy.push({
+              nombre: client.contacto_nombre,
+              cargo: "",
+              telefono: client.contacto_telefono || "",
+              email: client.contacto_email || "",
+            });
+          }
+          if (client.contacto_nombre2) {
+            legacy.push({
+              nombre: client.contacto_nombre2,
+              cargo: "",
+              telefono: client.contacto_telefono2 || "",
+              email: "",
+            });
+          }
+          setContacts(legacy);
+        }
+      })();
+
       reset({
         tipo_cliente: client.tipo_cliente,
         codigo: client.codigo,
