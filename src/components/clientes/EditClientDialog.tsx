@@ -31,6 +31,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
+import { useSunatCredentials } from "@/hooks/useSunatCredentials";
 import { lookupVerificaPe } from "@/lib/verificaPe";
 import {
   ClientContactsManager,
@@ -110,6 +111,7 @@ export function EditClientDialog({
   const [contacts, setContacts] = useState<ClientContact[]>([]);
   
   const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
+  const { canViewSunat } = useSunatCredentials();
   const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
 
   const {
@@ -497,15 +499,19 @@ export function EditClientDialog({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="usuario_sunat">Usuario SUNAT</Label>
-                    <Input id="usuario_sunat" {...register("usuario_sunat")} />
-                  </div>
+                  {canViewSunat && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="usuario_sunat">Usuario SUNAT</Label>
+                        <Input id="usuario_sunat" {...register("usuario_sunat")} />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="clave_sunat">Clave SUNAT</Label>
-                    <Input id="clave_sunat" type="password" {...register("clave_sunat")} />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="clave_sunat">Clave SUNAT</Label>
+                        <Input id="clave_sunat" type="password" {...register("clave_sunat")} />
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="nro_trabajadores">Nro. Trabajadores</Label>

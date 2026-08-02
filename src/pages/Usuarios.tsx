@@ -32,6 +32,7 @@ interface UserProfile {
   role: AppRole;
   sede_id: string | null;
   sede_ids?: string[];
+  ver_credenciales_sunat?: boolean;
 }
 
 const roleStyles: Record<AppRole, string> = {
@@ -134,6 +135,7 @@ const Usuarios = () => {
             role: userRole?.role || 'asesor',
             sede_id: primary,
             sede_ids: ids,
+            ver_credenciales_sunat: !!(profile as any).ver_credenciales_sunat,
           });
         }
 
@@ -167,12 +169,12 @@ const Usuarios = () => {
   }, []);
 
   // User handlers
-  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null; sede_ids: string[] }) => {
+  const handleEditUser = async (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null; sede_ids: string[]; ver_credenciales_sunat: boolean }) => {
     setActionLoading(true);
     try {
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ full_name: data.full_name, sede_id: data.sede_id } as any)
+        .update({ full_name: data.full_name, sede_id: data.sede_id, ver_credenciales_sunat: data.ver_credenciales_sunat } as any)
         .eq('id', userId);
 
       if (profileError) throw profileError;

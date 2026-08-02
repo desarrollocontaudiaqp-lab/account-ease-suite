@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSunatCredentials } from "@/hooks/useSunatCredentials";
 import { Plus, Trash2, Search, ChevronDown, ChevronUp, User, Building2, Copy, Eye, EyeOff, X, CalendarDays, Save, FileText, Loader2, Download, Printer } from "lucide-react";
 import { CalendarProjectionModal, ServiceProjection, PaymentScheduleItem } from "./CalendarProjectionModal";
 import {
@@ -168,6 +169,7 @@ export function ProformaForm({
   const [openClientePopover, setOpenClientePopover] = useState(false);
   const [showClienteDetails, setShowClienteDetails] = useState(true);
   const [showClaveSol, setShowClaveSol] = useState(false);
+  const { canViewSunat } = useSunatCredentials();
   const [openAddCampoPopover, setOpenAddCampoPopover] = useState(false);
   const [showCalendarProjection, setShowCalendarProjection] = useState(false);
   const [calendarProjection, setCalendarProjection] = useState<ServiceProjection[]>([]);
@@ -978,6 +980,7 @@ export function ProformaForm({
                     <Label className="text-muted-foreground text-xs">Régimen Laboral</Label>
                     <p className="font-medium text-sm">{selectedClienteData.regimen_laboral || "-"}</p>
                   </div>
+                  {canViewSunat && (
                   <div>
                     <Label className="text-muted-foreground text-xs">Usuario SUNAT</Label>
                     <div className="flex items-center gap-2">
@@ -994,6 +997,8 @@ export function ProformaForm({
                       )}
                     </div>
                   </div>
+                  )}
+                  {canViewSunat && (
                   <div>
                     <Label className="text-muted-foreground text-xs">Clave SOL</Label>
                     <div className="flex items-center gap-2">
@@ -1025,6 +1030,7 @@ export function ProformaForm({
                       )}
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
             )}
