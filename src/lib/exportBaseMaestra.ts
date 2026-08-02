@@ -90,6 +90,7 @@ export async function exportBaseMaestra({ clientIds, includeSunat = false }: Bas
       "Fecha Suspensión": fmt(c.fecha_suspension),
       "Sede": sedeName(c.sede_id),
       "Dirección": fmt(c.direccion),
+      "Fecha de Ingreso": fmt((c as any).fecha_ingreso),
       "Teléfono Empresa": fmt(c.telefono),
       "Email Empresa": fmt(c.email),
       "Sector": fmt(c.sector),
