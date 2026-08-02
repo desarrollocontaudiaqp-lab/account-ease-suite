@@ -32,6 +32,9 @@ import { useSedeContext } from "@/hooks/useSedeContext";
 import { Building2 } from "lucide-react";
 import { clearStoredActiveSedeId } from "@/lib/activeSede";
 import { useSystemConfig } from "@/hooks/useSystemConfig";
+import { useContractAlerts } from "@/hooks/useContractAlerts";
+
+const ADMIN_ITEMS = ["Usuarios", "Configuración"];
 
 interface SidebarItem {
   title: string;
@@ -83,6 +86,8 @@ export function AppSidebar() {
   const { user, role, signOut } = useAuth();
   const { availableSedes, activeSedeId, canViewAllSedes } = useSedeContext();
   const { config } = useSystemConfig();
+  const { contracts: alertContracts } = useContractAlerts();
+  const alertCount = alertContracts.length;
   const approvalEnabled = config.expense_approval_enabled !== false;
   const filteredMenuItems = approvalEnabled
     ? menuItems
@@ -188,7 +193,7 @@ export function AppSidebar() {
             Menú Principal
           </p>
         )}
-        {filteredMenuItems.slice(0, 10).map((item, index) => {
+        {filteredMenuItems.filter((i) => !ADMIN_ITEMS.includes(i.title)).map((item, index) => {
           const Icon = item.icon;
           const hasChildren = item.children && item.children.length > 0;
           const isExpanded = expandedItems.includes(item.title);
@@ -209,10 +214,14 @@ export function AppSidebar() {
                     }
                   >
                     <Icon className="h-5 w-5" />
+                    {item.path === "/alertas" && alertCount > 0 && (
+                      <span className="absolute ml-5 -mt-5 h-2 w-2 rounded-full bg-destructive" />
+                    )}
                   </NavLink>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="font-medium">
                   {item.title}
+                  {item.path === "/alertas" && alertCount > 0 ? ` (${alertCount})` : ""}
                 </TooltipContent>
               </Tooltip>
             );
@@ -273,6 +282,11 @@ export function AppSidebar() {
                 >
                   <Icon className="h-5 w-5" />
                   <span className="text-sm font-medium">{item.title}</span>
+                  {item.path === "/alertas" && alertCount > 0 && (
+                    <span className="ml-auto min-w-[22px] px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground text-[11px] font-semibold text-center">
+                      {alertCount}
+                    </span>
+                  )}
                 </NavLink>
               )}
             </div>
@@ -286,7 +300,7 @@ export function AppSidebar() {
               ADM
             </p>
           )}
-          {filteredMenuItems.slice(10).map((item) => {
+          {filteredMenuItems.filter((i) => ADMIN_ITEMS.includes(i.title)).map((item) => {
             const Icon = item.icon;
             
             if (isCollapsed) {
