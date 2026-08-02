@@ -247,8 +247,12 @@ export function EditClientDialog({
         regimen_tributario: data.regimen_tributario || null,
         regimen_laboral: data.regimen_laboral || null,
         actividad_economica: data.actividad_economica || null,
-        usuario_sunat: data.usuario_sunat || null,
-        clave_sunat: data.clave_sunat || null,
+        ...(canViewSunat
+          ? {
+              usuario_sunat: data.usuario_sunat || null,
+              clave_sunat: data.clave_sunat || null,
+            }
+          : {}),
         nro_trabajadores: data.nro_trabajadores || null,
       };
 

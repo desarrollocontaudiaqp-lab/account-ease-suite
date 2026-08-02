@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSunatCredentials } from "@/hooks/useSunatCredentials";
 
 interface Campo {
   id: string;
@@ -117,6 +118,7 @@ export function CreateProformaDialog({
   const [openClientePopover, setOpenClientePopover] = useState(false);
   const [showClienteDetails, setShowClienteDetails] = useState(true);
   const [showClaveSol, setShowClaveSol] = useState(false);
+  const { canViewSunat } = useSunatCredentials();
   const [openAddCampoPopover, setOpenAddCampoPopover] = useState(false);
   const [showCalendarProjection, setShowCalendarProjection] = useState(false);
   const [calendarProjection, setCalendarProjection] = useState<ServiceProjection[]>([]);
@@ -573,6 +575,7 @@ export function CreateProformaDialog({
                     <Label className="text-muted-foreground text-xs">Régimen Laboral</Label>
                     <p className="font-medium text-sm">{selectedClienteData.regimen_laboral || "-"}</p>
                   </div>
+                  {canViewSunat && (
                   <div>
                     <Label className="text-muted-foreground text-xs">Usuario SUNAT</Label>
                     <div className="flex items-center gap-2">
@@ -589,6 +592,8 @@ export function CreateProformaDialog({
                       )}
                     </div>
                   </div>
+                  )}
+                  {canViewSunat && (
                   <div>
                     <Label className="text-muted-foreground text-xs">Clave SOL</Label>
                     <div className="flex items-center gap-2">
@@ -620,6 +625,7 @@ export function CreateProformaDialog({
                       )}
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
             )}
