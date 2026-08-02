@@ -64,3 +64,20 @@ export const GRUPO_PROFORMA_PREFIX: Record<GrupoServicio, string> = {
   "Auditoría": "PA",
   "Control Interno": "PCI",
 };
+
+/** Convierte un grupo de proforma al slug usado en contratos.tipo_servicio */
+export function grupoToContractSlug(value?: string | null): string {
+  const grupo = normalizeGrupoServicio(value);
+  switch (grupo) {
+    case "Contabilidad":
+      return "contabilidad";
+    case "Trámites":
+      return "tramites";
+    case "Auditoría":
+      return "auditoria";
+    case "Control Interno":
+      return "control_interno";
+    default:
+      return "contabilidad";
+  }
+}
