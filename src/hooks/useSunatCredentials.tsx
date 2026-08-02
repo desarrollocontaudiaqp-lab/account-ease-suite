@@ -5,19 +5,17 @@ import { useAuth } from '@/hooks/useAuth';
 /**
  * Determina si el usuario actual puede ver las credenciales SUNAT
  * (Usuario SUNAT / Clave SOL) de los clientes.
- * Administrador y Gerente siempre tienen acceso.
+ * Solo depende del permiso `ver_credenciales_sunat` del perfil,
+ * sin excepciones por rol.
  */
 export function useSunatCredentials() {
-  const { user, role } = useAuth();
+  const { user } = useAuth();
   const [allowed, setAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const isAdmin = role === 'administrador' || role === 'gerente';
 
   useEffect(() => {
     let cancelled = false;
     if (!user) { setAllowed(false); setLoading(false); return; }
-    if (isAdmin) { setAllowed(true); setLoading(false); return; }
     (async () => {
       setLoading(true);
       const { data } = await supabase
@@ -31,7 +29,7 @@ export function useSunatCredentials() {
       }
     })();
     return () => { cancelled = true; };
-  }, [user?.id, isAdmin]);
+  }, [user?.id]);
 
   return { canViewSunat: allowed, loading };
 }
