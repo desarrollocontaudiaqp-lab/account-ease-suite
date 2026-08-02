@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export interface ServiceDetalle {
+  [key: string]: string;
   id: string;
   descripcion: string;
 }
