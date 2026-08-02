@@ -21,6 +21,7 @@ import {
   HelpCircle,
   Wallet,
   Banknote,
+  BellRing,
 } from "lucide-react";
 import logo from "@/assets/logo-ca.png";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ const menuItems: SidebarItem[] = [
   { title: "Asignaciones", icon: UserCheck, path: "/asignaciones" },
   { title: "Carteras", icon: Briefcase, path: "/carteras" },
   { title: "Calendario Pagos", icon: Calendar, path: "/calendario-pagos" },
+  { title: "Alertas", icon: BellRing, path: "/alertas" },
   { title: "WorkFlow", icon: Workflow, path: "/calendario-trabajo" },
   {
     title: "Egresos",
