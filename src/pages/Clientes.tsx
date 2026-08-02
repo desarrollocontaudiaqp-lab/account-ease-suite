@@ -12,6 +12,7 @@ import {
   List,
   Loader2,
   Upload,
+  Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,8 @@ import { DeleteClientDialog } from "@/components/clientes/DeleteClientDialog";
 import { SuspendClientDialog } from "@/components/clientes/SuspendClientDialog";
 import { ClientActions } from "@/components/clientes/ClientActions";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
+import { exportBaseMaestra } from "@/lib/exportBaseMaestra";
+import { useSunatCredentials } from "@/hooks/useSunatCredentials";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -74,6 +77,25 @@ const Clientes = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const { canViewSunat } = useSunatCredentials();
+  const [exportingBase, setExportingBase] = useState(false);
+
+  const handleBaseMaestra = async () => {
+    setExportingBase(true);
+    try {
+      const res = await exportBaseMaestra({
+        clientIds: filteredClients.map((c) => c.id),
+        includeSunat: canViewSunat,
+      });
+      toast.success(
+        `Base maestra generada: ${res.clientes} clientes, ${res.contratos} contratos, ${res.proformas} proformas`
+      );
+    } catch (error: any) {
+      toast.error("Error al generar la base maestra: " + error.message);
+    } finally {
+      setExportingBase(false);
+    }
+  };
 
   const fetchClients = async () => {
     try {
@@ -202,6 +224,19 @@ const Clientes = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleBaseMaestra}
+            disabled={exportingBase}
+          >
+            {exportingBase ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Database className="h-4 w-4" />
+            )}
+            BASE MAESTRA
+          </Button>
           <ExportExcelButton
             allRows={clients}
             filteredRows={filteredClients}
