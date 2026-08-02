@@ -39,6 +39,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
+import { useSunatCredentials } from "@/hooks/useSunatCredentials";
 import { lookupVerificaPe } from "@/lib/verificaPe";
 import {
   ClientContactsManager,
@@ -95,6 +96,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
   const [contacts, setContacts] = useState<ClientContact[]>([]);
   
   const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
+  const { canViewSunat } = useSunatCredentials();
   const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
 
   const form = useForm<ClientFormData>({
@@ -546,32 +548,36 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="usuario_sunat"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Usuario SUNAT</FormLabel>
-                          <FormControl>
-                            <Input placeholder="USUARIO123" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="clave_sunat"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Clave SUNAT</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="••••••" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    {canViewSunat && (
+                      <>
+                        <FormField
+                          control={form.control}
+                          name="usuario_sunat"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Usuario SUNAT</FormLabel>
+                              <FormControl>
+                                <Input placeholder="USUARIO123" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="clave_sunat"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Clave SUNAT</FormLabel>
+                              <FormControl>
+                                <Input type="password" placeholder="••••••" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
+                    )}
                     <FormField
                       control={form.control}
                       name="nro_trabajadores"
