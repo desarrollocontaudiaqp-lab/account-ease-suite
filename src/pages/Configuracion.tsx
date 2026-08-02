@@ -237,7 +237,8 @@ const Configuracion = () => {
               <TabsList className="bg-muted/50">
                 <TabsTrigger value="contabilidad">Contabilidad</TabsTrigger>
                 <TabsTrigger value="tramites">Trámites</TabsTrigger>
-                <TabsTrigger value="auditoria">Auditoría y Control Interno</TabsTrigger>
+                <TabsTrigger value="auditoria">Auditoría</TabsTrigger>
+                <TabsTrigger value="control_interno">Control Interno</TabsTrigger>
               </TabsList>
               
               <TabsContent value="contabilidad">
@@ -249,7 +250,11 @@ const Configuracion = () => {
               </TabsContent>
               
               <TabsContent value="auditoria">
-                <ServiciosManager grupoServicio="Auditoría y Control Interno" titulo="Servicios de Auditoría y Control Interno" />
+                <ServiciosManager grupoServicio="Auditoría" titulo="Servicios de Auditoría" />
+              </TabsContent>
+
+              <TabsContent value="control_interno">
+                <ServiciosManager grupoServicio="Control Interno" titulo="Servicios de Control Interno" />
               </TabsContent>
             </Tabs>
           </div>
