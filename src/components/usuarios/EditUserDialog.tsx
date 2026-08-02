@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Building2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Database } from '@/integrations/supabase/types';
 import { useRolePermisos } from '@/hooks/useRolePermisos';
@@ -21,13 +22,14 @@ interface UserProfile {
   phone: string | null;
   role: AppRole;
   sede_id?: string | null;
+  ver_credenciales_sunat?: boolean;
 }
 
 interface EditUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: UserProfile | null;
-  onSave: (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null; sede_ids: string[] }) => Promise<void>;
+  onSave: (userId: string, data: { full_name: string; role: AppRole; sede_id: string | null; sede_ids: string[]; ver_credenciales_sunat: boolean }) => Promise<void>;
   loading: boolean;
 }
 
@@ -38,12 +40,14 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
   const [role, setRole] = useState<AppRole>('asesor');
   const [sedeId, setSedeId] = useState<string>(''); // primary sede
   const [sedeIds, setSedeIds] = useState<string[]>([]); // all assigned sedes
+  const [verSunat, setVerSunat] = useState(false);
 
   useEffect(() => {
     if (user) {
       setFullName(user.full_name || '');
       setRole(user.role);
       setSedeId(user.sede_id || '');
+      setVerSunat(!!user.ver_credenciales_sunat);
       // Load assigned sedes
       (async () => {
         const { data } = await supabase
@@ -80,6 +84,7 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
         role,
         sede_id: primary,
         sede_ids: Array.from(new Set([...sedeIds, ...(primary ? [primary] : [])])),
+        ver_credenciales_sunat: verSunat,
       });
     }
   };
@@ -160,6 +165,15 @@ const EditUserDialog = ({ open, onOpenChange, user, onSave, loading }: EditUserD
               Selecciona una o más sedes. La sede principal es la activa por defecto al iniciar sesión.
               Si tiene varias, podrá cambiar desde el selector en la esquina superior derecha.
             </p>
+          </div>
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="ver-sunat">Ver credenciales SUNAT</Label>
+              <p className="text-xs text-muted-foreground">
+                Permite visualizar el Usuario SUNAT y la Clave SOL de los clientes.
+              </p>
+            </div>
+            <Switch id="ver-sunat" checked={verSunat} onCheckedChange={setVerSunat} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
