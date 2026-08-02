@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2, FileCheck, Pencil, Ban, Trash2, Calendar } from "lucide-react";
+import { Plus, Search, Eye, Download, Send, MoreHorizontal, FileText, Calculator, LayoutGrid, List, Palette, FileSpreadsheet, Loader2, FileCheck, Pencil, Ban, Trash2, Calendar, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
