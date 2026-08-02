@@ -494,6 +494,7 @@ export type Database = {
           created_by: string | null
           direccion: string | null
           email: string | null
+          fecha_ingreso: string | null
           fecha_suspension: string | null
           id: string
           motivo_suspension_id: string | null
@@ -525,6 +526,7 @@ export type Database = {
           created_by?: string | null
           direccion?: string | null
           email?: string | null
+          fecha_ingreso?: string | null
           fecha_suspension?: string | null
           id?: string
           motivo_suspension_id?: string | null
@@ -556,6 +558,7 @@ export type Database = {
           created_by?: string | null
           direccion?: string | null
           email?: string | null
+          fecha_ingreso?: string | null
           fecha_suspension?: string | null
           id?: string
           motivo_suspension_id?: string | null
