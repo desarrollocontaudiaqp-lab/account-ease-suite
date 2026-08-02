@@ -407,12 +407,16 @@ export function EditClientDialog({
             <CollapsibleContent className="space-y-4 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Label htmlFor="telefono">
+                    {tipoCliente === "empresa" ? "Teléfono de la Empresa" : "Teléfono"}
+                  </Label>
                   <Input id="telefono" {...register("telefono")} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">
+                    {tipoCliente === "empresa" ? "Email de la Empresa" : "Email"}
+                  </Label>
                   <Input id="email" type="email" {...register("email")} />
                   {errors.email && (
                     <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -420,44 +424,7 @@ export function EditClientDialog({
                 </div>
               </div>
 
-              {tipoCliente === "empresa" && (
-                <>
-                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
-                    <Label className="text-sm font-medium">Persona de Contacto 1</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_nombre">Nombre</Label>
-                        <Input id="contacto_nombre" {...register("contacto_nombre")} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_telefono">Teléfono</Label>
-                        <Input id="contacto_telefono" {...register("contacto_telefono")} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_email">Email</Label>
-                        <Input id="contacto_email" type="email" {...register("contacto_email")} />
-                        {errors.contacto_email && (
-                          <p className="text-sm text-destructive">{errors.contacto_email.message}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
-                    <Label className="text-sm font-medium">Persona de Contacto 2</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_nombre2">Nombre</Label>
-                        <Input id="contacto_nombre2" {...register("contacto_nombre2")} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="contacto_telefono2">Teléfono</Label>
-                        <Input id="contacto_telefono2" {...register("contacto_telefono2")} />
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
+              <ClientContactsManager contacts={contacts} onChange={setContacts} />
             </CollapsibleContent>
           </Collapsible>
 
