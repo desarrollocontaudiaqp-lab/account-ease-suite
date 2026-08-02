@@ -52,7 +52,7 @@ interface Servicio {
 }
 
 interface ServiciosManagerProps {
-  grupoServicio: "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
+  grupoServicio: "Contabilidad" | "Trámites" | "Auditoría" | "Control Interno";
   titulo: string;
 }
 
