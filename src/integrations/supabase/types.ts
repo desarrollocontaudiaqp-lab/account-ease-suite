@@ -1543,6 +1543,7 @@ export type Database = {
           puesto: string | null
           sede_id: string | null
           updated_at: string
+          ver_credenciales_sunat: boolean
         }
         Insert: {
           asignar_supervision?: boolean
@@ -1556,6 +1557,7 @@ export type Database = {
           puesto?: string | null
           sede_id?: string | null
           updated_at?: string
+          ver_credenciales_sunat?: boolean
         }
         Update: {
           asignar_supervision?: boolean
@@ -1569,6 +1571,7 @@ export type Database = {
           puesto?: string | null
           sede_id?: string | null
           updated_at?: string
+          ver_credenciales_sunat?: boolean
         }
         Relationships: [
           {
