@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSedeContext } from "@/hooks/useSedeContext";
+import { CONTRACT_SERVICE_TYPE_LABELS } from "@/lib/serviceGroups";
 import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban, CalendarDays, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
