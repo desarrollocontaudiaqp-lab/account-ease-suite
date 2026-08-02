@@ -70,6 +70,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { useSedeContext } from "@/hooks/useSedeContext";
 import { WorkflowBibliotecaDialog } from "@/components/workflow/WorkflowBibliotecaDialog";
+import { ExportRangoDialog } from "@/components/calendario-pagos/ExportRangoDialog";
 
 type DateFilterType = "Hoy" | "Semana Actual" | "Mes Actual" | "Mes" | "Año" | "Todo";
 
@@ -575,6 +576,9 @@ export default function CalendarioPagos() {
         </div>
         
         <div className="flex items-center gap-2">
+          <ExportRangoDialog
+            payments={unifiedPayments.filter((p) => !activeSedeId || p.sede_id === activeSedeId)}
+          />
           <ExportExcelButton
             allRows={unifiedPayments}
             filteredRows={filteredPayments}
