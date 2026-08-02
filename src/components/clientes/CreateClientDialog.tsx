@@ -417,7 +417,9 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>
+                          {tipoCliente === "empresa" ? "Email de la Empresa" : "Email"}
+                        </FormLabel>
                         <FormControl>
                           <Input type="email" placeholder="cliente@email.com" {...field} />
                         </FormControl>
@@ -430,7 +432,9 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                     name="telefono"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Teléfono</FormLabel>
+                        <FormLabel>
+                          {tipoCliente === "empresa" ? "Teléfono de la Empresa" : "Teléfono"}
+                        </FormLabel>
                         <FormControl>
                           <Input placeholder="054-123456" {...field} />
                         </FormControl>
@@ -440,88 +444,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                   />
                 </div>
 
-                {/* Persona de contacto 1 (solo para empresas) */}
-                {tipoCliente === "empresa" && (
-                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
-                    <Label className="text-sm font-medium">Persona de Contacto 1</Label>
-                    <FormField
-                      control={form.control}
-                      name="contacto_nombre"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nombre</FormLabel>
-                          <FormControl>
-                            <Input placeholder="María García" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="contacto_email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email</FormLabel>
-                            <FormControl>
-                              <Input type="email" placeholder="contacto@empresa.com" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="contacto_telefono"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Teléfono</FormLabel>
-                            <FormControl>
-                              <Input placeholder="951-123456" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Persona de contacto 2 (solo para empresas) */}
-                {tipoCliente === "empresa" && (
-                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border border-border">
-                    <Label className="text-sm font-medium">Persona de Contacto 2</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="contacto_nombre2"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nombre</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Juan Pérez" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="contacto_telefono2"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Teléfono</FormLabel>
-                            <FormControl>
-                              <Input placeholder="951-654321" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                )}
+                <ClientContactsManager contacts={contacts} onChange={setContacts} />
               </CollapsibleContent>
             </Collapsible>
 
