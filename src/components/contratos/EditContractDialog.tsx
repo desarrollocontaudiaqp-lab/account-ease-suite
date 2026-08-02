@@ -22,6 +22,7 @@ import {
   PanelLeft
 } from "lucide-react";
 import { ServiceSearchInput } from "./ServiceSearchInput";
+import { ContractServiceDetails, type ServiceDetalle } from "./ContractServiceDetails";
 import {
   Dialog,
   DialogContent,
@@ -85,6 +86,7 @@ interface ServiceProjection {
   pago: number;
   total: number;
   dividirEnCuotas: boolean;
+  detalles: ServiceDetalle[];
 }
 
 interface PaymentScheduleItem {
@@ -217,6 +219,7 @@ export const EditContractDialog = ({
         fechaInicio: parseStoredLocalDate(p.fechaInicio) || today,
         fechaTermino: parseStoredLocalDate(p.fechaTermino),
         dividirEnCuotas: p.dividirEnCuotas !== undefined ? p.dividirEnCuotas : true,
+        detalles: Array.isArray(p.detalles) ? p.detalles : [],
       }));
       setProjections(restoredProjections);
     } else if (contract.proforma?.items && contract.proforma.items.length > 0) {
@@ -236,6 +239,7 @@ export const EditContractDialog = ({
         pago: Number(item.subtotal) || 0,
         total: Number(item.subtotal) || 0,
         dividirEnCuotas: true,
+        detalles: [] as ServiceDetalle[],
       }));
       setProjections(newProjections);
     } else {
@@ -255,6 +259,7 @@ export const EditContractDialog = ({
         pago: Number(contract.monto_total) || 0,
         total: Number(contract.monto_total) || 0,
         dividirEnCuotas: true,
+        detalles: [],
       }]);
     }
   };
@@ -276,7 +281,12 @@ export const EditContractDialog = ({
       pago: 0,
       total: 0,
       dividirEnCuotas: true,
+      detalles: [],
     }]);
+  };
+
+  const handleDetallesChange = (index: number, detalles: ServiceDetalle[]) => {
+    setProjections((prev) => prev.map((p, i) => (i === index ? { ...p, detalles } : p)));
   };
 
   const removeService = (index: number) => {
