@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Workflow,
   Library,
+  ListChecks,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,7 @@ import { EditContractDialog } from "@/components/contratos/EditContractDialog";
 import { WorkFlowModal } from "@/components/asignaciones/WorkFlowModal";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
 import { WorkflowBibliotecaDialog } from "@/components/workflow/WorkflowBibliotecaDialog";
+import { AsignarDetallesDialog } from "@/components/asignaciones/AsignarDetallesDialog";
 import { useSedeContext } from "@/hooks/useSedeContext";
 
 type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
@@ -168,6 +170,7 @@ const Asignaciones = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
+  const [detallesModalOpen, setDetallesModalOpen] = useState(false);
   const [bibliotecaOpen, setBibliotecaOpen] = useState(false);
   const [selectedContrato, setSelectedContrato] = useState<ContratoAsignado | null>(null);
   const [selectedCarteraId, setSelectedCarteraId] = useState<string>("");
@@ -449,6 +452,17 @@ const Asignaciones = () => {
       setSelectedCarteraMiembros([]);
     }
     setWorkflowModalOpen(true);
+  };
+
+  const openDetallesModal = (contrato: ContratoAsignado) => {
+    setSelectedContrato(contrato);
+    if (contrato.cartera) {
+      const cartera = carteras.find((c) => c.id === contrato.cartera?.id);
+      setSelectedCarteraMiembros(cartera?.miembros || []);
+    } else {
+      setSelectedCarteraMiembros([]);
+    }
+    setDetallesModalOpen(true);
   };
 
   const getInitials = (name: string | null | undefined) => {
@@ -852,6 +866,16 @@ const Asignaciones = () => {
                           >
                             <ArrowRightLeft className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openDetallesModal(contrato)}
+                            title="Asignar Detalles"
+                            disabled={!contrato.cartera}
+                          >
+                            <ListChecks className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1088,6 +1112,22 @@ const Asignaciones = () => {
         open={bibliotecaOpen}
         onOpenChange={setBibliotecaOpen}
         onAssigned={fetchData}
+      />
+
+      <AsignarDetallesDialog
+        open={detallesModalOpen}
+        onOpenChange={setDetallesModalOpen}
+        contrato={
+          selectedContrato
+            ? {
+                id: selectedContrato.id,
+                numero: selectedContrato.numero,
+                descripcion: selectedContrato.descripcion,
+              }
+            : null
+        }
+        miembros={selectedCarteraMiembros}
+        onSuccess={fetchData}
       />
     </div>
   );
