@@ -36,7 +36,9 @@ interface ProformaSecuencia {
 const TIPO_LABELS: Record<string, string> = {
   "Contabilidad": "Contabilidad",
   "Trámites": "Trámites",
-  "Auditoría y Control Interno": "Auditoría y Control Interno",
+  "Auditoría": "Auditoría",
+  "Control Interno": "Control Interno",
+  "Auditoría y Control Interno": "Auditoría",
 };
 
 export function ProformaSecuenciasManager() {
@@ -51,7 +53,7 @@ export function ProformaSecuenciasManager() {
       const { data, error } = await supabase
         .from("proforma_secuencias")
         .select("*")
-        .in("tipo", ["Contabilidad", "Trámites", "Auditoría y Control Interno"])
+        .in("tipo", ["Contabilidad", "Trámites", "Auditoría", "Control Interno"])
         .order("tipo");
       
       if (error) throw error;

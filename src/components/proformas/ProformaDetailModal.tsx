@@ -78,7 +78,9 @@ interface ProformaDetailModalProps {
 const typeStyles: Record<string, string> = {
   "Contabilidad": "bg-primary/10 text-primary",
   "Trámites": "bg-secondary/20 text-secondary-foreground",
-  "Auditoría y Control Interno": "bg-purple-100 text-purple-700",
+  "Auditoría": "bg-amber-100 text-amber-700",
+  "Control Interno": "bg-purple-100 text-purple-700",
+  "Auditoría y Control Interno": "bg-amber-100 text-amber-700",
   contabilidad: "bg-primary/10 text-primary",
   tramites: "bg-secondary/20 text-secondary-foreground",
 };
@@ -86,6 +88,8 @@ const typeStyles: Record<string, string> = {
 const typeLabels: Record<string, string> = {
   "Contabilidad": "Contabilidad",
   "Trámites": "Trámites",
+  "Auditoría": "Auditoría",
+  "Control Interno": "Control Interno",
   "Auditoría y Control Interno": "Auditoría",
   contabilidad: "Contabilidad",
   tramites: "Trámites",

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { grupoToContractSlug } from "@/lib/serviceGroups";
 import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
@@ -507,7 +508,7 @@ export function ConfirmContractFromProformaDialog({
         .insert({
           numero,
           descripcion: contractDescription,
-          tipo_servicio: proformaDetails?.tipo || proformaData.tipo,
+          tipo_servicio: grupoToContractSlug(proformaDetails?.tipo || proformaData.tipo),
           fecha_inicio: fechaInicio,
           fecha_fin: fechaFin,
           monto_total: totalGeneral,

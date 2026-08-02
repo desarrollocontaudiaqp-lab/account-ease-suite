@@ -64,14 +64,14 @@ interface ServicioPlantilla {
 interface Plantilla {
   id: string;
   nombre: string;
-  tipo: "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
+  tipo: GrupoServicio;
   descripcion: string | null;
   campos: Campo[];
   servicios: ServicioPlantilla[];
   activa: boolean;
 }
 
-type GrupoServicio = "Contabilidad" | "Trámites" | "Auditoría y Control Interno";
+import { GRUPOS_SERVICIO, type GrupoServicio } from "@/lib/serviceGroups";
 
 interface ProformaDesignerProps {
   open: boolean;
@@ -457,9 +457,11 @@ export function ProformaDesigner({ open, onOpenChange }: ProformaDesignerProps) 
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Contabilidad">Contabilidad</SelectItem>
-                      <SelectItem value="Trámites">Trámites</SelectItem>
-                      <SelectItem value="Auditoría y Control Interno">Auditoría y Control Interno</SelectItem>
+                      {GRUPOS_SERVICIO.map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {g}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

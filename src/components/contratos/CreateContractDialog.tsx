@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { CONTRACT_SERVICE_TYPES } from "@/lib/serviceGroups";
 import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { 
@@ -117,11 +118,7 @@ const SERVICE_COLORS = [
   "bg-yellow-500",
 ];
 
-const SERVICE_TYPES = [
-  { value: "contabilidad", label: "Contabilidad" },
-  { value: "tramites", label: "Trámites" },
-  { value: "auditoria", label: "Auditoría" },
-];
+const SERVICE_TYPES = [...CONTRACT_SERVICE_TYPES];
 
 type CalendarViewType = "month" | "quarter" | "year" | "summary";
 

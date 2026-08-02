@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSedeContext } from "@/hooks/useSedeContext";
+import { CONTRACT_SERVICE_TYPE_LABELS } from "@/lib/serviceGroups";
 import { Plus, Search, Eye, MoreHorizontal, FileCheck, Calendar, User, LayoutGrid, List, Edit, Trash2, FileText, Loader2, Settings2, ArrowRight, CheckCircle, Ban, CalendarDays, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,6 +110,8 @@ const statusLabels: Record<ContractStatus, string> = {
 const typeStyles: Record<string, string> = {
   contabilidad: "bg-primary/10 text-primary",
   tramites: "bg-secondary/20 text-secondary-foreground",
+  auditoria: "bg-amber-100 text-amber-700",
+  control_interno: "bg-purple-100 text-purple-700",
   mixto: "bg-purple-100 text-purple-800",
 };
 
@@ -734,8 +737,8 @@ const Contratos = () => {
                     )}
 
                     <div className="flex flex-wrap gap-2 mb-4">
-                      <Badge variant="outline" className={typeStyles[contract.tipo_servicio] || typeStyles.contabilidad}>
-                        {contract.tipo_servicio === "contabilidad" ? "Contabilidad" : "Trámites"}
+                      <Badge variant="outline" className={typeStyles[contract.tipo_servicio?.toLowerCase()] || typeStyles.contabilidad}>
+                        {CONTRACT_SERVICE_TYPE_LABELS[contract.tipo_servicio?.toLowerCase()] || contract.tipo_servicio}
                       </Badge>
                       <Badge variant="outline" className={statusStyles[contract.status]}>
                         {statusLabels[contract.status]}
@@ -875,7 +878,7 @@ const Contratos = () => {
                           </td>
                           <td className="px-6 py-4">
                             <Badge variant="outline" className={typeStyles[contract.tipo_servicio.toLowerCase()] || typeStyles.contabilidad}>
-                              {contract.tipo_servicio.toLowerCase() === "contabilidad" ? "Contabilidad" : "Trámites"}
+                              {CONTRACT_SERVICE_TYPE_LABELS[contract.tipo_servicio.toLowerCase()] || contract.tipo_servicio}
                             </Badge>
                           </td>
                           <td className="px-6 py-4">

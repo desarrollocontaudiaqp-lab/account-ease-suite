@@ -145,6 +145,7 @@ const SERVICE_TYPES: Record<string, string> = {
   contabilidad: "Contabilidad",
   tramites: "Trámites",
   auditoria: "Auditoría",
+  control_interno: "Control Interno",
 };
 
 // Company info
