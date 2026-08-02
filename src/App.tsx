@@ -18,6 +18,7 @@ import Asignaciones from "./pages/Asignaciones";
 import Carteras from "./pages/Carteras";
 import CalendarioTrabajo from "./pages/CalendarioTrabajo";
 import CalendarioPagos from "./pages/CalendarioPagos";
+import Alertas from "./pages/Alertas";
 import Reportes from "./pages/Reportes";
 import Usuarios from "./pages/Usuarios";
 import Configuracion from "./pages/Configuracion";
@@ -70,6 +71,7 @@ const AppRoutes = () => {
         <Route path="/asignaciones" element={<Asignaciones />} />
         <Route path="/carteras" element={<Carteras />} />
         <Route path="/calendario-pagos" element={<FinancialPageGuard><CalendarioPagos /></FinancialPageGuard>} />
+        <Route path="/alertas" element={<Alertas />} />
         <Route path="/calendario-trabajo" element={<CalendarioTrabajo />} />
         <Route path="/reportes/*" element={<FinancialPageGuard><Reportes /></FinancialPageGuard>} />
         <Route path="/egresos" element={<FinancialPageGuard><Egresos /></FinancialPageGuard>} />

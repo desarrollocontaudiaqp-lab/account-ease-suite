@@ -1,12 +1,13 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
-import { Bell, Search, ChevronDown, Building2, Repeat, LogOut, User as UserIcon } from "lucide-react";
+import { Bell, Search, ChevronDown, Building2, Repeat, LogOut, User as UserIcon, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GlobalSearch } from "./GlobalSearch";
+import { useContractAlerts } from "@/hooks/useContractAlerts";
 import { useSedeContext } from "@/hooks/useSedeContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { clearStoredActiveSedeId } from "@/lib/activeSede";
@@ -26,6 +27,8 @@ export function AppLayout() {
   } = useAuth();
   const navigate = useNavigate();
   const { availableSedes, activeSedeId } = useSedeContext();
+  const { contracts: alertContracts } = useContractAlerts();
+  const alertCount = alertContracts.length;
   const sedeNombre = activeSedeId
     ? availableSedes.find((s) => s.id === activeSedeId)?.nombre
     : availableSedes.length === 1
@@ -110,10 +113,62 @@ export function AppLayout() {
               </div>
 
               {/* Notifications */}
-              <Button variant="ghost" size="icon" className="relative h-11 w-11 rounded-xl hover:bg-muted">
-                <Bell className="h-5 w-5 text-muted-foreground" />
-                <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-destructive rounded-full ring-2 ring-card animate-pulse" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative h-11 w-11 rounded-xl hover:bg-muted"
+                    aria-label={`Notificaciones${alertCount ? `: ${alertCount} contratos por vencer` : ""}`}
+                  >
+                    <Bell className="h-5 w-5 text-muted-foreground" />
+                    {alertCount > 0 && (
+                      <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold ring-2 ring-card">
+                        {alertCount > 99 ? "99+" : alertCount}
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel className="flex items-center justify-between">
+                    <span>Vencimientos de contrato</span>
+                    <span className="text-xs font-normal text-muted-foreground">{alertCount}</span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {alertCount === 0 ? (
+                    <DropdownMenuItem disabled className="cursor-default text-sm">
+                      No hay contratos próximos a vencer
+                    </DropdownMenuItem>
+                  ) : (
+                    alertContracts.slice(0, 5).map((c) => (
+                      <DropdownMenuItem
+                        key={c.id}
+                        onClick={() => navigate("/alertas")}
+                        className="cursor-pointer flex-col items-start gap-0.5"
+                      >
+                        <span className="text-sm font-medium flex items-center gap-1">
+                          {c.diasRestantes <= 0 && (
+                            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                          )}
+                          {c.numero}
+                        </span>
+                        <span className="text-xs text-muted-foreground truncate max-w-full">
+                          {c.cliente} ·{" "}
+                          {c.diasRestantes < 0
+                            ? `vencido hace ${Math.abs(c.diasRestantes)} días`
+                            : c.diasRestantes === 0
+                              ? "vence hoy"
+                              : `vence en ${c.diasRestantes} días`}
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/alertas")} className="cursor-pointer text-sm font-medium text-primary">
+                    Ver todas las alertas
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Sede Badge + Cambiar Sede */}
               {sedeNombre && (
