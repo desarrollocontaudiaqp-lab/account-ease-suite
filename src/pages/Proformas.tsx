@@ -521,10 +521,7 @@ const Proformas = () => {
       // Tab filter by grupo_servicio
       const matchesTab = 
         activeTab === "todas" ||
-        proforma.tipo === activeTab ||
-        // Legacy support for old lowercase values
-        (activeTab === "Contabilidad" && proforma.tipo === "contabilidad") ||
-        (activeTab === "Trámites" && proforma.tipo === "tramites");
+        matchesGrupoServicio(proforma.tipo, activeTab as GrupoServicio);
       
       // Service filter - check if any selected service matches any item description
       const matchesService = selectedServices.length === 0 ||
@@ -544,9 +541,10 @@ const Proformas = () => {
   // Count proformas by group
   const countByGroup = useMemo(() => {
     return {
-      contabilidad: proformas.filter(p => p.tipo === "Contabilidad" || p.tipo === "contabilidad").length,
-      tramites: proformas.filter(p => p.tipo === "Trámites" || p.tipo === "tramites").length,
-      auditoria: proformas.filter(p => p.tipo === "Auditoría y Control Interno").length,
+      contabilidad: proformas.filter(p => matchesGrupoServicio(p.tipo, "Contabilidad")).length,
+      tramites: proformas.filter(p => matchesGrupoServicio(p.tipo, "Trámites")).length,
+      auditoria: proformas.filter(p => matchesGrupoServicio(p.tipo, "Auditoría")).length,
+      controlInterno: proformas.filter(p => matchesGrupoServicio(p.tipo, "Control Interno")).length,
     };
   }, [proformas]);
 
@@ -616,10 +614,12 @@ const Proformas = () => {
                     key={plantilla.id}
                     onClick={() => handleOpenCreateDialog(plantilla.id, plantilla.tipo)}
                   >
-                    {plantilla.tipo === "Contabilidad" || plantilla.tipo === "contabilidad" ? (
+                    {normalizeGrupoServicio(plantilla.tipo) === "Contabilidad" ? (
                       <Calculator className="h-4 w-4 mr-2" />
-                    ) : plantilla.tipo === "Auditoría y Control Interno" ? (
+                    ) : normalizeGrupoServicio(plantilla.tipo) === "Auditoría" ? (
                       <FileText className="h-4 w-4 mr-2" />
+                    ) : normalizeGrupoServicio(plantilla.tipo) === "Control Interno" ? (
+                      <ShieldCheck className="h-4 w-4 mr-2" />
                     ) : (
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
                     )}
@@ -767,11 +767,18 @@ const Proformas = () => {
                 {countByGroup.tramites}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="Auditoría y Control Interno" className="gap-2">
+            <TabsTrigger value="Auditoría" className="gap-2">
               <FileText className="h-4 w-4" />
               Auditoría
               <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                 {countByGroup.auditoria}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="Control Interno" className="gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Control Interno
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {countByGroup.controlInterno}
               </Badge>
             </TabsTrigger>
           </TabsList>
