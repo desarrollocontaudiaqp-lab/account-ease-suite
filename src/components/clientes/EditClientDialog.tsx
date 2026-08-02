@@ -227,6 +227,7 @@ export function EditClientDialog({
     
     setLoading(true);
     try {
+      const validContacts = contacts.filter((c) => c.nombre.trim().length > 0);
       const updateData = {
         ...data,
         nombre_persona_natural: data.nombre_persona_natural || null,
@@ -234,11 +235,11 @@ export function EditClientDialog({
         direccion: data.direccion || null,
         telefono: data.telefono || null,
         email: data.email || null,
-        contacto_nombre: data.contacto_nombre || null,
-        contacto_telefono: data.contacto_telefono || null,
-        contacto_email: data.contacto_email || null,
-        contacto_nombre2: data.contacto_nombre2 || null,
-        contacto_telefono2: data.contacto_telefono2 || null,
+        contacto_nombre: validContacts[0]?.nombre || null,
+        contacto_telefono: validContacts[0]?.telefono || null,
+        contacto_email: validContacts[0]?.email || null,
+        contacto_nombre2: validContacts[1]?.nombre || null,
+        contacto_telefono2: validContacts[1]?.telefono || null,
         sector: data.sector || null,
         notas: data.notas || null,
         regimen_tributario: data.regimen_tributario || null,
@@ -255,6 +256,8 @@ export function EditClientDialog({
         .eq("id", client.id);
 
       if (error) throw error;
+
+      await saveClientContacts(supabase, client.id, validContacts);
 
       toast.success("Cliente actualizado exitosamente");
       onOpenChange(false);
