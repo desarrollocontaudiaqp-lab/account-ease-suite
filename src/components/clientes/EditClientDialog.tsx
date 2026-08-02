@@ -497,15 +497,19 @@ export function EditClientDialog({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="usuario_sunat">Usuario SUNAT</Label>
-                    <Input id="usuario_sunat" {...register("usuario_sunat")} />
-                  </div>
+                  {canViewSunat && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="usuario_sunat">Usuario SUNAT</Label>
+                        <Input id="usuario_sunat" {...register("usuario_sunat")} />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="clave_sunat">Clave SUNAT</Label>
-                    <Input id="clave_sunat" type="password" {...register("clave_sunat")} />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="clave_sunat">Clave SUNAT</Label>
+                        <Input id="clave_sunat" type="password" {...register("clave_sunat")} />
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="nro_trabajadores">Nro. Trabajadores</Label>
