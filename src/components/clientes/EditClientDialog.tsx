@@ -31,6 +31,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useConfiguracionOpciones } from "@/hooks/useConfiguracionOpciones";
+import { useSunatCredentials } from "@/hooks/useSunatCredentials";
 import { lookupVerificaPe } from "@/lib/verificaPe";
 import {
   ClientContactsManager,
@@ -110,6 +111,7 @@ export function EditClientDialog({
   const [contacts, setContacts] = useState<ClientContact[]>([]);
   
   const { opciones: regimenesTributarios } = useConfiguracionOpciones("regimen_tributario");
+  const { canViewSunat } = useSunatCredentials();
   const { opciones: regimenesLaborales } = useConfiguracionOpciones("regimen_laboral");
 
   const {
