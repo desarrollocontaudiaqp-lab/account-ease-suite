@@ -3,10 +3,10 @@
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
 // src/lib/mcp/index.ts
-import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.25.1";
 
 // src/lib/mcp/tools/buscar-clientes.ts
-import { defineTool } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z } from "npm:zod@^3.25.76";
 
 // src/lib/mcp/supabase.ts
@@ -64,7 +64,7 @@ var buscar_clientes_default = defineTool({
 });
 
 // src/lib/mcp/tools/listar-contratos.ts
-import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z2 } from "npm:zod@^3.25.76";
 var listar_contratos_default = defineTool2({
   name: "listar_contratos",
@@ -92,7 +92,7 @@ var listar_contratos_default = defineTool2({
 });
 
 // src/lib/mcp/tools/listar-proformas.ts
-import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z3 } from "npm:zod@^3.25.76";
 var listar_proformas_default = defineTool3({
   name: "listar_proformas",
@@ -119,7 +119,7 @@ var listar_proformas_default = defineTool3({
 });
 
 // src/lib/mcp/tools/listar-pagos.ts
-import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z4 } from "npm:zod@^3.25.76";
 var listar_pagos_default = defineTool4({
   name: "listar_pagos",
@@ -146,7 +146,7 @@ var listar_pagos_default = defineTool4({
 });
 
 // src/lib/mcp/tools/listar-egresos.ts
-import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z5 } from "npm:zod@^3.25.76";
 var listar_egresos_default = defineTool5({
   name: "listar_egresos",
@@ -173,7 +173,7 @@ var listar_egresos_default = defineTool5({
 });
 
 // src/lib/mcp/tools/resumen-caja.ts
-import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.25.0";
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.25.1";
 import { z as z6 } from "npm:zod@^3.25.76";
 var resumen_caja_default = defineTool6({
   name: "resumen_caja",
@@ -241,5 +241,5 @@ var mcp_default = defineMcp({
 });
 
 // lovable-mcp-supabase-entry.ts
-import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@0.25.0/stacks/supabase";
+import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@0.25.1/stacks/supabase";
 Deno.serve(createSupabaseHandler(mcp_default, { functionName: "mcp" }));
