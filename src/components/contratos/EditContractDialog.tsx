@@ -814,6 +814,11 @@ export const EditContractDialog = ({
                         className="resize-none"
                       />
                     </div>
+
+                    <ContractServiceDetails
+                      services={projections}
+                      onChange={handleDetallesChange}
+                    />
                   </div>
 
                   {/* Totals Summary */}
