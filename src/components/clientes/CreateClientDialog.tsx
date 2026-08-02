@@ -56,6 +56,7 @@ const clientSchema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   telefono: z.string().optional(),
   direccion: z.string().optional(),
+  fecha_ingreso: z.string().optional(),
   contacto_nombre: z.string().optional(),
   contacto_email: z.string().email("Email inválido").optional().or(z.literal("")),
   contacto_telefono: z.string().optional(),
@@ -110,6 +111,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
       email: "",
       telefono: "",
       direccion: "",
+      fecha_ingreso: new Date().toISOString().slice(0, 10),
       contacto_nombre: "",
       contacto_email: "",
       contacto_telefono: "",
@@ -168,6 +170,7 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
         email: data.email || null,
         telefono: data.telefono || null,
         direccion: data.direccion || null,
+        fecha_ingreso: data.fecha_ingreso || null,
         sector: data.sector || null,
         contacto_nombre: validContacts[0]?.nombre || null,
         contacto_email: validContacts[0]?.email || null,
@@ -397,6 +400,20 @@ export function CreateClientDialog({ open, onOpenChange, onSuccess }: CreateClie
                       <FormLabel>Dirección</FormLabel>
                       <FormControl>
                         <Input placeholder="Av. Principal 123, Arequipa" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="fecha_ingreso"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fecha de Ingreso</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
