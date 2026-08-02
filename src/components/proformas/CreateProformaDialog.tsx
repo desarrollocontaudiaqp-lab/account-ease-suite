@@ -573,6 +573,7 @@ export function CreateProformaDialog({
                     <Label className="text-muted-foreground text-xs">Régimen Laboral</Label>
                     <p className="font-medium text-sm">{selectedClienteData.regimen_laboral || "-"}</p>
                   </div>
+                  {canViewSunat && (
                   <div>
                     <Label className="text-muted-foreground text-xs">Usuario SUNAT</Label>
                     <div className="flex items-center gap-2">
@@ -589,6 +590,8 @@ export function CreateProformaDialog({
                       )}
                     </div>
                   </div>
+                  )}
+                  {canViewSunat && (
                   <div>
                     <Label className="text-muted-foreground text-xs">Clave SOL</Label>
                     <div className="flex items-center gap-2">
@@ -620,6 +623,7 @@ export function CreateProformaDialog({
                       )}
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
             )}
