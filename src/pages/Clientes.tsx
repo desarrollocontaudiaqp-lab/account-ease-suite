@@ -634,7 +634,7 @@ const Clientes = () => {
           {/* Pagination */}
           <div className="px-6 py-4 border-t border-border flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Mostrando {filteredClients.length} de {clients.length} clientes
+              Mostrando {filteredClients.length} de {sedeClients.length} clientes
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled>
