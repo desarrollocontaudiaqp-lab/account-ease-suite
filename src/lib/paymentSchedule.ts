@@ -26,8 +26,8 @@ export function formatLocalYMD(value: string | Date | null | undefined): string 
 }
 
 export function normalizePaymentDay(value: number | null | undefined): number {
-  const parsed = Math.trunc(Number(value ?? 15));
-  if (Number.isNaN(parsed)) return 15;
+  const parsed = Math.trunc(Number(value ?? 5));
+  if (Number.isNaN(parsed)) return 5;
   return Math.min(Math.max(parsed, 1), 28);
 }
 
@@ -50,10 +50,13 @@ export function getInstallmentDate({
   if (!parsedStart) return new Date(NaN);
 
   const normalizedDay = normalizePaymentDay(paymentDay);
-  const firstCandidate = new Date(parsedStart.getFullYear(), parsedStart.getMonth(), normalizedDay);
-  const firstInstallment = firstCandidate < parsedStart
-    ? shiftLocalMonths(firstCandidate, cycle === "anual" ? 12 : 1)
-    : firstCandidate;
+  // La cuota de un periodo se paga en el mes siguiente al periodo devengado.
+  // Ej: cuota de julio con día 5 => 05 de agosto.
+  const firstInstallment = new Date(
+    parsedStart.getFullYear(),
+    parsedStart.getMonth() + 1,
+    normalizedDay,
+  );
 
   const monthStep = cycle === "anual" ? installmentIndex * 12 : installmentIndex;
   return shiftLocalMonths(firstInstallment, monthStep);
