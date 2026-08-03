@@ -172,13 +172,13 @@ const Clientes = () => {
     return client.razon_social;
   };
 
-  const filteredClients = clients.filter((client) => {
-    // Active sede filter (skipped when admin/gerente has "all sedes" selected)
-    const matchesSede =
-      (canViewAllSedes && !activeSedeId) ||
-      !activeSedeId ||
-      (client as any).sede_id === activeSedeId ||
-      (client as any).sede_id == null;
+  // Clientes que pertenecen exclusivamente a la sede activa.
+  // Si no hay sede activa (vista "todas las sedes"), se usan todos los clientes.
+  const sedeClients = clients.filter((client) =>
+    !activeSedeId ? true : (client as any).sede_id === activeSedeId
+  );
+
+  const filteredClients = sedeClients.filter((client) => {
     const clientName = getClientName(client) || "";
     const matchesSearch =
       clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -209,7 +209,7 @@ const Clientes = () => {
         break;
     }
     
-    return matchesSede && matchesSearch && matchesStatus && matchesCardFilter;
+    return matchesSearch && matchesStatus && matchesCardFilter;
   });
 
   return (
