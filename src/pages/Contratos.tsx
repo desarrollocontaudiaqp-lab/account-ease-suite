@@ -723,6 +723,7 @@ const Contratos = () => {
                           contractId={contract.id}
                           contractNumero={contract.numero}
                           currentStatus={contract.status}
+                          currentCondicion={contract.condicion}
                           onStatusChange={fetchContracts}
                           onViewDetail={() => handleViewDetail(contract.id)}
                           onEdit={() => handleEdit(contract.id)}
@@ -935,6 +936,7 @@ const Contratos = () => {
                                 contractId={contract.id}
                                 contractNumero={contract.numero}
                                 currentStatus={contract.status}
+                          currentCondicion={contract.condicion}
                                 onStatusChange={fetchContracts}
                                 onViewDetail={() => handleViewDetail(contract.id)}
                                 onEdit={() => handleEdit(contract.id)}

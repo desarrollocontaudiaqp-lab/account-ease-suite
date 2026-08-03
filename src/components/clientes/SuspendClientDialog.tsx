@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MotivosSuspensionManager } from "./MotivosSuspensionManager";
@@ -46,6 +47,7 @@ export function SuspendClientDialog({
   const [selectedMotivo, setSelectedMotivo] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
+  const [cascadeContracts, setCascadeContracts] = useState(true);
 
   const fetchMotivos = async () => {
     const { data, error } = await supabase
@@ -65,6 +67,7 @@ export function SuspendClientDialog({
     if (open) {
       fetchMotivos();
       setSelectedMotivo("");
+      setCascadeContracts(true);
     }
   }, [open]);
 
@@ -87,7 +90,36 @@ export function SuspendClientDialog({
 
       if (error) throw error;
 
-      toast.success("Cliente suspendido exitosamente");
+      let suspendedContracts = 0;
+      if (cascadeContracts) {
+        const motivoNombre = motivos.find((m) => m.id === selectedMotivo)?.nombre ?? "";
+        const { data: contratos } = await supabase
+          .from("contratos")
+          .select("id, datos_plantilla")
+          .eq("cliente_id", clientId)
+          .eq("condicion", "Vigente");
+
+        for (const c of contratos || []) {
+          const datos = ((c.datos_plantilla as Record<string, unknown>) || {}) as Record<string, unknown>;
+          datos.suspension = {
+            motivo_id: selectedMotivo,
+            motivo: motivoNombre,
+            observacion: "Suspensión heredada del cliente",
+            fecha: new Date().toISOString(),
+          };
+          await supabase
+            .from("contratos")
+            .update({ condicion: "Suspendido", datos_plantilla: datos as never })
+            .eq("id", c.id);
+          suspendedContracts += 1;
+        }
+      }
+
+      toast.success(
+        suspendedContracts > 0
+          ? `Cliente suspendido y ${suspendedContracts} contrato(s) vigentes suspendidos`
+          : "Cliente suspendido exitosamente"
+      );
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
@@ -136,6 +168,20 @@ export function SuspendClientDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex items-start gap-2 rounded-md border p-3">
+              <Checkbox
+                id="cascade"
+                checked={cascadeContracts}
+                onCheckedChange={(v) => setCascadeContracts(v === true)}
+              />
+              <Label htmlFor="cascade" className="text-sm font-normal leading-snug">
+                Suspender también los contratos vigentes de este cliente
+                <span className="block text-xs text-muted-foreground">
+                  Evita que sigan generando cuotas, alertas de vencimiento y tareas de supervisión.
+                </span>
+              </Label>
             </div>
           </div>
 
