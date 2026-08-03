@@ -65,7 +65,9 @@ interface Client {
 }
 
 const Clientes = () => {
-  const { activeSedeId, canViewAllSedes } = useSedeContext();
+  const { activeSedeId, canViewAllSedes, availableSedes } = useSedeContext();
+  const activeSedeName =
+    availableSedes.find((s) => s.id === activeSedeId)?.nombre ?? null;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [cardFilter, setCardFilter] = useState<"all" | "activos" | "inactivos" | "empresas" | "persona_natural" | "pn_con_empresa">("all");
@@ -172,13 +174,13 @@ const Clientes = () => {
     return client.razon_social;
   };
 
-  const filteredClients = clients.filter((client) => {
-    // Active sede filter (skipped when admin/gerente has "all sedes" selected)
-    const matchesSede =
-      (canViewAllSedes && !activeSedeId) ||
-      !activeSedeId ||
-      (client as any).sede_id === activeSedeId ||
-      (client as any).sede_id == null;
+  // Clientes que pertenecen exclusivamente a la sede activa.
+  // Si no hay sede activa (vista "todas las sedes"), se usan todos los clientes.
+  const sedeClients = clients.filter((client) =>
+    !activeSedeId ? true : (client as any).sede_id === activeSedeId
+  );
+
+  const filteredClients = sedeClients.filter((client) => {
     const clientName = getClientName(client) || "";
     const matchesSearch =
       clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -209,7 +211,7 @@ const Clientes = () => {
         break;
     }
     
-    return matchesSede && matchesSearch && matchesStatus && matchesCardFilter;
+    return matchesSearch && matchesStatus && matchesCardFilter;
   });
 
   return (
@@ -221,7 +223,9 @@ const Clientes = () => {
             Clientes
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gestiona todos los clientes y prospectos del estudio
+            {activeSedeName
+              ? `Clientes de la sede ${activeSedeName}`
+              : "Gestiona todos los clientes y prospectos del estudio"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -239,7 +243,7 @@ const Clientes = () => {
             BASE MAESTRA
           </Button>
           <ExportExcelButton
-            allRows={clients}
+            allRows={sedeClients}
             filteredRows={filteredClients}
             fileName="clientes"
             sheetName="Clientes"
@@ -361,7 +365,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.length}
+              {sedeClients.length}
             </p>
             <p className="text-sm text-muted-foreground">Total</p>
           </div>
@@ -379,7 +383,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => c.activo).length}
+              {sedeClients.filter((c) => c.activo).length}
             </p>
             <p className="text-sm text-muted-foreground">Activos</p>
           </div>
@@ -397,7 +401,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => isEmpresa(c.tipo_cliente)).length}
+              {sedeClients.filter((c) => isEmpresa(c.tipo_cliente)).length}
             </p>
             <p className="text-sm text-muted-foreground">Empresas</p>
           </div>
@@ -415,7 +419,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => isPersonaNatural(c.tipo_cliente)).length}
+              {sedeClients.filter((c) => isPersonaNatural(c.tipo_cliente)).length}
             </p>
             <p className="text-sm text-muted-foreground">Personas Naturales</p>
           </div>
@@ -433,7 +437,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => isPersonaNatural(c.tipo_cliente) && c.persona_natural_con_empresa === true).length}
+              {sedeClients.filter((c) => isPersonaNatural(c.tipo_cliente) && c.persona_natural_con_empresa === true).length}
             </p>
             <p className="text-sm text-muted-foreground">Persona Natural con Empresa</p>
           </div>
@@ -451,7 +455,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => !c.activo).length}
+              {sedeClients.filter((c) => !c.activo).length}
             </p>
             <p className="text-sm text-muted-foreground">Inactivos</p>
           </div>
@@ -634,7 +638,7 @@ const Clientes = () => {
           {/* Pagination */}
           <div className="px-6 py-4 border-t border-border flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Mostrando {filteredClients.length} de {clients.length} clientes
+              Mostrando {filteredClients.length} de {sedeClients.length} clientes
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled>
