@@ -26,8 +26,8 @@ export function formatLocalYMD(value: string | Date | null | undefined): string 
 }
 
 export function normalizePaymentDay(value: number | null | undefined): number {
-  const parsed = Math.trunc(Number(value ?? 15));
-  if (Number.isNaN(parsed)) return 15;
+  const parsed = Math.trunc(Number(value ?? 5));
+  if (Number.isNaN(parsed)) return 5;
   return Math.min(Math.max(parsed, 1), 28);
 }
 
