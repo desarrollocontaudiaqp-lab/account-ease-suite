@@ -65,7 +65,9 @@ interface Client {
 }
 
 const Clientes = () => {
-  const { activeSedeId, canViewAllSedes } = useSedeContext();
+  const { activeSedeId, canViewAllSedes, availableSedes } = useSedeContext();
+  const activeSedeName =
+    availableSedes.find((s) => s.id === activeSedeId)?.nombre ?? null;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [cardFilter, setCardFilter] = useState<"all" | "activos" | "inactivos" | "empresas" | "persona_natural" | "pn_con_empresa">("all");
@@ -221,7 +223,9 @@ const Clientes = () => {
             Clientes
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gestiona todos los clientes y prospectos del estudio
+            {activeSedeName
+              ? `Clientes de la sede ${activeSedeName}`
+              : "Gestiona todos los clientes y prospectos del estudio"}
           </p>
         </div>
         <div className="flex gap-2">
