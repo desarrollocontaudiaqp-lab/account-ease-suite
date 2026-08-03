@@ -618,7 +618,7 @@ export const ContractDetailModal = ({
                       {contract.dia_vencimiento && (
                         <div>
                           <p className="text-xs text-muted-foreground uppercase">Día de Vencimiento</p>
-                          <p className="font-semibold">Día {contract.dia_vencimiento} de cada mes</p>
+                          <p className="font-semibold">Día {contract.dia_vencimiento} del mes siguiente</p>
                         </div>
                       )}
                       {contract.numero_cuotas && (

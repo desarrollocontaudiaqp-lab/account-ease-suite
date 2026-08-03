@@ -207,7 +207,7 @@ export function ConfirmContractFromProformaDialog({
         dias: p.dias || 0,
         meses: p.meses || 0,
         anos: p.anos || 0,
-        fechaPago: p.fechaPago || p.diaPago || 15,
+        fechaPago: p.fechaPago || p.diaPago || 5,
         cicloPago: p.cicloPago || "mensual",
         nroCuotas: p.nroCuotas || p.cuotas || 12,
         pago: Number(p.pago) || Number(p.monto) || 0,
