@@ -239,7 +239,7 @@ const Clientes = () => {
             BASE MAESTRA
           </Button>
           <ExportExcelButton
-            allRows={clients}
+            allRows={sedeClients}
             filteredRows={filteredClients}
             fileName="clientes"
             sheetName="Clientes"
@@ -361,7 +361,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.length}
+              {sedeClients.length}
             </p>
             <p className="text-sm text-muted-foreground">Total</p>
           </div>
@@ -379,7 +379,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => c.activo).length}
+              {sedeClients.filter((c) => c.activo).length}
             </p>
             <p className="text-sm text-muted-foreground">Activos</p>
           </div>
@@ -397,7 +397,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => isEmpresa(c.tipo_cliente)).length}
+              {sedeClients.filter((c) => isEmpresa(c.tipo_cliente)).length}
             </p>
             <p className="text-sm text-muted-foreground">Empresas</p>
           </div>
@@ -415,7 +415,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => isPersonaNatural(c.tipo_cliente)).length}
+              {sedeClients.filter((c) => isPersonaNatural(c.tipo_cliente)).length}
             </p>
             <p className="text-sm text-muted-foreground">Personas Naturales</p>
           </div>
@@ -433,7 +433,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => isPersonaNatural(c.tipo_cliente) && c.persona_natural_con_empresa === true).length}
+              {sedeClients.filter((c) => isPersonaNatural(c.tipo_cliente) && c.persona_natural_con_empresa === true).length}
             </p>
             <p className="text-sm text-muted-foreground">Persona Natural con Empresa</p>
           </div>
@@ -451,7 +451,7 @@ const Clientes = () => {
           </div>
           <div>
             <p className="text-2xl font-bold text-foreground">
-              {clients.filter((c) => !c.activo).length}
+              {sedeClients.filter((c) => !c.activo).length}
             </p>
             <p className="text-sm text-muted-foreground">Inactivos</p>
           </div>
