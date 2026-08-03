@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Eye, Edit, Trash2, MoreHorizontal, FileText, CheckCircle, XCircle, ArrowRight, Ban, FileSignature } from "lucide-react";
+import { Eye, Edit, Trash2, MoreHorizontal, FileText, CheckCircle, XCircle, ArrowRight, Ban, FileSignature, PauseCircle, PlayCircle } from "lucide-react";
 import { ApplyTemplateModal } from "./ApplyTemplateModal";
+import { SuspendContractDialog } from "./SuspendContractDialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,11 +25,13 @@ import { buildContractPaymentDrafts } from "@/lib/paymentSchedule";
 import { toast } from "sonner";
 
 export type ContractStatus = "borrador" | "en_gestion" | "aprobado" | "anulado" | "activo" | "pausado" | "finalizado" | "cancelado";
+export type ContractCondicion = "Vigente" | "Terminado" | "Anulado" | "Suspendido";
 
 interface ContractActionsProps {
   contractId: string;
   contractNumero: string;
   currentStatus: ContractStatus;
+  currentCondicion?: ContractCondicion;
   onStatusChange: () => void;
   onViewDetail: () => void;
   onEdit: () => void;
@@ -38,6 +41,7 @@ export const ContractActions = ({
   contractId,
   contractNumero,
   currentStatus,
+  currentCondicion = "Vigente",
   onStatusChange,
   onViewDetail,
   onEdit,
@@ -48,6 +52,11 @@ export const ContractActions = ({
   }>({ open: false, action: null });
   const [loading, setLoading] = useState(false);
   const [applyTemplateOpen, setApplyTemplateOpen] = useState(false);
+  const [suspendOpen, setSuspendOpen] = useState(false);
+
+  const isSuspended = currentCondicion === "Suspendido";
+  const canToggleSuspension =
+    currentCondicion === "Vigente" || currentCondicion === "Suspendido";
 
   const generatePaymentSchedule = async () => {
     const { data: contract, error: fetchError } = await supabase
@@ -187,6 +196,28 @@ export const ContractActions = ({
             </DropdownMenuItem>
           )}
 
+          {canToggleSuspension && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setSuspendOpen(true)}
+                className={isSuspended ? "text-emerald-600" : "text-amber-600"}
+              >
+                {isSuspended ? (
+                  <>
+                    <PlayCircle className="h-4 w-4 mr-2" />
+                    Reactivar Contrato
+                  </>
+                ) : (
+                  <>
+                    <PauseCircle className="h-4 w-4 mr-2" />
+                    Suspender Contrato
+                  </>
+                )}
+              </DropdownMenuItem>
+            </>
+          )}
+
           {(actions.includes("gestion") || actions.includes("aprobar")) && (
             <DropdownMenuSeparator />
           )}
@@ -302,6 +333,14 @@ export const ContractActions = ({
         open={applyTemplateOpen}
         onOpenChange={setApplyTemplateOpen}
         contractId={contractId}
+        onSuccess={onStatusChange}
+      />
+      <SuspendContractDialog
+        open={suspendOpen}
+        onOpenChange={setSuspendOpen}
+        contractId={contractId}
+        contractNumero={contractNumero}
+        mode={isSuspended ? "reactivar" : "suspender"}
         onSuccess={onStatusChange}
       />
     </>
