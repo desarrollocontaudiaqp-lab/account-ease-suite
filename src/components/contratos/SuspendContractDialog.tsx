@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -45,12 +46,19 @@ export function SuspendContractDialog({
   const [motivos, setMotivos] = useState<MotivoSuspension[]>([]);
   const [motivoId, setMotivoId] = useState("");
   const [observacion, setObservacion] = useState("");
+  const [fecha, setFecha] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const todayYMD = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
 
   useEffect(() => {
     if (!open) return;
     setMotivoId("");
     setObservacion("");
+    setFecha(todayYMD());
     if (mode === "suspender") {
       supabase
         .from("motivos_suspension")
@@ -70,6 +78,10 @@ export function SuspendContractDialog({
       toast.error("Debe seleccionar un motivo de suspensión");
       return;
     }
+    if (!fecha) {
+      toast.error("Debe indicar la fecha");
+      return;
+    }
     setLoading(true);
     try {
       const { data: current, error: fetchError } = await supabase
@@ -87,14 +99,18 @@ export function SuspendContractDialog({
           motivo_id: motivoId,
           motivo: motivo?.nombre ?? "",
           observacion: observacion.trim() || null,
-          fecha: new Date().toISOString(),
+          fecha,
+          periodo: fecha.slice(0, 7),
+          registrado_en: new Date().toISOString(),
         };
       } else {
         const previa = datos.suspension as Record<string, unknown> | undefined;
         delete datos.suspension;
         datos.suspension_historial = [
           ...(((datos.suspension_historial as unknown[]) || [])),
-          ...(previa ? [{ ...previa, reactivado_en: new Date().toISOString() }] : []),
+          ...(previa
+            ? [{ ...previa, fecha_reactivacion: fecha, reactivado_en: new Date().toISOString() }]
+            : []),
         ];
       }
 
@@ -108,17 +124,35 @@ export function SuspendContractDialog({
       if (error) throw error;
 
       if (mode === "suspender") {
-        // Congelar cuotas pendientes futuras (no se tocan las ya pagadas)
-        await supabase
+        // Marcar las cuotas no pagadas desde la fecha de suspensión
+        const { data: afectadas } = await supabase
           .from("pagos")
-          .update({ status: "pendiente", notas: "Contrato suspendido" })
+          .update({ status: "pendiente", notas: `Suspendido desde ${fecha}` })
           .eq("contrato_id", contractId)
-          .eq("status", "vencido");
+          .gte("fecha_vencimiento", fecha)
+          .in("status", ["pendiente", "vencido"])
+          .select("id");
+        toast.success(
+          `Contrato suspendido — ${afectadas?.length ?? 0} cuota(s) del cronograma marcadas como suspendidas`
+        );
+      } else {
+        // Reactivar cuotas suspendidas desde la fecha de reactivación
+        const { data: pendientes } = await supabase
+          .from("pagos")
+          .select("id, notas")
+          .eq("contrato_id", contractId)
+          .in("status", ["pendiente", "vencido"]);
+        const ids = (pendientes || [])
+          .filter((p) => (p.notas || "").startsWith("Suspendido desde"))
+          .map((p) => p.id);
+        if (ids.length > 0) {
+          await supabase.from("pagos").update({ notas: null }).in("id", ids);
+        }
+        toast.success(
+          `Contrato reactivado — ${ids.length} cuota(s) del cronograma reactivadas`
+        );
       }
 
-      toast.success(
-        mode === "suspender" ? "Contrato suspendido" : "Contrato reactivado"
-      );
       onSuccess();
       onOpenChange(false);
     } catch (e) {
@@ -129,6 +163,7 @@ export function SuspendContractDialog({
       setLoading(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -153,34 +188,49 @@ export function SuspendContractDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {mode === "suspender" && (
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Motivo de suspensión</Label>
-              <Select value={motivoId} onValueChange={setMotivoId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione un motivo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {motivos.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Observaciones (opcional)</Label>
-              <Textarea
-                value={observacion}
-                onChange={(e) => setObservacion(e.target.value)}
-                placeholder="Detalle del motivo, acuerdos con el cliente, etc."
-                rows={3}
-              />
-            </div>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>
+              {mode === "suspender" ? "Fecha de suspensión" : "Fecha de reactivación"}
+            </Label>
+            <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <p className="text-xs text-muted-foreground">
+              {mode === "suspender"
+                ? "Las cuotas no pagadas con vencimiento desde esta fecha se marcarán como suspendidas en el cronograma."
+                : "Las cuotas suspendidas del cronograma volverán a estar activas."}
+            </p>
           </div>
-        )}
+
+          {mode === "suspender" && (
+            <>
+              <div className="space-y-2">
+                <Label>Motivo de suspensión</Label>
+                <Select value={motivoId} onValueChange={setMotivoId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un motivo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {motivos.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Observaciones (opcional)</Label>
+                <Textarea
+                  value={observacion}
+                  onChange={(e) => setObservacion(e.target.value)}
+                  placeholder="Detalle del motivo, acuerdos con el cliente, etc."
+                  rows={3}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>

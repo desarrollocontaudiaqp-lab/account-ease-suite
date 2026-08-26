@@ -40,7 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ContractStatus } from "./ContractActions";
 import logoImage from "@/assets/logo-ca-full.png";
@@ -531,7 +531,44 @@ export const ContractDetailModal = ({
 
               {/* === MAIN CONTENT === */}
               <div className="p-8 space-y-8">
+                {contract.condicion === "Suspendido" && contract.datos_plantilla?.suspension && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 px-5 py-4">
+                    <p className="text-sm font-semibold text-amber-800 uppercase tracking-wide">
+                      Contrato suspendido
+                    </p>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-amber-700/80 uppercase">Fecha de suspensión</p>
+                        <p className="font-semibold text-amber-900">
+                          {contract.datos_plantilla.suspension.fecha
+                            ? format(parseLocalDate(contract.datos_plantilla.suspension.fecha), "dd/MM/yyyy", { locale: es })
+                            : "No registrada"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-amber-700/80 uppercase">Mes</p>
+                        <p className="font-semibold text-amber-900 capitalize">
+                          {contract.datos_plantilla.suspension.fecha
+                            ? format(parseLocalDate(contract.datos_plantilla.suspension.fecha), "MMMM yyyy", { locale: es })
+                            : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-amber-700/80 uppercase">Motivo</p>
+                        <p className="font-semibold text-amber-900">
+                          {contract.datos_plantilla.suspension.motivo || "—"}
+                        </p>
+                      </div>
+                    </div>
+                    {contract.datos_plantilla.suspension.observacion && (
+                      <p className="mt-3 text-sm text-amber-900/80 whitespace-pre-wrap">
+                        {contract.datos_plantilla.suspension.observacion}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {/* Client & Contract Info Grid */}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:break-inside-avoid">
                   {/* Client Info */}
                   {contract.cliente && (
