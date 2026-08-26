@@ -187,34 +187,49 @@ export function SuspendContractDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {mode === "suspender" && (
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Motivo de suspensión</Label>
-              <Select value={motivoId} onValueChange={setMotivoId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione un motivo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {motivos.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Observaciones (opcional)</Label>
-              <Textarea
-                value={observacion}
-                onChange={(e) => setObservacion(e.target.value)}
-                placeholder="Detalle del motivo, acuerdos con el cliente, etc."
-                rows={3}
-              />
-            </div>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>
+              {mode === "suspender" ? "Fecha de suspensión" : "Fecha de reactivación"}
+            </Label>
+            <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <p className="text-xs text-muted-foreground">
+              {mode === "suspender"
+                ? "Las cuotas no pagadas con vencimiento desde esta fecha se marcarán como suspendidas en el cronograma."
+                : "Las cuotas suspendidas del cronograma volverán a estar activas."}
+            </p>
           </div>
-        )}
+
+          {mode === "suspender" && (
+            <>
+              <div className="space-y-2">
+                <Label>Motivo de suspensión</Label>
+                <Select value={motivoId} onValueChange={setMotivoId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un motivo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {motivos.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Observaciones (opcional)</Label>
+                <Textarea
+                  value={observacion}
+                  onChange={(e) => setObservacion(e.target.value)}
+                  placeholder="Detalle del motivo, acuerdos con el cliente, etc."
+                  rows={3}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
