@@ -379,17 +379,16 @@ const Contratos = () => {
     }
   };
 
+  // Contracts strictly scoped to the active sede (null = all sedes the user can see)
+  const sedeContracts = useMemo(() => {
+    if (!activeSedeId) return contracts;
+    return contracts.filter((c) => (c as any).sede_id === activeSedeId);
+  }, [contracts, activeSedeId]);
+
   const filteredContracts = useMemo(() => {
     const dateRange = getDateRange(dateFilter);
-    
-    return contracts.filter((contract) => {
-      // Active sede filter
-      const matchesSede =
-        (canViewAllSedes && !activeSedeId) ||
-        !activeSedeId ||
-        (contract as any).sede_id === activeSedeId ||
-        (contract as any).sede_id == null;
 
+    return sedeContracts.filter((contract) => {
       const matchesSearch = 
         contract.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contract.cliente?.razon_social.toLowerCase().includes(searchTerm.toLowerCase());
@@ -409,20 +408,21 @@ const Contratos = () => {
         matchesStatus = contract.status === statusFilter;
       }
 
-      return matchesSede && matchesSearch && matchesDate && matchesStatus;
+      return matchesSearch && matchesDate && matchesStatus;
     });
-  }, [contracts, searchTerm, dateFilter, selectedMonth, selectedYear, statusFilter, activeSedeId, canViewAllSedes]);
+  }, [sedeContracts, searchTerm, dateFilter, selectedMonth, selectedYear, statusFilter]);
 
   const stats = {
-    borradores: contracts.filter((c) => c.status === "borrador").length,
-    enGestion: contracts.filter((c) => c.status === "en_gestion").length,
-    aprobados: contracts.filter((c) => c.status === "aprobado").length,
-    anulados: contracts.filter((c) => c.status === "anulado").length,
-    total: contracts.filter((c) => c.status !== "anulado").length,
-    ingresosMensuales: contracts
+    borradores: sedeContracts.filter((c) => c.status === "borrador").length,
+    enGestion: sedeContracts.filter((c) => c.status === "en_gestion").length,
+    aprobados: sedeContracts.filter((c) => c.status === "aprobado").length,
+    anulados: sedeContracts.filter((c) => c.status === "anulado").length,
+    total: sedeContracts.filter((c) => c.status !== "anulado").length,
+    ingresosMensuales: sedeContracts
       .filter((c) => c.status === "aprobado" || c.status === "activo")
       .reduce((acc, c) => acc + (Number(c.monto_mensual) || 0), 0),
   };
+
 
   // Calculate progress based on date range
   const calculateProgress = (fechaInicio: string, fechaFin: string | null): number => {
