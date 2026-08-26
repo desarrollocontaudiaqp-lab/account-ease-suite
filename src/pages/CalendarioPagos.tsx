@@ -315,9 +315,11 @@ export default function CalendarioPagos() {
       const dueDate = parseLocalDate(payment.fecha_vencimiento);
       dueDate.setHours(0, 0, 0, 0);
       
+      const isSuspended = String(payment.notas || "").startsWith("Suspendido desde");
       let status = payment.status as UnifiedPayment["status"];
-      if (status === "pendiente" && dueDate < today) {
+      if (status === "pendiente" && dueDate < today && !isSuspended) {
         status = "vencido";
+
       }
 
       // Find cuota number based on position in sorted list for this contract
