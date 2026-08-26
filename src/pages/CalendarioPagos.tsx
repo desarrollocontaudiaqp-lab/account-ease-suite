@@ -917,14 +917,25 @@ export default function CalendarioPagos() {
                             {formatCurrency(payment.monto, payment.contrato?.moneda)}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={`gap-1 ${statusConfig[payment.status]?.color}`}
-                            >
-                              <StatusIcon className="h-3 w-3" />
-                              {statusConfig[payment.status]?.label}
-                            </Badge>
+                            <div className="flex flex-col items-start gap-1">
+                              <Badge
+                                variant="outline"
+                                className={`gap-1 ${statusConfig[payment.status]?.color}`}
+                              >
+                                <StatusIcon className="h-3 w-3" />
+                                {statusConfig[payment.status]?.label}
+                              </Badge>
+                              {String(payment.notas || "").startsWith("Suspendido desde") && (
+                                <Badge
+                                  variant="outline"
+                                  className="gap-1 bg-amber-100 text-amber-800 border-amber-200"
+                                >
+                                  Suspendido {payment.notas?.replace("Suspendido desde ", "")}
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
+
                           <TableCell>
                             {payment.fecha_pago
                               ? (() => {
