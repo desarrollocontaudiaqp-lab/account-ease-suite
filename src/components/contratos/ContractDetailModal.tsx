@@ -40,7 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ContractStatus } from "./ContractActions";
 import logoImage from "@/assets/logo-ca-full.png";
