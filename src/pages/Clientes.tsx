@@ -216,16 +216,12 @@ const Clientes = () => {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={handleBaseMaestra}
-            disabled={exportingBase}
+            onClick={() => setBaseMaestraOpen(true)}
           >
-            {exportingBase ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Database className="h-4 w-4" />
-            )}
+            <Database className="h-4 w-4" />
             BASE MAESTRA
           </Button>
+
           <ExportExcelButton
             allRows={sedeClients}
             filteredRows={filteredClients}
