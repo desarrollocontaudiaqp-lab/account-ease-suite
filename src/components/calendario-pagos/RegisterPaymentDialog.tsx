@@ -338,31 +338,41 @@ export function RegisterPaymentDialog({
 
   const handleTipoComprobanteChange = (value: string) => {
     setForm((prev) => {
+      // El total del pago no debe cambiar al cambiar el tipo de comprobante
+      const total = parseFloat((prev.monto || prev.subtotal + prev.igv).toFixed(2));
+
       if (value === "recibo_interno") {
+        // Recibo interno: sin IGV, se mantiene el precio total
         return {
           ...prev,
           tipo_comprobante: value,
           tipo_igv: "inafecto",
           igv: 0,
-          monto: prev.subtotal,
-          monto_neto: prev.subtotal,
+          subtotal: total,
+          monto: total,
+          monto_neto: total,
           detraccion_porcentaje: 0,
           detraccion_monto: 0,
           retencion_porcentaje: 0,
           retencion_monto: 0,
         };
       }
-      const igv = calculateIGV(prev.subtotal, "gravado");
+
+      // Comprobantes gravados: el total se mantiene y el IGV se desagrega
+      const subtotal = parseFloat((total / 1.18).toFixed(2));
+      const igv = parseFloat((total - subtotal).toFixed(2));
       return {
         ...prev,
         tipo_comprobante: value,
         tipo_igv: "gravado",
+        subtotal,
         igv,
-        monto: prev.subtotal + igv,
-        monto_neto: prev.subtotal + igv,
+        monto: total,
+        monto_neto: total - prev.detraccion_monto - prev.retencion_monto,
       };
     });
   };
+
 
   const handleSave = async () => {
     if (!payment) return;
