@@ -290,7 +290,7 @@ export function RegisterPaymentDialog({
 
   const handleSubtotalChange = (value: string) => {
     const subtotal = parseFloat(value) || 0;
-    const igv = isReciboInterno ? 0 : calculateIGV(subtotal, form.tipo_igv);
+    const igv = isReciboSinIGV ? 0 : calculateIGV(subtotal, form.tipo_igv);
     const monto = subtotal + igv;
 
     setForm((prev) => ({
@@ -301,6 +301,7 @@ export function RegisterPaymentDialog({
       monto_neto: monto - prev.detraccion_monto - prev.retencion_monto,
     }));
   };
+
 
   const handleTipoIGVChange = (tipoIgv: string) => {
     const igv = calculateIGV(form.subtotal, tipoIgv);
