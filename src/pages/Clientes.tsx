@@ -292,6 +292,17 @@ const Clientes = () => {
         onSuccess={fetchClients}
       />
 
+      <BaseMaestraDialog
+        open={baseMaestraOpen}
+        onOpenChange={setBaseMaestraOpen}
+        sedes={availableSedes as any}
+        canViewAllSedes={canViewAllSedes}
+        activeSedeId={activeSedeId}
+        includeSunat={canViewSunat}
+      />
+
+
+
       {/* Filters */}
       <div className="bg-card rounded-xl border border-border p-4">
         <div className="flex flex-col sm:flex-row gap-4">
