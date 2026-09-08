@@ -101,7 +101,7 @@ interface UnifiedPayment {
   monto: number;
   fecha_vencimiento: string;
   fecha_pago: string | null;
-  status: "pendiente" | "pagado" | "vencido" | "parcial" | "proyectado";
+  status: "pendiente" | "pagado" | "vencido" | "parcial" | "proyectado" | "suspendido";
   metodo_pago: string | null;
   referencia: string | null;
   notas: string | null;
@@ -128,9 +128,11 @@ interface PaymentStats {
   pagados: number;
   vencidos: number;
   proyectados: number;
+  suspendidos: number;
   montoPendiente: number;
   montoPagado: number;
   montoProyectado: number;
+  montoSuspendido: number;
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
@@ -139,6 +141,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   vencido: { label: "Vencido", color: "bg-red-100 text-red-800 border-red-200", icon: AlertTriangle },
   parcial: { label: "Parcial", color: "bg-blue-100 text-blue-800 border-blue-200", icon: TrendingUp },
   proyectado: { label: "Proyectado", color: "bg-purple-100 text-purple-800 border-purple-200", icon: FileText },
+  suspendido: { label: "Suspendido", color: "bg-slate-200 text-slate-700 border-slate-300", icon: Clock },
 };
 
 export default function CalendarioPagos() {
@@ -185,9 +188,11 @@ export default function CalendarioPagos() {
     pagados: 0,
     vencidos: 0,
     proyectados: 0,
+    suspendidos: 0,
     montoPendiente: 0,
     montoPagado: 0,
     montoProyectado: 0,
+    montoSuspendido: 0,
   });
 
   const { getPaymentNotificationStatus } = usePaymentNotifications();
@@ -317,9 +322,11 @@ export default function CalendarioPagos() {
       
       const isSuspended = String(payment.notas || "").startsWith("Suspendido desde");
       let status = payment.status as UnifiedPayment["status"];
-      if (status === "pendiente" && dueDate < today && !isSuspended) {
+      if (isSuspended && status !== "pagado" && status !== "parcial") {
+        // Cuota en pausa: no genera deuda ni alertas
+        status = "suspendido";
+      } else if (status === "pendiente" && dueDate < today) {
         status = "vencido";
-
       }
 
       // Find cuota number based on position in sorted list for this contract
@@ -442,6 +449,7 @@ export default function CalendarioPagos() {
       pagados: allPayments.filter((p) => p.status === "pagado").length,
       vencidos: allPayments.filter((p) => p.status === "vencido").length,
       proyectados: allPayments.filter((p) => p.status === "proyectado").length,
+      suspendidos: allPayments.filter((p) => p.status === "suspendido").length,
       montoPendiente: allPayments
         .filter((p) => p.status === "pendiente" || p.status === "vencido")
         .reduce((sum, p) => sum + (p.monto || 0), 0),
@@ -450,6 +458,9 @@ export default function CalendarioPagos() {
         .reduce((sum, p) => sum + (p.monto || 0), 0),
       montoProyectado: allPayments
         .filter((p) => p.status === "proyectado")
+        .reduce((sum, p) => sum + (p.monto || 0), 0),
+      montoSuspendido: allPayments
+        .filter((p) => p.status === "suspendido")
         .reduce((sum, p) => sum + (p.monto || 0), 0),
     };
     setStats(statsData);
@@ -787,6 +798,7 @@ export default function CalendarioPagos() {
                 <SelectItem value="vencido">Vencido</SelectItem>
                 <SelectItem value="parcial">Parcial</SelectItem>
                 <SelectItem value="proyectado">Proyectado</SelectItem>
+                <SelectItem value="suspendido">Suspendido</SelectItem>
               </SelectContent>
             </Select>
             <Select value={sourceFilter} onValueChange={setSourceFilter}>

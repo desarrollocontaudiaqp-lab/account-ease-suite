@@ -86,10 +86,22 @@ export function SuspendContractDialog({
     try {
       const { data: current, error: fetchError } = await supabase
         .from("contratos")
-        .select("datos_plantilla")
+        .select("datos_plantilla, fecha_fin")
         .eq("id", contractId)
         .maybeSingle();
       if (fetchError) throw fetchError;
+
+      // Solo se puede reactivar si el contrato sigue vigente en fechas
+      if (mode === "reactivar" && current?.fecha_fin) {
+        if (current.fecha_fin < fecha) {
+          toast.error(
+            `No se puede reactivar: el contrato venció el ${current.fecha_fin}. Debe renovarlo o registrar uno nuevo.`
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
 
       const datos = ((current?.datos_plantilla as Record<string, unknown>) || {}) as Record<string, unknown>;
 
@@ -136,20 +148,32 @@ export function SuspendContractDialog({
           `Contrato suspendido — ${afectadas?.length ?? 0} cuota(s) del cronograma marcadas como suspendidas`
         );
       } else {
-        // Reactivar cuotas suspendidas desde la fecha de reactivación
-        const { data: pendientes } = await supabase
+        // Reactivar solo las cuotas con vencimiento desde la fecha de reactivación.
+        // Las cuotas del periodo pausado se mantienen en pausa (no generan deuda ni alertas).
+        const { data: suspendidas } = await supabase
           .from("pagos")
-          .select("id, notas")
+          .select("id, notas, fecha_vencimiento")
           .eq("contrato_id", contractId)
-          .in("status", ["pendiente", "vencido"]);
-        const ids = (pendientes || [])
-          .filter((p) => (p.notas || "").startsWith("Suspendido desde"))
-          .map((p) => p.id);
-        if (ids.length > 0) {
-          await supabase.from("pagos").update({ notas: null }).in("id", ids);
+          .in("status", ["pendiente", "vencido"])
+          .like("notas", "Suspendido desde%");
+
+        const reactivar = (suspendidas || []).filter((p) => p.fecha_vencimiento >= fecha);
+        const enPausa = (suspendidas || []).filter((p) => p.fecha_vencimiento < fecha);
+
+        if (reactivar.length > 0) {
+          await supabase
+            .from("pagos")
+            .update({ notas: null })
+            .in("id", reactivar.map((p) => p.id));
+        }
+        if (enPausa.length > 0) {
+          await supabase
+            .from("pagos")
+            .update({ notas: `Suspendido desde ${(enPausa[0].notas || "").replace("Suspendido desde ", "")} hasta ${fecha}` })
+            .in("id", enPausa.map((p) => p.id));
         }
         toast.success(
-          `Contrato reactivado — ${ids.length} cuota(s) del cronograma reactivadas`
+          `Contrato reactivado — ${reactivar.length} cuota(s) reactivadas, ${enPausa.length} cuota(s) quedan en el periodo de pausa`
         );
       }
 
