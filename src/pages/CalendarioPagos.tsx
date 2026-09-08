@@ -188,9 +188,11 @@ export default function CalendarioPagos() {
     pagados: 0,
     vencidos: 0,
     proyectados: 0,
+    suspendidos: 0,
     montoPendiente: 0,
     montoPagado: 0,
     montoProyectado: 0,
+    montoSuspendido: 0,
   });
 
   const { getPaymentNotificationStatus } = usePaymentNotifications();
