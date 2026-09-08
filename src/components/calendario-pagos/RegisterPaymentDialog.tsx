@@ -573,7 +573,8 @@ export function RegisterPaymentDialog({
     const imgWidth = 190;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
-    pdf.save(`recibo-interno-${form.numero_comprobante}.pdf`);
+    const receiptType = form.tipo_comprobante === "recibo_honorarios" ? "recibo-honorarios" : "recibo-interno";
+    pdf.save(`${receiptType}-${form.numero_comprobante}.pdf`);
     toast.success("Recibo emitido correctamente");
   };
 
