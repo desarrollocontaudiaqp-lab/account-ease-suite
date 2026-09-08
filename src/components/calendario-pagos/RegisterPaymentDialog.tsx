@@ -277,6 +277,9 @@ export function RegisterPaymentDialog({
   }, [payment, open]);
 
   const isReciboInterno = form.tipo_comprobante === "recibo_interno";
+  const isReciboHonorarios = form.tipo_comprobante === "recibo_honorarios";
+  const isReciboSinIGV = isReciboInterno || isReciboHonorarios;
+
 
   const calculateIGV = (subtotal: number, tipoIgv: string) => {
     if (tipoIgv === "gravado") {
@@ -287,7 +290,7 @@ export function RegisterPaymentDialog({
 
   const handleSubtotalChange = (value: string) => {
     const subtotal = parseFloat(value) || 0;
-    const igv = isReciboInterno ? 0 : calculateIGV(subtotal, form.tipo_igv);
+    const igv = isReciboSinIGV ? 0 : calculateIGV(subtotal, form.tipo_igv);
     const monto = subtotal + igv;
 
     setForm((prev) => ({
@@ -298,6 +301,7 @@ export function RegisterPaymentDialog({
       monto_neto: monto - prev.detraccion_monto - prev.retencion_monto,
     }));
   };
+
 
   const handleTipoIGVChange = (tipoIgv: string) => {
     const igv = calculateIGV(form.subtotal, tipoIgv);
@@ -341,8 +345,8 @@ export function RegisterPaymentDialog({
       // El total del pago no debe cambiar al cambiar el tipo de comprobante
       const total = parseFloat((prev.monto || prev.subtotal + prev.igv).toFixed(2));
 
-      if (value === "recibo_interno") {
-        // Recibo interno: sin IGV, se mantiene el precio total
+      if (value === "recibo_interno" || value === "recibo_honorarios") {
+        // Recibos sin IGV: se mantiene el precio total
         return {
           ...prev,
           tipo_comprobante: value,
@@ -374,18 +378,20 @@ export function RegisterPaymentDialog({
   };
 
 
+
   const handleSave = async () => {
     if (!payment) return;
 
-    if (!isReciboInterno && (!form.serie_comprobante.trim() || !form.numero_comprobante.trim())) {
+    if (!isReciboSinIGV && (!form.serie_comprobante.trim() || !form.numero_comprobante.trim())) {
       toast.error("Ingrese la serie y número del comprobante");
       return;
     }
 
-    if (isReciboInterno && !form.numero_comprobante.trim()) {
+    if (isReciboSinIGV && !form.numero_comprobante.trim()) {
       toast.error("Ingrese el número del recibo");
       return;
     }
+
 
     setSaving(true);
 
@@ -567,7 +573,8 @@ export function RegisterPaymentDialog({
     const imgWidth = 190;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
-    pdf.save(`recibo-interno-${form.numero_comprobante}.pdf`);
+    const receiptType = form.tipo_comprobante === "recibo_honorarios" ? "recibo-honorarios" : "recibo-interno";
+    pdf.save(`${receiptType}-${form.numero_comprobante}.pdf`);
     toast.success("Recibo emitido correctamente");
   };
 
@@ -879,12 +886,12 @@ export function RegisterPaymentDialog({
                 </div>
 
                 <Tabs defaultValue="comprobante" className="w-full">
-                  <TabsList className={`grid w-full ${isReciboInterno ? "grid-cols-2" : "grid-cols-3"}`}>
+                  <TabsList className={`grid w-full ${isReciboSinIGV ? "grid-cols-2" : "grid-cols-3"}`}>
                     <TabsTrigger value="comprobante" className="gap-2">
                       <FileText className="h-4 w-4" />
                       Comprobante
                     </TabsTrigger>
-                    {!isReciboInterno && (
+                    {!isReciboSinIGV && (
                       <TabsTrigger value="montos" className="gap-2">
                         <Calculator className="h-4 w-4" />
                         Montos
@@ -926,7 +933,7 @@ export function RegisterPaymentDialog({
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      {!isReciboInterno && (
+                      {!isReciboSinIGV && (
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2">
                             <Hash className="h-4 w-4" />
@@ -943,20 +950,20 @@ export function RegisterPaymentDialog({
                         </div>
                       )}
 
-                      <div className={`space-y-2 ${isReciboInterno ? "col-span-2" : ""}`}>
+                      <div className={`space-y-2 ${isReciboSinIGV ? "col-span-2" : ""}`}>
                         <Label className="flex items-center gap-2">
                           <Hash className="h-4 w-4" />
-                          {isReciboInterno ? "Número de Recibo" : "Número"}
+                          {isReciboSinIGV ? "Número de Recibo" : "Número"}
                         </Label>
                         <Input
                           value={form.numero_comprobante}
                           onChange={(e) => setForm((prev) => ({ ...prev, numero_comprobante: e.target.value }))}
-                          placeholder={isReciboInterno ? "Ej: 0001" : "Ej: 00000123"}
+                          placeholder={isReciboSinIGV ? "Ej: 0001" : "Ej: 00000123"}
                         />
                       </div>
                     </div>
 
-                    {isReciboInterno && (
+                    {isReciboSinIGV && (
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Monto del Recibo</Label>
@@ -986,7 +993,7 @@ export function RegisterPaymentDialog({
                       </div>
                     )}
 
-                    {!isReciboInterno && (
+                    {!isReciboSinIGV && (
                       <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
                         <p className="text-sm text-amber-700">
@@ -997,8 +1004,8 @@ export function RegisterPaymentDialog({
                     )}
                   </TabsContent>
 
-                  {/* Tab Montos - Solo si no es Recibo Interno */}
-                  {!isReciboInterno && (
+                  {/* Tab Montos - Solo si no es Recibo sin IGV */}
+                  {!isReciboSinIGV && (
                     <TabsContent value="montos" className="space-y-4 mt-4">
                       <Card>
                         <CardHeader className="pb-3">
@@ -1272,8 +1279,8 @@ export function RegisterPaymentDialog({
                   </CollapsibleContent>
                 </Collapsible>
 
-                {/* Recibo Interno Preview */}
-                {isReciboInterno && (
+                {/* Recibo sin IGV Preview */}
+                {isReciboSinIGV && (
                   <Card className="border-2 border-dashed border-primary/30">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm flex items-center gap-2">
@@ -1287,7 +1294,9 @@ export function RegisterPaymentDialog({
                         className="bg-white p-4 rounded border text-xs space-y-3"
                       >
                         <div className="text-center border-b pb-2">
-                          <h3 className="font-bold text-primary text-sm">RECIBO INTERNO</h3>
+                          <h3 className="font-bold text-primary text-sm">
+                            {isReciboHonorarios ? "RECIBO POR HONORARIOS" : "RECIBO INTERNO"}
+                          </h3>
                           <p className="text-muted-foreground">N° {form.numero_comprobante || "---"}</p>
                         </div>
 
@@ -1333,7 +1342,7 @@ export function RegisterPaymentDialog({
                         disabled={!form.numero_comprobante}
                       >
                         <Printer className="h-4 w-4" />
-                        Emitir Recibo PDF
+                        Emitir {isReciboHonorarios ? "Recibo por Honorarios" : "Recibo Interno"} PDF
                       </Button>
                     </CardContent>
                   </Card>
@@ -1349,7 +1358,7 @@ export function RegisterPaymentDialog({
                       <span className="text-muted-foreground">Subtotal:</span>
                       <span>{formatCurrency(form.subtotal, payment.contrato.moneda)}</span>
                     </div>
-                    {!isReciboInterno && (
+                    {!isReciboSinIGV && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">IGV:</span>
                         <span>{formatCurrency(form.igv, payment.contrato.moneda)}</span>
@@ -1359,7 +1368,7 @@ export function RegisterPaymentDialog({
                       <span>Total:</span>
                       <span>{formatCurrency(form.monto, payment.contrato.moneda)}</span>
                     </div>
-                    {!isReciboInterno && (form.detraccion_monto > 0 || form.retencion_monto > 0) && (
+                    {!isReciboSinIGV && (form.detraccion_monto > 0 || form.retencion_monto > 0) && (
                       <>
                         <Separator />
                         <div className="flex justify-between text-green-600 font-bold">
