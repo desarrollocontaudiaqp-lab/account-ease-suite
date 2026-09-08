@@ -1294,7 +1294,9 @@ export function RegisterPaymentDialog({
                         className="bg-white p-4 rounded border text-xs space-y-3"
                       >
                         <div className="text-center border-b pb-2">
-                          <h3 className="font-bold text-primary text-sm">RECIBO INTERNO</h3>
+                          <h3 className="font-bold text-primary text-sm">
+                            {isReciboHonorarios ? "RECIBO POR HONORARIOS" : "RECIBO INTERNO"}
+                          </h3>
                           <p className="text-muted-foreground">N° {form.numero_comprobante || "---"}</p>
                         </div>
 
