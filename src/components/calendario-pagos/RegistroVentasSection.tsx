@@ -453,6 +453,7 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
         factura: "FAC",
         boleta: "BOL",
         recibo_interno: "R.I.",
+        recibo_honorarios: "R.H.",
         nota_credito: "N/C",
         nota_debito: "N/D",
       };
@@ -669,6 +670,7 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
       factura: "FAC",
       boleta: "BOL",
       recibo_interno: "R.I.",
+      recibo_honorarios: "R.H.",
       nota_credito: "N/C",
       nota_debito: "N/D",
     };
