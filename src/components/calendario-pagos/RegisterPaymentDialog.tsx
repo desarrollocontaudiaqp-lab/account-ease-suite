@@ -1342,7 +1342,7 @@ export function RegisterPaymentDialog({
                         disabled={!form.numero_comprobante}
                       >
                         <Printer className="h-4 w-4" />
-                        Emitir Recibo PDF
+                        Emitir {isReciboHonorarios ? "Recibo por Honorarios" : "Recibo Interno"} PDF
                       </Button>
                     </CardContent>
                   </Card>
