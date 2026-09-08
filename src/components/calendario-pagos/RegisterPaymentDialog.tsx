@@ -1279,7 +1279,7 @@ export function RegisterPaymentDialog({
                 </Collapsible>
 
                 {/* Recibo Interno Preview */}
-                {isReciboInterno && (
+                {isReciboSinIGV && (
                   <Card className="border-2 border-dashed border-primary/30">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm flex items-center gap-2">
@@ -1355,7 +1355,7 @@ export function RegisterPaymentDialog({
                       <span className="text-muted-foreground">Subtotal:</span>
                       <span>{formatCurrency(form.subtotal, payment.contrato.moneda)}</span>
                     </div>
-                    {!isReciboInterno && (
+                    {!isReciboSinIGV && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">IGV:</span>
                         <span>{formatCurrency(form.igv, payment.contrato.moneda)}</span>
@@ -1365,7 +1365,7 @@ export function RegisterPaymentDialog({
                       <span>Total:</span>
                       <span>{formatCurrency(form.monto, payment.contrato.moneda)}</span>
                     </div>
-                    {!isReciboInterno && (form.detraccion_monto > 0 || form.retencion_monto > 0) && (
+                    {!isReciboSinIGV && (form.detraccion_monto > 0 || form.retencion_monto > 0) && (
                       <>
                         <Separator />
                         <div className="flex justify-between text-green-600 font-bold">
