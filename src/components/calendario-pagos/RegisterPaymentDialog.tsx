@@ -382,15 +382,16 @@ export function RegisterPaymentDialog({
   const handleSave = async () => {
     if (!payment) return;
 
-    if (!isReciboInterno && (!form.serie_comprobante.trim() || !form.numero_comprobante.trim())) {
+    if (!isReciboSinIGV && (!form.serie_comprobante.trim() || !form.numero_comprobante.trim())) {
       toast.error("Ingrese la serie y número del comprobante");
       return;
     }
 
-    if (isReciboInterno && !form.numero_comprobante.trim()) {
+    if (isReciboSinIGV && !form.numero_comprobante.trim()) {
       toast.error("Ingrese el número del recibo");
       return;
     }
+
 
     setSaving(true);
 
