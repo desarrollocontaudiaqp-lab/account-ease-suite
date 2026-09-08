@@ -314,8 +314,9 @@ export const ContractActions = ({
               )}
               {confirmDialog.action === "eliminar" && (
                 <>
-                  El contrato <strong>{contractNumero}</strong> será eliminado permanentemente junto con sus pagos asociados. 
-                  Esta acción no se puede deshacer.
+                  El contrato <strong>{contractNumero}</strong> será eliminado permanentemente junto con su
+                  calendario de pagos, registros de venta, supervisiones, asignaciones y workflows asociados.
+                  Las proformas se conservarán, pero quedarán desvinculadas. Esta acción no se puede deshacer.
                 </>
               )}
             </AlertDialogDescription>
