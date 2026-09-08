@@ -166,9 +166,10 @@ export function useDashboardStats() {
       });
       const ingresosMes = pagosMes.reduce((sum, p) => sum + (Number(p.monto) || 0), 0);
 
-      // Pagos vencidos
+      // Pagos vencidos (las cuotas suspendidas no generan deuda ni alertas)
       const pagosVencidos = pagos.filter(p => {
         if (p.status === 'pagado') return false;
+        if (String((p as { notas?: string }).notas || '').startsWith('Suspendido desde')) return false;
         const fechaVenc = parseISO(p.fecha_vencimiento);
         return fechaVenc < now;
       });
