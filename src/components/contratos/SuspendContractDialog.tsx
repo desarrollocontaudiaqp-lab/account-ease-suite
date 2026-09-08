@@ -86,10 +86,22 @@ export function SuspendContractDialog({
     try {
       const { data: current, error: fetchError } = await supabase
         .from("contratos")
-        .select("datos_plantilla")
+        .select("datos_plantilla, fecha_fin")
         .eq("id", contractId)
         .maybeSingle();
       if (fetchError) throw fetchError;
+
+      // Solo se puede reactivar si el contrato sigue vigente en fechas
+      if (mode === "reactivar" && current?.fecha_fin) {
+        if (current.fecha_fin < fecha) {
+          toast.error(
+            `No se puede reactivar: el contrato venció el ${current.fecha_fin}. Debe renovarlo o registrar uno nuevo.`
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
 
       const datos = ((current?.datos_plantilla as Record<string, unknown>) || {}) as Record<string, unknown>;
 
