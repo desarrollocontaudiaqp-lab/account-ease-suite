@@ -962,7 +962,7 @@ export function RegisterPaymentDialog({
                       </div>
                     </div>
 
-                    {isReciboInterno && (
+                    {isReciboSinIGV && (
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Monto del Recibo</Label>
@@ -992,7 +992,7 @@ export function RegisterPaymentDialog({
                       </div>
                     )}
 
-                    {!isReciboInterno && (
+                    {!isReciboSinIGV && (
                       <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
                         <p className="text-sm text-amber-700">
@@ -1003,8 +1003,8 @@ export function RegisterPaymentDialog({
                     )}
                   </TabsContent>
 
-                  {/* Tab Montos - Solo si no es Recibo Interno */}
-                  {!isReciboInterno && (
+                  {/* Tab Montos - Solo si no es Recibo sin IGV */}
+                  {!isReciboSinIGV && (
                     <TabsContent value="montos" className="space-y-4 mt-4">
                       <Card>
                         <CardHeader className="pb-3">
