@@ -277,6 +277,9 @@ export function RegisterPaymentDialog({
   }, [payment, open]);
 
   const isReciboInterno = form.tipo_comprobante === "recibo_interno";
+  const isReciboHonorarios = form.tipo_comprobante === "recibo_honorarios";
+  const isReciboSinIGV = isReciboInterno || isReciboHonorarios;
+
 
   const calculateIGV = (subtotal: number, tipoIgv: string) => {
     if (tipoIgv === "gravado") {
