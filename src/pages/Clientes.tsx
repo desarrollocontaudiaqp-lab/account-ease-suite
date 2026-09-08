@@ -32,7 +32,7 @@ import { DeleteClientDialog } from "@/components/clientes/DeleteClientDialog";
 import { SuspendClientDialog } from "@/components/clientes/SuspendClientDialog";
 import { ClientActions } from "@/components/clientes/ClientActions";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
-import { exportBaseMaestra } from "@/lib/exportBaseMaestra";
+import { BaseMaestraDialog } from "@/components/clientes/BaseMaestraDialog";
 import { useSunatCredentials } from "@/hooks/useSunatCredentials";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -81,24 +81,8 @@ const Clientes = () => {
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const { canViewSunat } = useSunatCredentials();
-  const [exportingBase, setExportingBase] = useState(false);
+  const [baseMaestraOpen, setBaseMaestraOpen] = useState(false);
 
-  const handleBaseMaestra = async () => {
-    setExportingBase(true);
-    try {
-      const res = await exportBaseMaestra({
-        clientIds: filteredClients.map((c) => c.id),
-        includeSunat: canViewSunat,
-      });
-      toast.success(
-        `Base maestra generada: ${res.clientes} clientes, ${res.contratos} contratos, ${res.proformas} proformas`
-      );
-    } catch (error: any) {
-      toast.error("Error al generar la base maestra: " + error.message);
-    } finally {
-      setExportingBase(false);
-    }
-  };
 
   const fetchClients = async () => {
     try {
@@ -232,16 +216,12 @@ const Clientes = () => {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={handleBaseMaestra}
-            disabled={exportingBase}
+            onClick={() => setBaseMaestraOpen(true)}
           >
-            {exportingBase ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Database className="h-4 w-4" />
-            )}
+            <Database className="h-4 w-4" />
             BASE MAESTRA
           </Button>
+
           <ExportExcelButton
             allRows={sedeClients}
             filteredRows={filteredClients}
@@ -311,6 +291,17 @@ const Clientes = () => {
         clientName={selectedClient ? getClientName(selectedClient) || "" : ""}
         onSuccess={fetchClients}
       />
+
+      <BaseMaestraDialog
+        open={baseMaestraOpen}
+        onOpenChange={setBaseMaestraOpen}
+        sedes={availableSedes as any}
+        canViewAllSedes={canViewAllSedes}
+        activeSedeId={activeSedeId}
+        includeSunat={canViewSunat}
+      />
+
+
 
       {/* Filters */}
       <div className="bg-card rounded-xl border border-border p-4">
