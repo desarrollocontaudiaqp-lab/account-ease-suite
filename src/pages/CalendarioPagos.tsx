@@ -798,6 +798,7 @@ export default function CalendarioPagos() {
                 <SelectItem value="vencido">Vencido</SelectItem>
                 <SelectItem value="parcial">Parcial</SelectItem>
                 <SelectItem value="proyectado">Proyectado</SelectItem>
+                <SelectItem value="suspendido">Suspendido</SelectItem>
               </SelectContent>
             </Select>
             <Select value={sourceFilter} onValueChange={setSourceFilter}>
