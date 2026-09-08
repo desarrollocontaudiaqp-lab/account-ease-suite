@@ -128,9 +128,11 @@ interface PaymentStats {
   pagados: number;
   vencidos: number;
   proyectados: number;
+  suspendidos: number;
   montoPendiente: number;
   montoPagado: number;
   montoProyectado: number;
+  montoSuspendido: number;
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
@@ -139,6 +141,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   vencido: { label: "Vencido", color: "bg-red-100 text-red-800 border-red-200", icon: AlertTriangle },
   parcial: { label: "Parcial", color: "bg-blue-100 text-blue-800 border-blue-200", icon: TrendingUp },
   proyectado: { label: "Proyectado", color: "bg-purple-100 text-purple-800 border-purple-200", icon: FileText },
+  suspendido: { label: "Suspendido", color: "bg-slate-200 text-slate-700 border-slate-300", icon: Clock },
 };
 
 export default function CalendarioPagos() {
