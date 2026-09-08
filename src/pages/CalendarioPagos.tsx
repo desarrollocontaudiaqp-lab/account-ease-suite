@@ -445,6 +445,7 @@ export default function CalendarioPagos() {
       pagados: allPayments.filter((p) => p.status === "pagado").length,
       vencidos: allPayments.filter((p) => p.status === "vencido").length,
       proyectados: allPayments.filter((p) => p.status === "proyectado").length,
+      suspendidos: allPayments.filter((p) => p.status === "suspendido").length,
       montoPendiente: allPayments
         .filter((p) => p.status === "pendiente" || p.status === "vencido")
         .reduce((sum, p) => sum + (p.monto || 0), 0),
@@ -453,6 +454,9 @@ export default function CalendarioPagos() {
         .reduce((sum, p) => sum + (p.monto || 0), 0),
       montoProyectado: allPayments
         .filter((p) => p.status === "proyectado")
+        .reduce((sum, p) => sum + (p.monto || 0), 0),
+      montoSuspendido: allPayments
+        .filter((p) => p.status === "suspendido")
         .reduce((sum, p) => sum + (p.monto || 0), 0),
     };
     setStats(statsData);
