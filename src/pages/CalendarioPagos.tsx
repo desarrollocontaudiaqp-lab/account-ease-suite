@@ -322,9 +322,11 @@ export default function CalendarioPagos() {
       
       const isSuspended = String(payment.notas || "").startsWith("Suspendido desde");
       let status = payment.status as UnifiedPayment["status"];
-      if (status === "pendiente" && dueDate < today && !isSuspended) {
+      if (isSuspended && status !== "pagado" && status !== "parcial") {
+        // Cuota en pausa: no genera deuda ni alertas
+        status = "suspendido";
+      } else if (status === "pendiente" && dueDate < today) {
         status = "vencido";
-
       }
 
       // Find cuota number based on position in sorted list for this contract
