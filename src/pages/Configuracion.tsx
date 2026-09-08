@@ -41,6 +41,7 @@ const Configuracion = () => {
   const [defaultCurrency, setDefaultCurrency] = useState<"PEN" | "USD">(config.default_currency);
   const [proformaExpirationDays, setProformaExpirationDays] = useState(config.proforma_expiration_days);
   const [expenseApprovalEnabled, setExpenseApprovalEnabled] = useState(config.expense_approval_enabled);
+  const [workflowModuleEnabled, setWorkflowModuleEnabled] = useState(config.workflow_module_enabled);
   const [generatingManual, setGeneratingManual] = useState(false);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ const Configuracion = () => {
     setDefaultCurrency(config.default_currency);
     setProformaExpirationDays(config.proforma_expiration_days);
     setExpenseApprovalEnabled(config.expense_approval_enabled);
+    setWorkflowModuleEnabled(config.workflow_module_enabled);
   }, [config]);
 
   const handleSaveSystemConfig = async () => {
@@ -58,6 +60,7 @@ const Configuracion = () => {
       default_currency: defaultCurrency,
       proforma_expiration_days: proformaExpirationDays,
       expense_approval_enabled: expenseApprovalEnabled,
+      workflow_module_enabled: workflowModuleEnabled,
     });
     toast.success("Configuración del sistema guardada correctamente");
   };
@@ -449,6 +452,22 @@ const Configuracion = () => {
                 </div>
 
                 <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground">Mostrar módulo WorkFlow</p>
+                    <p className="text-sm text-muted-foreground">
+                      Si se desactiva, el menú WorkFlow deja de mostrarse en el sistema para todos los usuarios y todas las sedes.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={workflowModuleEnabled}
+                    onCheckedChange={setWorkflowModuleEnabled}
+                  />
+                </div>
+
+                <Separator />
+
 
                 <div className="flex items-center justify-between">
                   <div>

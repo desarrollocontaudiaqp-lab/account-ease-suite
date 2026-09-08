@@ -89,13 +89,14 @@ export function AppSidebar() {
   const { contracts: alertContracts } = useContractAlerts();
   const alertCount = alertContracts.length;
   const approvalEnabled = config.expense_approval_enabled !== false;
-  const filteredMenuItems = approvalEnabled
-    ? menuItems
-    : menuItems.map((item) =>
-        item.title === "Egresos" && item.children
-          ? { ...item, children: item.children.filter((c) => c.path !== "/egresos/aprobaciones") }
-          : item
-      );
+  const workflowEnabled = config.workflow_module_enabled !== false;
+  const filteredMenuItems = menuItems
+    .filter((item) => workflowEnabled || item.title !== "WorkFlow")
+    .map((item) =>
+      !approvalEnabled && item.title === "Egresos" && item.children
+        ? { ...item, children: item.children.filter((c) => c.path !== "/egresos/aprobaciones") }
+        : item
+    );
   const sedeNombre = activeSedeId
     ? availableSedes.find((s) => s.id === activeSedeId)?.nombre
     : availableSedes.length === 1

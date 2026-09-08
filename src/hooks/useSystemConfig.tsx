@@ -8,6 +8,7 @@ export interface SystemConfig {
   currency_symbol: string;
   proforma_expiration_days: number;
   expense_approval_enabled: boolean;
+  workflow_module_enabled: boolean;
 }
 
 const DEFAULT_CONFIG: SystemConfig = {
@@ -17,6 +18,7 @@ const DEFAULT_CONFIG: SystemConfig = {
   currency_symbol: "S/.",
   proforma_expiration_days: 30,
   expense_approval_enabled: true,
+  workflow_module_enabled: true,
 };
 
 interface SystemConfigContextType {
@@ -62,6 +64,8 @@ export function SystemConfigProvider({ children }: { children: ReactNode }) {
           proforma_expiration_days: (savedConfig.proforma_expiration_days as number) ?? DEFAULT_CONFIG.proforma_expiration_days,
           expense_approval_enabled:
             (savedConfig.expense_approval_enabled as boolean) ?? DEFAULT_CONFIG.expense_approval_enabled,
+          workflow_module_enabled:
+            (savedConfig.workflow_module_enabled as boolean) ?? DEFAULT_CONFIG.workflow_module_enabled,
         });
       }
     } catch (error) {
