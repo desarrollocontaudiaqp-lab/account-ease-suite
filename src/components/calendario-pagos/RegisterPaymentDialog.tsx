@@ -885,12 +885,12 @@ export function RegisterPaymentDialog({
                 </div>
 
                 <Tabs defaultValue="comprobante" className="w-full">
-                  <TabsList className={`grid w-full ${isReciboInterno ? "grid-cols-2" : "grid-cols-3"}`}>
+                  <TabsList className={`grid w-full ${isReciboSinIGV ? "grid-cols-2" : "grid-cols-3"}`}>
                     <TabsTrigger value="comprobante" className="gap-2">
                       <FileText className="h-4 w-4" />
                       Comprobante
                     </TabsTrigger>
-                    {!isReciboInterno && (
+                    {!isReciboSinIGV && (
                       <TabsTrigger value="montos" className="gap-2">
                         <Calculator className="h-4 w-4" />
                         Montos
@@ -932,7 +932,7 @@ export function RegisterPaymentDialog({
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      {!isReciboInterno && (
+                      {!isReciboSinIGV && (
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2">
                             <Hash className="h-4 w-4" />
@@ -949,15 +949,15 @@ export function RegisterPaymentDialog({
                         </div>
                       )}
 
-                      <div className={`space-y-2 ${isReciboInterno ? "col-span-2" : ""}`}>
+                      <div className={`space-y-2 ${isReciboSinIGV ? "col-span-2" : ""}`}>
                         <Label className="flex items-center gap-2">
                           <Hash className="h-4 w-4" />
-                          {isReciboInterno ? "Número de Recibo" : "Número"}
+                          {isReciboSinIGV ? "Número de Recibo" : "Número"}
                         </Label>
                         <Input
                           value={form.numero_comprobante}
                           onChange={(e) => setForm((prev) => ({ ...prev, numero_comprobante: e.target.value }))}
-                          placeholder={isReciboInterno ? "Ej: 0001" : "Ej: 00000123"}
+                          placeholder={isReciboSinIGV ? "Ej: 0001" : "Ej: 00000123"}
                         />
                       </div>
                     </div>
