@@ -263,8 +263,12 @@ export function RegistroVentasSection({ payments }: RegistroVentasSectionProps) 
           existingByPagoId.delete(pago.id);
         } else {
           // Create a new record from pago data
-          const baseImponible = Number(pago.subtotal) || Number(pago.monto) / (1 + (config?.igv_percentage || 18) / 100);
-          const igvAmount = Number(pago.igv) || Number(pago.monto) * ((config?.igv_percentage || 18) / 100) / (1 + (config?.igv_percentage || 18) / 100);
+          const isSinIGV = pago.tipo_comprobante === "recibo_interno" || pago.tipo_comprobante === "recibo_honorarios";
+          const baseImponible = isSinIGV
+            ? Number(pago.monto)
+            : Number(pago.subtotal) || Number(pago.monto) / (1 + (config?.igv_percentage || 18) / 100);
+          const igvAmount = isSinIGV ? 0 : Number(pago.igv) || Number(pago.monto) * ((config?.igv_percentage || 18) / 100) / (1 + (config?.igv_percentage || 18) / 100);
+          
           
           records.push({
             id: pago.id, // Use pago.id temporarily
