@@ -133,24 +133,45 @@ export const ContractActions = ({
 
   const handleDelete = async () => {
     setLoading(true);
-    
-    // First delete associated payments
-    await supabase
-      .from("pagos")
-      .delete()
-      .eq("contrato_id", contractId);
+    try {
+      // 1. Cronograma de pagos (arrastra registros de ventas asociados)
+      const { error: pagosError } = await supabase
+        .from("pagos")
+        .delete()
+        .eq("contrato_id", contractId);
+      if (pagosError) throw pagosError;
 
-    const { error } = await supabase
-      .from("contratos")
-      .delete()
-      .eq("id", contractId);
+      // 2. Supervisión de detalles del contrato
+      await supabase.from("detalle_supervisiones").delete().eq("contrato_id", contractId);
 
-    if (error) {
-      console.error("Error deleting contract:", error);
-      toast.error("Error al eliminar el contrato");
-    } else {
-      toast.success("Contrato eliminado");
+      // 3. Asignaciones y su calendario de trabajo
+      const { data: asigs } = await supabase
+        .from("asignaciones")
+        .select("id")
+        .eq("contrato_id", contractId);
+      const asigIds = (asigs || []).map((a) => a.id);
+      if (asigIds.length > 0) {
+        await supabase.from("calendario_trabajo").delete().in("asignacion_id", asigIds);
+        await supabase.from("asignaciones").delete().in("id", asigIds);
+      }
+
+      // 4. Workflows del contrato (sus notas, checklists, kanban y adjuntos caen en cascada)
+      await supabase.from("workflows").delete().eq("contrato_id", contractId);
+
+      // 5. Desvincular proformas para conservarlas
+      await supabase.from("proformas").update({ contrato_id: null }).eq("contrato_id", contractId);
+
+      // 6. Contrato
+      const { error } = await supabase.from("contratos").delete().eq("id", contractId);
+      if (error) throw error;
+
+      toast.success("Contrato eliminado junto con su calendario de pagos y registros relacionados");
       onStatusChange();
+    } catch (err) {
+      console.error("Error deleting contract:", err);
+      toast.error(
+        "Error al eliminar el contrato: " + (err instanceof Error ? err.message : "desconocido")
+      );
     }
     setLoading(false);
     setConfirmDialog({ open: false, action: null });
