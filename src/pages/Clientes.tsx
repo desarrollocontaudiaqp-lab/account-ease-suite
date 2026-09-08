@@ -32,7 +32,7 @@ import { DeleteClientDialog } from "@/components/clientes/DeleteClientDialog";
 import { SuspendClientDialog } from "@/components/clientes/SuspendClientDialog";
 import { ClientActions } from "@/components/clientes/ClientActions";
 import { ExportExcelButton } from "@/components/ui/ExportExcelButton";
-import { exportBaseMaestra } from "@/lib/exportBaseMaestra";
+import { BaseMaestraDialog } from "@/components/clientes/BaseMaestraDialog";
 import { useSunatCredentials } from "@/hooks/useSunatCredentials";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
