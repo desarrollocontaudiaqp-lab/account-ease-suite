@@ -345,8 +345,8 @@ export function RegisterPaymentDialog({
       // El total del pago no debe cambiar al cambiar el tipo de comprobante
       const total = parseFloat((prev.monto || prev.subtotal + prev.igv).toFixed(2));
 
-      if (value === "recibo_interno") {
-        // Recibo interno: sin IGV, se mantiene el precio total
+      if (value === "recibo_interno" || value === "recibo_honorarios") {
+        // Recibos sin IGV: se mantiene el precio total
         return {
           ...prev,
           tipo_comprobante: value,
@@ -376,6 +376,7 @@ export function RegisterPaymentDialog({
       };
     });
   };
+
 
 
   const handleSave = async () => {
