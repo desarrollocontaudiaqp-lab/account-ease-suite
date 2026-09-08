@@ -66,6 +66,8 @@ import { AsignarDetallesDialog } from "@/components/asignaciones/AsignarDetalles
 import { SupervisarDetallesDialog } from "@/components/asignaciones/SupervisarDetallesDialog";
 import { useCanEditProgress } from "@/hooks/useCanEditProgress";
 import { useSedeContext } from "@/hooks/useSedeContext";
+import { useSystemConfig } from "@/hooks/useSystemConfig";
+
 
 type DateFilterType = "hoy" | "semana" | "mes_actual" | "mes" | "anio" | "todo";
 
@@ -152,7 +154,10 @@ const especialidadStyles: Record<string, string> = {
 
 const Asignaciones = () => {
   const { activeSedeId } = useSedeContext();
+  const { config } = useSystemConfig();
+  const workflowEnabled = config.workflow_module_enabled !== false;
   const [loading, setLoading] = useState(true);
+
   const [contratos, setContratos] = useState<ContratoAsignado[]>([]);
   const [carteras, setCarteras] = useState<Cartera[]>([]);
   const [search, setSearch] = useState("");
@@ -524,10 +529,13 @@ const Asignaciones = () => {
             <RefreshCw className="h-4 w-4" />
             Actualizar
           </Button>
-          <Button variant="outline" onClick={() => setBibliotecaOpen(true)} className="gap-2">
-            <Library className="h-4 w-4" />
-            Biblioteca de Workflows
-          </Button>
+          {workflowEnabled && (
+            <Button variant="outline" onClick={() => setBibliotecaOpen(true)} className="gap-2">
+              <Library className="h-4 w-4" />
+              Biblioteca de Workflows
+            </Button>
+          )}
+
         </div>
       </div>
 
@@ -857,16 +865,19 @@ const Asignaciones = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-primary hover:text-primary"
-                            onClick={() => openWorkflowModal(contrato)}
-                            title="WorkFlow"
-                            disabled={!contrato.cartera}
-                          >
-                            <Workflow className="h-4 w-4" />
-                          </Button>
+                          {workflowEnabled && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-primary hover:text-primary"
+                              onClick={() => openWorkflowModal(contrato)}
+                              title="WorkFlow"
+                              disabled={!contrato.cartera}
+                            >
+                              <Workflow className="h-4 w-4" />
+                            </Button>
+                          )}
+
                           <Button
                             variant="ghost"
                             size="icon"
