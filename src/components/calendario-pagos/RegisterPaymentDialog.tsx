@@ -1279,7 +1279,7 @@ export function RegisterPaymentDialog({
                   </CollapsibleContent>
                 </Collapsible>
 
-                {/* Recibo Interno Preview */}
+                {/* Recibo sin IGV Preview */}
                 {isReciboSinIGV && (
                   <Card className="border-2 border-dashed border-primary/30">
                     <CardHeader className="pb-2">
