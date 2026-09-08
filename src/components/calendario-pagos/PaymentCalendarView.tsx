@@ -19,7 +19,7 @@ interface UnifiedPayment {
   monto: number;
   fecha_vencimiento: string;
   fecha_pago: string | null;
-  status: "pendiente" | "pagado" | "vencido" | "parcial" | "proyectado";
+  status: "pendiente" | "pagado" | "vencido" | "parcial" | "proyectado" | "suspendido";
   metodo_pago: string | null;
   referencia: string | null;
   notas: string | null;
