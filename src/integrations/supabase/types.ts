@@ -2598,6 +2598,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_contrato_plantillas: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       can_view_all_sedes: { Args: { _user_id: string }; Returns: boolean }
       get_next_biblioteca_code: { Args: never; Returns: string }
       get_next_caja_code: { Args: never; Returns: string }
